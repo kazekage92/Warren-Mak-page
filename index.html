@@ -27,7 +27,10 @@
         <li><a href="media.html">Media</a></li>
         <li><a href="https://academy.thetradewizard.com/livetradingbootcamppgen" target="_blank" class="navbar__cta">Free Webinar</a></li>
       </ul>
-      <button class="navbar__toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button>
+      <div class="navbar__actions">
+        <button class="lang-toggle" id="langToggle" title="Switch to Chinese">中文</button>
+        <button class="navbar__toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button>
+      </div>
     </div>
   </nav>
 
@@ -35,18 +38,37 @@
   <section class="hero">
     <div class="container">
       <div class="hero__content">
-        <span class="hero__tag">Malaysia's #1 Live Market Trading Coach</span>
-        <h1 class="hero__title">Learn to Trade <span>Profitably</span> — With Real Market Experience</h1>
-        <p class="hero__subtitle">Former Bursa Malaysia Head (15 years) &bull; Ex-Bank Trader &bull; 300+ Seminars Conducted &bull; 30+ Years Market Experience</p>
-        <ul class="hero__credentials">
-          <li>Former Head of Investor Education & 4 Departments at Bursa Malaysia</li>
-          <li>Ex-Structured Products Trader at OCBC Bank</li>
-          <li>Master of Finance, RMIT University (Australia)</li>
-          <li>Featured in The Edge Malaysia, BFM 89.9, TEDx</li>
-        </ul>
-        <div class="hero__buttons">
-          <a href="https://academy.thetradewizard.com/livetradingbootcamppgen" target="_blank" class="btn btn--primary btn--lg">Join Free Webinar</a>
-          <a href="about.html" class="btn btn--outline">Learn More About Me</a>
+        <!-- English -->
+        <div data-lang="en">
+          <span class="hero__tag">Malaysia's #1 Live Market Trading Coach</span>
+          <h1 class="hero__title">Learn to Trade <span>Profitably</span> — With Real Market Experience</h1>
+          <p class="hero__subtitle">Former Bursa Malaysia Head (15 years) &bull; Ex-Bank Trader &bull; 300+ Seminars Conducted &bull; 30+ Years Market Experience</p>
+          <ul class="hero__credentials">
+            <li>Former Head of Investor Education & 4 Departments at Bursa Malaysia</li>
+            <li>Ex-Structured Products Trader at OCBC Bank</li>
+            <li>Master of Finance, RMIT University (Australia)</li>
+            <li>Featured in The Edge Malaysia, BFM 89.9, TEDx</li>
+          </ul>
+          <div class="hero__buttons">
+            <a href="https://academy.thetradewizard.com/livetradingbootcamppgen" target="_blank" class="btn btn--primary btn--lg">Join Free Webinar</a>
+            <a href="about.html" class="btn btn--outline">Learn More About Me</a>
+          </div>
+        </div>
+        <!-- Chinese -->
+        <div data-lang="zh" style="display:none;">
+          <span class="hero__tag">马来西亚 #1 实盘交易教练</span>
+          <h1 class="hero__title">学习<span>盈利交易</span> — 来自真实市场经验</h1>
+          <p class="hero__subtitle">前马来西亚交易所主管（15年）&bull; 前银行交易员 &bull; 300+ 场研讨会 &bull; 30+ 年市场经验</p>
+          <ul class="hero__credentials">
+            <li>前马来西亚交易所投资教育和其他4个部门主管</li>
+            <li>华侨银行结构性产品和衍生品前交易员</li>
+            <li>澳大利亚皇家墨尔本理工大学金融硕士学位</li>
+            <li>曾受 The Edge Malaysia、BFM 89.9、TEDx 专访</li>
+          </ul>
+          <div class="hero__buttons">
+            <a href="https://academy.thetradewizard.com/livetradingbootcamppgen" target="_blank" class="btn btn--primary btn--lg">参加免费网络研讨会</a>
+            <a href="about.html" class="btn btn--outline">了解更多关于我</a>
+          </div>
         </div>
       </div>
       <div class="hero__image">
@@ -81,9 +103,16 @@
   <section class="section">
     <div class="container">
       <div class="section__header">
-        <span class="tag">Why Learn From Me</span>
-        <h2>Not Just Theory — I Trade Live Markets</h2>
-        <p>Most trading coaches teach from textbooks. I teach from live charts, real trades, real mistakes, and real thinking processes — in the Malaysian market you actually trade in.</p>
+        <div data-lang="en">
+          <span class="tag">Why Learn From Me</span>
+          <h2>Not Just Theory — I Trade Live Markets</h2>
+          <p>Most trading coaches teach from textbooks. I teach from live charts, real trades, real mistakes, and real thinking processes — in the Malaysian market you actually trade in.</p>
+        </div>
+        <div data-lang="zh" style="display:none;">
+          <span class="tag">为什么跟我学</span>
+          <h2>不只是理论 — 我进行实盘交易</h2>
+          <p>大多数交易教练从课本教学。我从实盘图表、真实交易、真实错误和真实思维过程中教学 — 在你实际交易的马来西亚市场中。</p>
+        </div>
       </div>
       <div class="card-grid">
         <div class="card" data-animate>
@@ -202,9 +231,16 @@
   <section class="section">
     <div class="container">
       <div class="section__header">
-        <span class="tag">Programmes</span>
-        <h2>Master the Markets — Your Way</h2>
-        <p>Whether you're a beginner, retiree looking for side income, or an active trader wanting to sharpen your edge.</p>
+        <div data-lang="en">
+          <span class="tag">Programmes</span>
+          <h2>Master the Markets — Your Way</h2>
+          <p>Whether you're a beginner, retiree looking for side income, or an active trader wanting to sharpen your edge.</p>
+        </div>
+        <div data-lang="zh" style="display:none;">
+          <span class="tag">课程</span>
+          <h2>掌握市场 — 按照你的方式</h2>
+          <p>无论你是初学者、寻找额外收入的退休人士，还是想要提升技能的活跃交易者。</p>
+        </div>
       </div>
       <div class="card-grid">
         <div class="card" data-animate>
@@ -233,8 +269,14 @@
   <section class="section section--gray">
     <div class="container">
       <div class="section__header">
-        <span class="tag">What Students Say</span>
-        <h2>Real Results From Real Students</h2>
+        <div data-lang="en">
+          <span class="tag">What Students Say</span>
+          <h2>Real Results From Real Students</h2>
+        </div>
+        <div data-lang="zh" style="display:none;">
+          <span class="tag">学生评价</span>
+          <h2>真实学生的真实成果</h2>
+        </div>
       </div>
       <div class="testimonial-grid">
         <div class="testimonial" data-animate>
@@ -262,8 +304,14 @@
   <!-- CTA Section -->
   <section class="cta-section">
     <div class="container">
-      <h2>Ready to Start Your Trading Journey?</h2>
-      <p>Join my free live webinar and discover how structured, data-driven trading can transform your financial future.</p>
+      <div data-lang="en">
+        <h2>Ready to Start Your Trading Journey?</h2>
+        <p>Join my free live webinar and discover how structured, data-driven trading can transform your financial future.</p>
+      </div>
+      <div data-lang="zh" style="display:none;">
+        <h2>准备开始你的交易之旅？</h2>
+        <p>参加我的免费实盘网络研讨会，了解结构化、数据驱动的交易如何改变你的财务未来。</p>
+      </div>
       <div class="cta-buttons">
         <a href="https://academy.thetradewizard.com/livetradingbootcamppgen" target="_blank" class="btn btn--primary btn--lg">Start Learning — Free Webinar</a>
         <a href="https://www.thetradewizard.com/" target="_blank" class="btn btn--outline">Explore Trade Wizard</a>

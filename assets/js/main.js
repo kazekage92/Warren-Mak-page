@@ -53,4 +53,50 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+
+  // ============================================
+  // Language Toggle (EN / 中文)
+  // ============================================
+  initLanguageToggle();
 });
+
+function initLanguageToggle() {
+  // Get saved language or default to 'en'
+  var currentLang = localStorage.getItem('wm_lang') || 'en';
+  applyLanguage(currentLang);
+
+  // Bind toggle button
+  var toggleBtn = document.getElementById('langToggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function() {
+      var newLang = currentLang === 'en' ? 'zh' : 'en';
+      currentLang = newLang;
+      localStorage.setItem('wm_lang', newLang);
+      applyLanguage(newLang);
+    });
+  }
+}
+
+function applyLanguage(lang) {
+  // Update toggle button text
+  var toggleBtn = document.getElementById('langToggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = lang === 'en' ? '中文' : 'EN';
+    toggleBtn.setAttribute('title', lang === 'en' ? 'Switch to Chinese' : 'Switch to English');
+  }
+
+  // Show/hide elements by lang attribute
+  var enElements = document.querySelectorAll('[data-lang="en"]');
+  var zhElements = document.querySelectorAll('[data-lang="zh"]');
+
+  enElements.forEach(function(el) {
+    el.style.display = lang === 'en' ? '' : 'none';
+  });
+
+  zhElements.forEach(function(el) {
+    el.style.display = lang === 'zh' ? '' : 'none';
+  });
+
+  // Update html lang attribute
+  document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hans';
+}
