@@ -145,20 +145,21 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 72px;
+  height: 64px;
 }
 
 .navbar__logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   color: var(--white);
+  flex-shrink: 0;
 }
 
 .navbar__logo img {
-  height: 32px;
+  height: 28px;
   width: auto;
 }
 
@@ -170,30 +171,32 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   display: flex;
   align-items: center;
   list-style: none;
-  gap: 4px;
+  gap: 0;
 }
 
 .navbar__menu a {
-  color: rgba(255,255,255,0.8);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  color: rgba(255,255,255,0.75);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
   font-weight: 500;
   transition: var(--transition);
+  white-space: nowrap;
 }
 
 .navbar__menu a:hover,
 .navbar__menu a.active {
   color: var(--white);
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.08);
 }
 
 .navbar__cta {
   background: var(--accent) !important;
   color: var(--white) !important;
-  padding: 10px 24px !important;
-  border-radius: 8px !important;
+  padding: 7px 16px !important;
+  border-radius: 6px !important;
   font-weight: 600 !important;
+  font-size: 0.8rem !important;
 }
 
 .navbar__cta:hover {
@@ -214,16 +217,17 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 .navbar__actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .lang-toggle {
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
   color: var(--white);
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
@@ -243,7 +247,7 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   align-items: center;
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 50%, #1a3a4a 100%);
   color: var(--white);
-  padding-top: 72px;
+  padding-top: 64px;
   overflow: hidden;
 }
 
@@ -850,7 +854,7 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
 /* --- Course Page --- */
 .course-hero {
-  padding-top: 120px;
+  padding-top: 112px;
   padding-bottom: 80px;
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
   color: var(--white);
@@ -1047,7 +1051,7 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   .navbar__menu {
     display: none;
     position: absolute;
-    top: 72px;
+    top: 64px;
     left: 0;
     right: 0;
     background: var(--primary);
@@ -1058,6 +1062,11 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
   .navbar__menu.active {
     display: flex;
+  }
+
+  .navbar__menu a {
+    font-size: 0.9rem;
+    padding: 10px 16px;
   }
 
   .navbar__toggle {
