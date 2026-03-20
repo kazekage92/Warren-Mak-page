@@ -988,11 +988,25 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
 .footer__social a {
   color: rgba(255,255,255,0.5);
-  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  transition: background 0.2s, color 0.2s;
 }
 
 .footer__social a:hover {
-  color: var(--accent);
+  color: var(--white);
+  background: var(--accent);
+}
+
+.footer__social a svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 /* --- Responsive --- */
@@ -1104,6 +1118,10 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
     flex-direction: column;
     gap: 16px;
     text-align: center;
+  }
+
+  .footer__social {
+    justify-content: center;
   }
 
   .badge-grid {
