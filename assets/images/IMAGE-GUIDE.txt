@@ -1,0 +1,53 @@
+IMAGE PLACEMENT GUIDE - Warren Mak Website (www.warrenmak.asia)
+================================================================
+
+Please add the following images to this folder (assets/images/):
+
+1. warren-mak-hero.jpg
+   - Used on: index.html (hero section)
+   - Recommended: Full-body or half-body professional shot (the standing pose with hand in pocket works great)
+   - Ideal size: 800x1200px or similar portrait orientation
+
+2. warren-mak-profile.jpg
+   - Used on: about.html (bio section)
+   - Recommended: The thinking pose professional headshot
+   - Ideal size: 600x800px portrait
+
+3. edge-malaysia-feature.jpg
+   - Used on: media.html (featured section)
+   - Recommended: The Digital Edge Malaysia "Smarter Investing, Not Guesswork" cover image
+   - Ideal size: 800x600px landscape
+
+4. ted-optimus-team.jpg
+   - Used on: ted-optimus.html (about section)
+   - Recommended: The TED Optimus team award photo, or InvestSmart@SC team photo
+   - Ideal size: 800x500px landscape
+
+5. live-trading-session.jpg
+   - Used on: short-term-trading.html (curriculum section)
+   - Recommended: The seminar room shot with audience, or the Market Marathon seminar photo
+   - Ideal size: 800x500px landscape
+
+6. warren-speaking.jpg
+   - Used on: structured-warrants.html (common mistakes section)
+   - Recommended: Warren speaking on stage with microphone (the speaking pose shot)
+   - Ideal size: 600x800px portrait
+
+7. warrant-analysis.jpg
+   - Used on: structured-warrants.html (why learn section)
+   - Recommended: The "Feng Shui Meets Trading: Warrant Strategies" event photo with CGS International
+   - Ideal size: 800x500px landscape
+
+8. academy-learning.jpg
+   - Used on: ted-optimus.html (academy section)
+   - Recommended: The large group photo from "Build Your Wealth via AI & Automation" seminar
+   - Ideal size: 800x500px landscape
+
+ADDITIONAL PHOTOS AVAILABLE (from user uploads):
+- Malaysia Book of Records Award Acceptance Ceremony
+- Market Marathon MM25 Seminar Marathon interview
+- Warren speaking at "Street Smart Strategies for Trading & Investing Success"
+- 2024 Bursa Young Investor Workshop InvestSmart@SC team photo
+- Event networking photo
+- Large group seminar photo
+- Feng Shui Meets Trading: Warrant Strategies event with CGS International & Macquarie
