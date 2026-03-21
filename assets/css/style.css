@@ -311,6 +311,18 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   margin-bottom: 24px;
 }
 
+.hero__badges--mobile {
+  display: none;
+}
+
+.hero__badges--desktop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 24px;
+  margin-bottom: 0;
+}
+
 .hero__badge {
   background: rgba(232, 116, 12, 0.15);
   border: 1px solid rgba(232, 116, 12, 0.4);
@@ -1046,6 +1058,14 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
   .hero__image img {
     max-height: 400px;
+  }
+
+  .hero__badges--mobile {
+    display: flex;
+  }
+
+  .hero__badges--desktop {
+    display: none !important;
   }
 
   .hero__badge {
