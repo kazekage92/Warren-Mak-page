@@ -306,21 +306,9 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
 .hero__badges {
   display: flex;
-  flex-direction: column;
   gap: 10px;
-  margin-bottom: 24px;
-}
-
-.hero__badges--mobile {
-  display: none;
-}
-
-.hero__badges--desktop {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  grid-column: 1 / -1;
   margin-top: 24px;
-  margin-bottom: 0;
 }
 
 .hero__badge {
@@ -375,8 +363,7 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   position: relative;
   z-index: 2;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  justify-content: center;
 }
 
 .hero__image img {
@@ -1061,12 +1048,8 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
     max-height: 400px;
   }
 
-  .hero__badges--mobile {
-    display: flex;
-  }
-
-  .hero__badges--desktop {
-    display: none !important;
+  .hero__badges {
+    flex-direction: column;
   }
 
   .hero__badge {
