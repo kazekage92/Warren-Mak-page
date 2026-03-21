@@ -355,7 +355,7 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
 .hero__buttons {
   display: flex;
-  gap: 16px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
