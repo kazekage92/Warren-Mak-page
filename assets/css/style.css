@@ -304,6 +304,26 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   font-weight: 400;
 }
 
+.hero__badges {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.hero__badge {
+  background: rgba(232, 116, 12, 0.15);
+  border: 1px solid rgba(232, 116, 12, 0.4);
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 .hero__credentials {
   list-style: none;
   margin-bottom: 32px;
@@ -1026,6 +1046,11 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
   .hero__image img {
     max-height: 400px;
+  }
+
+  .hero__badge {
+    font-size: 0.8rem;
+    text-align: center;
   }
 
   .hero__credentials li {
