@@ -1056,12 +1056,14 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
   .hero__badges {
     flex-direction: column;
-    margin-top: 16px;
+    margin-top: -100px;
+    position: relative;
+    z-index: 3;
   }
 
   .hero__badge {
-    font-size: 0.8rem;
-    text-align: center;
+    font-size: 0.75rem;
+    text-align: left;
   }
 
   .hero__credentials li {
