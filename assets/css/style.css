@@ -204,6 +204,14 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   transform: translateY(-1px);
 }
 
+.navbar__cta--tool {
+  background: #16a34a !important;
+}
+
+.navbar__cta--tool:hover {
+  background: #15803d !important;
+}
+
 .navbar__toggle {
   display: none;
   background: none;
