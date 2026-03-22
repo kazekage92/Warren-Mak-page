@@ -1221,3 +1221,243 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   color: var(--text-light);
   font-weight: 400;
 }
+
+/* --- Article Pages --- */
+.article-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 32px;
+}
+
+.article-card {
+  display: block;
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--light-gray);
+  transition: var(--transition);
+  color: var(--text);
+}
+
+.article-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.article-card__tag {
+  display: inline-block;
+  background: var(--accent-glow);
+  color: var(--accent);
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.article-card__title {
+  font-size: 1.25rem;
+  color: var(--primary);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.article-card__excerpt {
+  font-size: 0.92rem;
+  color: var(--text-light);
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+.article-card__meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--mid-gray);
+  font-weight: 500;
+  padding-top: 16px;
+  border-top: 1px solid var(--light-gray);
+}
+
+/* Article Body */
+.article-body {
+  max-width: 800px;
+  margin: 0 auto;
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.article-body h2 {
+  margin-top: 48px;
+  margin-bottom: 16px;
+  font-size: 1.6rem;
+}
+
+.article-body h3 {
+  margin-top: 32px;
+  margin-bottom: 12px;
+  font-size: 1.25rem;
+}
+
+.article-body p {
+  margin-bottom: 20px;
+  color: var(--text);
+}
+
+.article-body ul,
+.article-body ol {
+  margin-bottom: 20px;
+  padding-left: 24px;
+}
+
+.article-body li {
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.article-body blockquote {
+  border-left: 4px solid var(--accent);
+  padding: 16px 24px;
+  margin: 24px 0;
+  background: var(--off-white);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-style: italic;
+  color: var(--text-light);
+}
+
+.article-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 0.95rem;
+}
+
+.article-body th,
+.article-body td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--light-gray);
+}
+
+.article-body th {
+  background: var(--primary);
+  color: var(--white);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.article-body tr:hover {
+  background: var(--off-white);
+}
+
+.article-body strong {
+  color: var(--primary);
+}
+
+.article-body a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.article-body a:hover {
+  color: var(--accent-light);
+}
+
+.article-breadcrumb {
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.article-breadcrumb a {
+  color: rgba(255,255,255,0.6);
+}
+
+.article-breadcrumb a:hover {
+  color: var(--white);
+}
+
+.article-breadcrumb span {
+  color: rgba(255,255,255,0.4);
+  margin: 0 8px;
+}
+
+.article-meta {
+  display: flex;
+  gap: 24px;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--light-gray);
+}
+
+.article-body .faq-item {
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  background: var(--off-white);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--accent);
+}
+
+.article-body .faq-item h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+  color: var(--primary);
+}
+
+.article-body .faq-item p {
+  margin-bottom: 0;
+  font-size: 0.95rem;
+}
+
+.article-related {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 2px solid var(--light-gray);
+}
+
+.article-related h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.article-related ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.article-related li {
+  margin-bottom: 12px;
+}
+
+.article-related a {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .article-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .article-body {
+    font-size: 1rem;
+  }
+
+  .article-body h2 {
+    font-size: 1.35rem;
+  }
+
+  .article-meta {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
