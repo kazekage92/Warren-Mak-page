@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Article Editor — Warren Mak Admin</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+
+    /* Login */
+    .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .login-box { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 48px 40px; max-width: 420px; width: 100%; text-align: center; }
+    .login-box h1 { font-size: 1.5rem; margin-bottom: 8px; color: #1a1a2e; }
+    .login-box p { color: #666; font-size: 0.9rem; margin-bottom: 28px; }
+    .login-box input { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; }
+    .login-box input:focus { outline: none; border-color: #2563eb; }
+    .login-box button { width: 100%; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 16px; transition: background 0.2s; }
+    .login-box button:hover { background: #1d4ed8; }
+    .login-error { color: #dc2626; font-size: 0.85rem; margin-top: 12px; display: none; }
+
+    /* Header */
+    .admin-header { background: #1a1a2e; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .admin-header h1 { font-size: 1.1rem; font-weight: 600; }
+    .admin-header .back-btn { background: rgba(255,255,255,0.15); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .admin-header .back-btn:hover { background: rgba(255,255,255,0.25); }
+    .admin-header .logout-btn { background: #dc2626; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+
+    /* Article List */
+    .article-list { max-width: 800px; margin: 32px auto; padding: 0 20px; }
+    .article-list h2 { font-size: 1.3rem; margin-bottom: 20px; color: #1a1a2e; }
+    .article-item { background: #fff; border-radius: 10px; padding: 20px 24px; margin-bottom: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 2px solid transparent; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
+    .article-item:hover { border-color: #2563eb; box-shadow: 0 4px 16px rgba(37,99,235,0.1); }
+    .article-item h3 { font-size: 1rem; color: #1a1a2e; }
+    .article-item .arrow { color: #999; font-size: 1.2rem; }
+
+    /* Editor */
+    .editor-wrap { max-width: 960px; margin: 24px auto; padding: 0 20px 60px; }
+    .editor-section { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 20px; overflow: hidden; }
+    .editor-section-title { font-size: 0.85rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.05em; padding: 16px 20px 0; }
+
+    /* Tabs */
+    .lang-tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin: 0 0 20px; padding: 0 20px; }
+    .lang-tab { padding: 12px 24px; cursor: pointer; font-weight: 600; font-size: 0.95rem; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; }
+    .lang-tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+    .lang-tab:hover { color: #2563eb; }
+
+    /* Quill overrides */
+    .editor-container { padding: 0 20px 20px; }
+    .ql-container { border: 1px solid #e5e7eb !important; border-top: none !important; border-radius: 0 0 8px 8px; min-height: 120px; font-size: 1rem; }
+    .ql-toolbar { border: 1px solid #e5e7eb !important; border-radius: 8px 8px 0 0; background: #fafbfc; }
+    .ql-editor { min-height: 120px; }
+    .ql-editor.body-editor { min-height: 400px; }
+
+    /* Save bar */
+    .save-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e5e7eb; padding: 12px 24px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; z-index: 100; }
+    .save-bar .status { margin-right: auto; font-size: 0.9rem; color: #666; }
+    .save-bar .status.unsaved { color: #f59e0b; font-weight: 600; }
+    .save-bar .status.saving { color: #2563eb; }
+    .save-bar .status.saved { color: #16a34a; }
+    .save-bar .status.error { color: #dc2626; }
+    .btn-save { background: #2563eb; color: #fff; border: none; padding: 10px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+    .btn-save:hover { background: #1d4ed8; }
+    .btn-save:disabled { background: #93c5fd; cursor: not-allowed; }
+    .btn-preview { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; padding: 10px 20px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
+
+    /* Loading */
+    .loading { text-align: center; padding: 60px; color: #666; }
+    .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid #e5e7eb; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Hidden */
+    .hidden { display: none !important; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .login-box { padding: 32px 24px; }
+      .lang-tab { padding: 10px 16px; font-size: 0.85rem; }
+      .editor-wrap { padding: 0 12px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ==================== LOGIN SCREEN ==================== -->
+<div id="loginScreen" class="login-wrap">
+  <div class="login-box">
+    <h1>Article Editor</h1>
+    <p>Warren Mak — warrenmak.asia</p>
+    <form id="loginForm">
+      <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off" required>
+      <button type="submit">Log In</button>
+      <div class="login-error" id="loginError">Incorrect password. Please try again.</div>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== ARTICLE LIST SCREEN ==================== -->
+<div id="listScreen" class="hidden">
+  <div class="admin-header">
+    <h1>Article Editor</h1>
+    <button class="logout-btn" onclick="logout()">Log Out</button>
+  </div>
+  <div class="article-list">
+    <h2>Select an Article to Edit</h2>
+    <div id="articleListContainer">
+      <div class="loading"><div class="spinner"></div><p style="margin-top:12px;">Loading articles...</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== EDITOR SCREEN ==================== -->
+<div id="editorScreen" class="hidden">
+  <div class="admin-header">
+    <button class="back-btn" onclick="backToList()">&larr; Back to Articles</button>
+    <h1 id="editorTitle">Editing Article</h1>
+    <button class="logout-btn" onclick="logout()">Log Out</button>
+  </div>
+
+  <div class="editor-wrap">
+    <div class="lang-tabs">
+      <button class="lang-tab active" data-lang="en" onclick="switchTab('en')">English</button>
+      <button class="lang-tab" data-lang="zh" onclick="switchTab('zh')">中文 Chinese</button>
+    </div>
+
+    <!-- EN editors -->
+    <div id="editorsEn">
+      <div class="editor-section">
+        <div class="editor-section-title">Hero Section (Title &amp; Subtitle)</div>
+        <div class="editor-container"><div id="heroEditorEn"></div></div>
+      </div>
+      <div class="editor-section">
+        <div class="editor-section-title">Article Body</div>
+        <div class="editor-container"><div id="bodyEditorEn"></div></div>
+      </div>
+    </div>
+
+    <!-- ZH editors -->
+    <div id="editorsZh" class="hidden">
+      <div class="editor-section">
+        <div class="editor-section-title">Hero Section (标题和副标题)</div>
+        <div class="editor-container"><div id="heroEditorZh"></div></div>
+      </div>
+      <div class="editor-section">
+        <div class="editor-section-title">文章正文 (Article Body)</div>
+        <div class="editor-container"><div id="bodyEditorZh"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="save-bar">
+    <span class="status" id="saveStatus">Ready</span>
+    <button class="btn-preview" onclick="previewArticle()">Preview</button>
+    <button class="btn-save" id="saveBtn" onclick="saveArticle()">Save Changes</button>
+  </div>
+</div>
+
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  // ===================== CONFIGURATION =====================
+  // The site owner must fill in these two values:
+  // 1. GITHUB_TOKEN: A fine-grained GitHub PAT scoped to this repo with Contents read/write
+  // 2. PASSWORD_HASH: SHA-256 hash of the simple password the editor will use
+  //
+  // To generate a password hash, run this in the browser console:
+  //   crypto.subtle.digest('SHA-256', new TextEncoder().encode('YOUR_PASSWORD')).then(b => console.log(Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2,'0')).join('')))
+
+  const CONFIG = {
+    GITHUB_TOKEN: 'PASTE_YOUR_GITHUB_PAT_HERE',
+    PASSWORD_HASH: 'PASTE_SHA256_HASH_HERE',
+    REPO_OWNER: 'kazekage92',
+    REPO_NAME: 'Warren-Mak-page',
+    ARTICLES_PATH: 'articles'
+  };
+
+  // ===================== STATE =====================
+  let currentFile = null;
+  let fileSha = null;
+  let originalDoc = null;
+  let hasUnsavedChanges = false;
+  let quillHeroEn, quillBodyEn, quillHeroZh, quillBodyZh;
+
+  // ===================== HELPERS =====================
+  const $ = id => document.getElementById(id);
+
+  function apiHeaders() {
+    return {
+      'Authorization': 'Bearer ' + CONFIG.GITHUB_TOKEN,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    };
+  }
+
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(x => x.toString(16).padStart(2, '0')).join('');
+  }
+
+  function filenameToTitle(filename) {
+    return filename
+      .replace('.html', '')
+      .split('-')
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  }
+
+  // Unicode-safe base64
+  function utf8ToBase64(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+  function base64ToUtf8(b64) {
+    return decodeURIComponent(escape(atob(b64)));
+  }
+
+  function setStatus(text, type) {
+    const el = $('saveStatus');
+    el.textContent = text;
+    el.className = 'status ' + (type || '');
+  }
+
+  // ===================== LOGIN =====================
+  $('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const password = $('passwordInput').value;
+    const hash = await sha256(password);
+
+    if (hash === CONFIG.PASSWORD_HASH) {
+      sessionStorage.setItem('admin_auth', 'true');
+      $('loginError').style.display = 'none';
+      showListScreen();
+    } else {
+      $('loginError').style.display = 'block';
+      $('passwordInput').value = '';
+      $('passwordInput').focus();
+    }
+  });
+
+  window.logout = function() {
+    sessionStorage.removeItem('admin_auth');
+    hasUnsavedChanges = false;
+    location.reload();
+  };
+
+  // ===================== ARTICLE LIST =====================
+  async function showListScreen() {
+    $('loginScreen').classList.add('hidden');
+    $('editorScreen').classList.add('hidden');
+    $('listScreen').classList.remove('hidden');
+    await loadArticleList();
+  }
+
+  async function loadArticleList() {
+    const container = $('articleListContainer');
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${CONFIG.ARTICLES_PATH}`,
+        { headers: apiHeaders() }
+      );
+      if (!res.ok) throw new Error('Failed to load articles (HTTP ' + res.status + ')');
+      const files = await res.json();
+      const htmlFiles = files.filter(f => f.name.endsWith('.html')).sort((a, b) => a.name.localeCompare(b.name));
+
+      container.innerHTML = '';
+      htmlFiles.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'article-item';
+        item.innerHTML = '<h3>' + filenameToTitle(file.name) + '</h3><span class="arrow">&rarr;</span>';
+        item.onclick = () => openArticle(file.name);
+        container.appendChild(item);
+      });
+    } catch (err) {
+      container.innerHTML = '<p style="color:#dc2626;padding:20px;">Error: ' + err.message + '</p>';
+    }
+  }
+
+  // ===================== OPEN ARTICLE =====================
+  async function openArticle(filename) {
+    currentFile = filename;
+    $('listScreen').classList.add('hidden');
+    $('editorScreen').classList.remove('hidden');
+    $('editorTitle').textContent = filenameToTitle(filename);
+    setStatus('Loading...', 'saving');
+
+    // Destroy existing Quill instances
+    destroyEditors();
+
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${CONFIG.ARTICLES_PATH}/${filename}`,
+        { headers: apiHeaders() }
+      );
+      if (!res.ok) throw new Error('Failed to load article (HTTP ' + res.status + ')');
+      const data = await res.json();
+      fileSha = data.sha;
+
+      // Decode and parse HTML
+      const htmlString = base64ToUtf8(data.content.replace(/\n/g, ''));
+      const parser = new DOMParser();
+      originalDoc = parser.parseFromString(htmlString, 'text/html');
+
+      // Extract editable content
+      const heroEn = originalDoc.querySelector('.course-hero [data-lang="en"]');
+      const heroZh = originalDoc.querySelector('.course-hero [data-lang="zh"]');
+      const bodyEn = originalDoc.querySelector('.article-body [data-lang="en"]');
+      const bodyZh = originalDoc.querySelector('.article-body [data-lang="zh"]');
+
+      // Initialize Quill editors
+      initEditors();
+
+      // Set content using Quill's clipboard (handles HTML → Delta conversion)
+      if (heroEn) quillHeroEn.clipboard.dangerouslyPasteHTML(heroEn.innerHTML);
+      if (heroZh) quillHeroZh.clipboard.dangerouslyPasteHTML(heroZh.innerHTML);
+      if (bodyEn) quillBodyEn.clipboard.dangerouslyPasteHTML(bodyEn.innerHTML);
+      if (bodyZh) quillBodyZh.clipboard.dangerouslyPasteHTML(bodyZh.innerHTML);
+
+      hasUnsavedChanges = false;
+      setStatus('Ready', '');
+      switchTab('en');
+    } catch (err) {
+      setStatus('Error: ' + err.message, 'error');
+    }
+  }
+
+  // ===================== QUILL EDITORS =====================
+  const toolbarOptions = [
+    [{ 'header': [2, 3, false] }],
+    ['bold', 'italic'],
+    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+    ['link'],
+    ['clean']
+  ];
+
+  function initEditors() {
+    quillHeroEn = new Quill('#heroEditorEn', { theme: 'snow', modules: { toolbar: toolbarOptions } });
+    quillHeroZh = new Quill('#heroEditorZh', { theme: 'snow', modules: { toolbar: toolbarOptions } });
+    quillBodyEn = new Quill('#bodyEditorEn', { theme: 'snow', modules: { toolbar: toolbarOptions } });
+    quillBodyZh = new Quill('#bodyEditorZh', { theme: 'snow', modules: { toolbar: toolbarOptions } });
+
+    // Make body editors taller
+    document.querySelector('#bodyEditorEn .ql-editor').classList.add('body-editor');
+    document.querySelector('#bodyEditorZh .ql-editor').classList.add('body-editor');
+
+    // Track changes
+    [quillHeroEn, quillHeroZh, quillBodyEn, quillBodyZh].forEach(q => {
+      q.on('text-change', () => {
+        if (!hasUnsavedChanges) {
+          hasUnsavedChanges = true;
+          setStatus('Unsaved changes', 'unsaved');
+        }
+      });
+    });
+  }
+
+  function destroyEditors() {
+    ['heroEditorEn', 'bodyEditorEn', 'heroEditorZh', 'bodyEditorZh'].forEach(id => {
+      const container = document.getElementById(id);
+      // Clear container and recreate empty div for Quill
+      const parent = container.parentElement;
+      const newDiv = document.createElement('div');
+      newDiv.id = id;
+      parent.replaceChild(newDiv, container);
+    });
+    quillHeroEn = quillBodyEn = quillHeroZh = quillBodyZh = null;
+  }
+
+  // ===================== LANGUAGE TABS =====================
+  window.switchTab = function(lang) {
+    document.querySelectorAll('.lang-tab').forEach(t => t.classList.toggle('active', t.dataset.lang === lang));
+    $('editorsEn').classList.toggle('hidden', lang !== 'en');
+    $('editorsZh').classList.toggle('hidden', lang !== 'zh');
+  };
+
+  // ===================== SAVE =====================
+  window.saveArticle = async function() {
+    if (!originalDoc || !currentFile) return;
+
+    const saveBtn = $('saveBtn');
+    saveBtn.disabled = true;
+    setStatus('Saving...', 'saving');
+
+    try {
+      // Get HTML content from Quill editors
+      const heroEnContent = quillHeroEn.root.innerHTML;
+      const heroZhContent = quillHeroZh.root.innerHTML;
+      const bodyEnContent = quillBodyEn.root.innerHTML;
+      const bodyZhContent = quillBodyZh.root.innerHTML;
+
+      // Write back into original doc
+      const heroEnEl = originalDoc.querySelector('.course-hero [data-lang="en"]');
+      const heroZhEl = originalDoc.querySelector('.course-hero [data-lang="zh"]');
+      const bodyEnEl = originalDoc.querySelector('.article-body [data-lang="en"]');
+      const bodyZhEl = originalDoc.querySelector('.article-body [data-lang="zh"]');
+
+      if (heroEnEl) heroEnEl.innerHTML = heroEnContent;
+      if (heroZhEl) heroZhEl.innerHTML = heroZhContent;
+      if (bodyEnEl) bodyEnEl.innerHTML = bodyEnContent;
+      if (bodyZhEl) bodyZhEl.innerHTML = bodyZhContent;
+
+      // Serialize full HTML
+      const doctype = '<!DOCTYPE html>\n';
+      const fullHtml = doctype + originalDoc.documentElement.outerHTML;
+
+      // PUT to GitHub API
+      const res = await fetch(
+        `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${CONFIG.ARTICLES_PATH}/${currentFile}`,
+        {
+          method: 'PUT',
+          headers: apiHeaders(),
+          body: JSON.stringify({
+            message: 'Update article: ' + currentFile,
+            content: utf8ToBase64(fullHtml),
+            sha: fileSha
+          })
+        }
+      );
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || 'Save failed (HTTP ' + res.status + ')');
+      }
+
+      const result = await res.json();
+      fileSha = result.content.sha; // Update SHA for next save
+      hasUnsavedChanges = false;
+      setStatus('Saved! Changes will be live in ~1 minute.', 'saved');
+    } catch (err) {
+      setStatus('Error: ' + err.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  };
+
+  // ===================== PREVIEW =====================
+  window.previewArticle = function() {
+    if (currentFile) {
+      window.open('https://www.warrenmak.asia/articles/' + currentFile, '_blank');
+    }
+  };
+
+  // ===================== BACK TO LIST =====================
+  window.backToList = function() {
+    if (hasUnsavedChanges && !confirm('You have unsaved changes. Leave without saving?')) return;
+    hasUnsavedChanges = false;
+    $('editorScreen').classList.add('hidden');
+    showListScreen();
+  };
+
+  // ===================== PREVENT ACCIDENTAL CLOSE =====================
+  window.addEventListener('beforeunload', function(e) {
+    if (hasUnsavedChanges) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // ===================== INIT =====================
+  if (sessionStorage.getItem('admin_auth') === 'true') {
+    showListScreen();
+  }
+
+})();
+</script>
+</body>
+</html>
