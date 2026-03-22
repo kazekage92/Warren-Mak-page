@@ -176,9 +176,9 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
 .navbar__menu a {
   color: rgba(255,255,255,0.75);
-  padding: 6px 12px;
+  padding: 6px 9px;
   border-radius: 6px;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 500;
   transition: var(--transition);
   white-space: nowrap;
@@ -193,10 +193,10 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 .navbar__cta {
   background: var(--accent) !important;
   color: var(--white) !important;
-  padding: 7px 16px !important;
+  padding: 7px 12px !important;
   border-radius: 6px !important;
   font-weight: 600 !important;
-  font-size: 0.8rem !important;
+  font-size: 0.78rem !important;
 }
 
 .navbar__cta:hover {
