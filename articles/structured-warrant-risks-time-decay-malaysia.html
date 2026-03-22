@@ -32,8 +32,15 @@
     <div class="container">
       <a href="../index.html" class="navbar__logo"><img src="../assets/images/Logo - Trade Wizard Blue Word.png" alt="Trade Wizard"> Warren <span>Mak</span></a>
       <ul class="navbar__menu" id="navMenu">
-        <li><a href="../index.html">Home</a></li><li><a href="../about.html">About</a></li><li><a href="../ted-optimus.html">TED Optimus</a></li><li><a href="../short-term-trading.html">Short-Term Trading</a></li><li><a href="../structured-warrants.html">Structured Warrants</a></li><li><a href="../articles.html" class="active">Articles</a></li><li><a href="../testimonials.html">Testimonials</a></li><li><a href="../media.html">Media</a></li>
-        <li><a href="https://academy.thetradewizard.com/" target="_blank" class="navbar__cta">Free Webinar</a></li>
+        <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
+        <li><a href="../about.html"><span data-lang="en">About</span><span data-lang="zh" style="display:none;">关于</span></a></li>
+        <li><a href="../ted-optimus.html">TED Optimus</a></li>
+        <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
+        <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
+        <li><a href="../articles.html" class="active"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
+        <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
+        <li><a href="../media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
+        <li><a href="https://academy.thetradewizard.com/" target="_blank" class="navbar__cta"><span data-lang="en">Free Webinar</span><span data-lang="zh" style="display:none;">免费网络研讨会</span></a></li>
       </ul>
       <div class="navbar__actions"><button class="lang-toggle" id="langToggle" title="Switch to Chinese">中文</button><button class="navbar__toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button></div>
     </div>
@@ -41,16 +48,25 @@
 
   <section class="course-hero">
     <div class="container">
-      <div class="article-breadcrumb"><a href="../index.html">Home</a> <span>›</span> <a href="../articles.html">Articles</a> <span>›</span> Warrant Risks & Time Decay</div>
-      <span class="tag">Risk Management</span>
-      <h1>Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money</h1>
-      <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">Before you trade structured warrants on Bursa Malaysia, understand these critical risks that cause most traders to lose money.</p>
+      <div data-lang="en">
+        <div class="article-breadcrumb"><a href="../index.html">Home</a> <span>›</span> <a href="../articles.html">Articles</a> <span>›</span> Warrant Risks & Time Decay</div>
+        <span class="tag">Risk Management</span>
+        <h1>Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money</h1>
+        <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">Before you trade structured warrants on Bursa Malaysia, understand these critical risks that cause most traders to lose money.</p>
+      </div>
+      <div data-lang="zh" style="display:none;">
+        <div class="article-breadcrumb"><a href="../index.html">首页</a> <span>›</span> <a href="../articles.html">文章</a> <span>›</span> 凭单风险与时间损耗</div>
+        <span class="tag">风险管理</span>
+        <h1>马来西亚结构性凭单风险：时间损耗、杠杆与避免亏损指南</h1>
+        <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">在马来西亚交易所交易结构性凭单之前，务必了解这些导致大多数交易者亏损的关键风险。</p>
+      </div>
     </div>
   </section>
 
   <section class="section">
     <div class="container">
       <div class="article-body">
+        <div data-lang="en">
         <div class="article-meta"><span>By <strong><a href="../about.html">Warren Mak</a></strong></span><span>11 min read</span><span>Updated: March 2026</span></div>
 
         <p><strong>Structured warrants</strong> are powerful trading instruments on Bursa Malaysia — but power cuts both ways. The same leverage that can double your money in a week can also wipe out your entire investment. Understanding the risks is not optional — it's the difference between consistent trading and blowing up your account.</p>
@@ -178,27 +194,203 @@
           <li><a href="hedging-with-put-warrants-malaysia.html">How to Hedge with Put Warrants</a></li>
           <li><a href="why-90-percent-warrant-traders-lose-money-malaysia.html">Why 90% of Warrant Traders Lose Money</a></li>
         </ul></div>
+        </div>
+
+        <div data-lang="zh" style="display:none;">
+        <div class="article-meta"><span>作者：<strong><a href="../about.html">Warren Mak（麦传球）</a></strong></span><span>阅读时间：11分钟</span><span>更新：2026年3月</span></div>
+
+        <p><strong>结构性凭单</strong>是马来西亚交易所上强大的交易工具——但力量是双刃剑。能让你一周内资金翻倍的杠杆，同样也能让你的全部投资化为乌有。了解风险不是可选项——它决定了你是持续盈利还是爆仓出局。</p>
+
+        <p>在我的《南洋商报》专栏"交易计划亏损8因素"中，我列出了交易者在结构性凭单上亏损的最常见原因。本文将逐一分析每个主要风险及其管理方法。</p>
+
+        <h2>风险一：时间损耗（Theta）——沉默的杀手</h2>
+
+        <p>时间损耗是<a href="what-are-structured-warrants-malaysia.html">结构性凭单</a>中最被误解的风险。每一天，你的凭单都在贬值——即使标的股票纹丝不动。这种日常侵蚀被称为<strong>theta</strong>，它是无情的。</p>
+
+        <h3>时间损耗的运作方式</h3>
+        <p>结构性凭单的价格由两部分组成：</p>
+        <ul>
+          <li><strong>内在价值：</strong>今天行权的实际价值（认购凭单为股价减去行使价）</li>
+          <li><strong>时间价值：</strong>距到期日剩余时间的溢价——这就是会损耗的部分</li>
+        </ul>
+
+        <p>关键要点：<strong>时间损耗随到期日临近而加速</strong>。一张距到期3个月每天损耗RM0.005的凭单，到剩下2周时可能每天损耗RM0.02。最后30天是凭单持有者最危险的时期。</p>
+
+        <h3>时间损耗数据一览</h3>
+        <table>
+          <thead><tr><th>距到期时间</th><th>每日时间损耗</th><th>影响</th></tr></thead>
+          <tbody>
+            <tr><td>6个月以上</td><td>极低</td><td>每日影响微乎其微</td></tr>
+            <tr><td>3-6个月</td><td>低</td><td>逐渐侵蚀，可控</td></tr>
+            <tr><td>1-3个月</td><td>中等</td><td>每日损失明显</td></tr>
+            <tr><td>2-4周</td><td>高</td><td>每日大幅侵蚀</td></tr>
+            <tr><td>最后一周</td><td>极端</td><td>凭单可能损失剩余价值的30-50%</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>经验法则：</strong>除非你是经验丰富的日内交易者且当天就会平仓，否则避免购买距到期不足1个月的结构性凭单。</p>
+
+        <h2>风险二：杠杆——双刃剑</h2>
+
+        <p>杠杆让凭单令人兴奋——也让它危险。一张<strong>5倍有效杠杆</strong>的凭单意味着：</p>
+        <ul>
+          <li>股价上涨2%，凭单上涨约10%——很好</li>
+          <li>股价下跌2%，凭单下跌约10%——痛苦</li>
+          <li>股价下跌5%，凭单下跌约25%——毁灭性</li>
+        </ul>
+
+        <p>陷阱在于：新手被高杠杆凭单（10倍、15倍甚至20倍）吸引，因为潜在回报看起来惊人。但这些凭单在一个糟糕的交易日里可能亏损50%甚至更多。</p>
+
+        <h2>风险三：隐含波动率（IV）变化</h2>
+
+        <p>这是大多数散户交易者甚至不知道存在的风险。隐含波动率是凭单定价的一个组成部分，反映市场的不确定性。IV上升时，凭单价格上涨。IV下降时，凭单价格下跌——<strong>即使标的股票朝有利方向移动</strong>。</p>
+
+        <p>常见的IV陷阱情景：</p>
+        <ol>
+          <li>市场波动大 → IV高 → 凭单溢价昂贵</li>
+          <li>你在高IV时买入认购凭单</li>
+          <li>市场平静下来 → IV下降 → 你的凭单贬值</li>
+          <li>尽管股价上涨了，但你的凭单反而下跌了，因为IV的下降幅度超过了股价的上涨</li>
+        </ol>
+
+        <p>这就是为什么经验丰富的交易者在买入前总会检查隐含波动率。在IV已经升高时买凭单，就像灾难发生后才买保险——你支付的是膨胀的溢价。</p>
+
+        <h2>风险四：流动性风险</h2>
+
+        <p>正如我在《南洋商报》专栏中所写：<strong>"避免交易量稀少的结构性凭单。它们交易稀少是有原因的——在所有凭单中，它们不是好选择。"</strong></p>
+
+        <p>流动性风险的几种表现：</p>
+        <ul>
+          <li><strong>买卖价差大：</strong>仅进出交易就损失5-15%</li>
+          <li><strong>无法退出：</strong>在快速变动的市场中，你可能无法以合理价格卖出</li>
+          <li><strong>做市商缺席：</strong>在极端波动期间，做市商可能暂时扩大价差或减少报价量</li>
+        </ul>
+
+        <p>始终以<strong>交易价值</strong>（成交量×平均价格）而非仅成交量来比较凭单。一张以RM0.005成交1000万股的凭单交易价值仅为RM50,000——远不如以RM0.30成交50万股的凭单（RM150,000价值）流动性好。</p>
+
+        <h2>风险五：到期归零</h2>
+
+        <p>与股票不同，结构性凭单有到期日。如果你的凭单到期时处于<strong>价外</strong>（认购凭单的股价低于行使价，或认沽凭单的股价高于行使价），它将毫无价值地到期。你的全部投资归零。</p>
+
+        <p>这是凭单交易最残酷的现实：你可能判断对了方向，但时间点错了，仍然会亏光一切。</p>
+
+        <h2>交易者亏损的8大因素</h2>
+
+        <p>来自我的《南洋商报》专栏，以下是交易者尽管有计划仍然亏损的8个最常见原因：</p>
+
+        <ol>
+          <li><strong>情绪化决策（恐惧）：</strong>在最糟糕的时候恐慌性抛售，将暂时回撤变成永久亏损</li>
+          <li><strong>情绪化决策（贪婪）：</strong>拒绝止盈，持有凭单期望更大收益，直到时间损耗或反转将其吞噬</li>
+          <li><strong>FOMO（错失恐惧）：</strong>在凭单已飙升50-100%后才买入，因为不想错过行情——在顶部入场</li>
+          <li><strong>缺乏明确交易计划：</strong>没有明确的入场、目标和止损水平就进入交易。在杠杆工具上盲目操作无异于财务自杀</li>
+          <li><strong>忽视时间损耗：</strong>持有凭单数周甚至数月，却未意识到时间在持续侵蚀你的投资</li>
+          <li><strong>错误的凭单选择：</strong>仅根据价格（最便宜的）而非<a href="how-to-choose-best-structured-warrants-malaysia.html">正确的选择标准</a>如流动性、杠杆和价值状态来选择凭单</li>
+          <li><strong>仓位管理错误：</strong>将50-100%的交易资金投入单一凭单交易。一次错误就满盘皆输</li>
+          <li><strong>缺乏学习就交易：</strong>将凭单当作彩票，而非需要理解希腊值、做市商和技术分析的精密金融工具</li>
+        </ol>
+
+        <h2>如何管理结构性凭单风险</h2>
+
+        <h3>入场前设定止损</h3>
+        <p>在买入之前就决定你能承受的最大亏损。常用规则：单笔凭单交易最多亏损15-20%。如果凭单跌到你的止损水平，立即退出——不要和自己谈判。</p>
+
+        <h3>仓位管理</h3>
+        <p>单笔凭单交易不要超过总交易资金的5-10%。也就是说，如果你有RM20,000的资金，单笔凭单仓位不应超过RM1,000-2,000。</p>
+
+        <h3>选择合适的到期时间</h3>
+        <p>波段交易（数天至数周）选择至少2-3个月到期的凭单。日内交易可接受1-2个月。避免最后2周到期的凭单，除非你当天就平仓。</p>
+
+        <h3>检查隐含波动率</h3>
+        <p>比较类似凭单的IV。如果某张凭单的IV明显高于同类替代品，它可能定价过高。寻找正常或较低IV以获得更好的入场价格。</p>
+
+        <h3>明智使用杠杆</h3>
+        <p>初学者应选择3-6倍有效杠杆的凭单。这提供了有意义的杠杆，又不会产生导致恐慌抛售的极端波动。8倍以上杠杆仅适合经验丰富的交易者。</p>
+
+        <h2>常见问题</h2>
+
+        <div class="faq-item"><h3>什么是结构性凭单的时间损耗？</h3><p>时间损耗（theta）是凭单随到期日临近而每日减少的价值。即使股价不动，凭单每天都在贬值。时间损耗在最后1-2个月会急剧加速。</p></div>
+
+        <div class="faq-item"><h3>结构性凭单会归零吗？</h3><p>会的。如果凭单到期时处于价外，它将毫无价值地到期——你损失100%的投资。这就是为什么你不应在没有明确退出策略的情况下持有接近到期的凭单。</p></div>
+
+        <div class="faq-item"><h3>结构性凭单最大的风险是什么？</h3><p>时间损耗、杠杆放大亏损、隐含波动率变化、低流动性、持有过于接近到期日、以及没有计划的情绪化交易。</p></div>
+
+        <div class="faq-item"><h3>杠杆如何对你不利？</h3><p>5倍杠杆的凭单同时放大收益和亏损。股价下跌2%意味着凭单亏损10%。加上时间损耗，即使横盘市场也会导致亏损。</p></div>
+
+        <div class="faq-item"><h3>交易凭单时如何管理风险？</h3><p>设定止损、单笔交易不超过资金的5-10%、避免接近到期的凭单、选择流动性好的凭单、始终有明确进出场水平的交易计划。</p></div>
+
+        <div class="article-related"><h3>继续学习</h3><ul>
+          <li><a href="what-are-structured-warrants-malaysia.html">什么是马来西亚结构性凭单？</a></li>
+          <li><a href="how-to-trade-structured-warrants-bursa-malaysia.html">如何交易结构性凭单：分步指南</a></li>
+          <li><a href="hedging-with-put-warrants-malaysia.html">如何用认沽凭单进行对冲</a></li>
+          <li><a href="why-90-percent-warrant-traders-lose-money-malaysia.html">为什么90%的凭单交易者亏钱</a></li>
+        </ul></div>
+        </div>
       </div>
     </div>
   </section>
 
   <section class="cta-section">
     <div class="container">
-      <h2>Analyse Warrant Risks Before You Trade</h2>
-      <p>Trade Wizard is Malaysia's first Bursa-licensed AI stock analysis platform — scan structured warrants, check implied volatility, and identify the best risk-reward setups instantly.</p>
-      <div class="cta-buttons">
-        <a href="https://www.thetradewizard.com" target="_blank" class="btn btn--primary btn--lg">Try Trade Wizard Free</a>
-        <a href="../structured-warrants.html" class="btn btn--outline">Structured Warrants Course</a>
+      <div data-lang="en">
+        <h2>Analyse Warrant Risks Before You Trade</h2>
+        <p>Trade Wizard is Malaysia's first Bursa-licensed AI stock analysis platform — scan structured warrants, check implied volatility, and identify the best risk-reward setups instantly.</p>
+        <div class="cta-buttons">
+          <a href="https://www.thetradewizard.com" target="_blank" class="btn btn--primary btn--lg">Try Trade Wizard Free</a>
+          <a href="../structured-warrants.html" class="btn btn--outline">Structured Warrants Course</a>
+        </div>
+      </div>
+      <div data-lang="zh" style="display:none;">
+        <h2>交易前先分析凭单风险</h2>
+        <p>Trade Wizard是马来西亚首个获交易所授权的AI股票分析平台——即时扫描结构性凭单、检查隐含波动率、识别最佳风险回报设置。</p>
+        <div class="cta-buttons">
+          <a href="https://www.thetradewizard.com" target="_blank" class="btn btn--primary btn--lg">免费试用Trade Wizard</a>
+          <a href="../structured-warrants.html" class="btn btn--outline">结构性凭单课程</a>
+        </div>
       </div>
     </div>
   </section>
 
-  <footer class="footer"><div class="container"><div class="footer__grid">
-    <div class="footer__brand"><h3>Warren Mak (&#40614;&#20256;&#29699;)</h3><p>Malaysia's #1 Structured Warrants & Short-Term Trading Coach.</p><p class="mt-16" style="font-size:0.85rem;">Email: warrenmak@tedoptimus.com</p></div>
-    <div><h4>Pages</h4><ul class="footer__links"><li><a href="../index.html">Home</a></li><li><a href="../about.html">About</a></li><li><a href="../articles.html">Articles</a></li><li><a href="../testimonials.html">Testimonials</a></li></ul></div>
-    <div><h4>Programmes</h4><ul class="footer__links"><li><a href="../short-term-trading.html">Short-Term Trading</a></li><li><a href="../structured-warrants.html">Structured Warrants</a></li><li><a href="https://academy.thetradewizard.com/" target="_blank">Trade Wizard Academy</a></li><li><a href="https://www.thetradewizard.com/" target="_blank">Trade Wizard Platform</a></li></ul></div>
-    <div><h4>Connect</h4><ul class="footer__links"><li><a href="https://t.me/tradewizardglobal" target="_blank">Telegram</a></li><li><a href="https://www.facebook.com/TradeWizardGlobal" target="_blank">Facebook</a></li><li><a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank">YouTube</a></li><li><a href="https://www.linkedin.com/company/ted-optimus/" target="_blank">LinkedIn</a></li></ul></div>
-  </div><div class="footer__bottom"><p>&copy; 2026 TED Optimus Sdn Bhd. All rights reserved.</p></div></div></footer>
+  <footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <h3>Warren Mak (&#40614;&#20256;&#29699;)</h3>
+        <p><span data-lang="en">Malaysia's #1 Structured Warrants & Short-Term Trading Coach.</span><span data-lang="zh" style="display:none;">马来西亚第一结构性凭单与短线交易教练。</span></p>
+        <p class="mt-16" style="font-size:0.85rem;">Email: warrenmak@tedoptimus.com</p>
+      </div>
+      <div>
+        <h4><span data-lang="en">Pages</span><span data-lang="zh" style="display:none;">页面</span></h4>
+        <ul class="footer__links">
+          <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
+          <li><a href="../about.html"><span data-lang="en">About Warren</span><span data-lang="zh" style="display:none;">关于Warren</span></a></li>
+          <li><a href="../articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
+          <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><span data-lang="en">Programmes</span><span data-lang="zh" style="display:none;">课程</span></h4>
+        <ul class="footer__links">
+          <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
+          <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
+          <li><a href="https://academy.thetradewizard.com/" target="_blank">Trade Wizard Academy</a></li>
+          <li><a href="https://www.thetradewizard.com/" target="_blank">Trade Wizard Platform</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><span data-lang="en">Connect</span><span data-lang="zh" style="display:none;">联系我们</span></h4>
+        <ul class="footer__links">
+          <li><a href="https://t.me/tradewizardglobal" target="_blank">Telegram</a></li>
+          <li><a href="https://www.facebook.com/TradeWizardGlobal" target="_blank">Facebook</a></li>
+          <li><a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank">YouTube</a></li>
+          <li><a href="https://www.linkedin.com/company/ted-optimus/" target="_blank">LinkedIn</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <p>&copy; 2026 TED Optimus Sdn Bhd. <span data-lang="en">All rights reserved.</span><span data-lang="zh" style="display:none;">版权所有。</span></p>
+    </div>
+  </div>
+</footer>
   <script src="../assets/js/main.js"></script>
 </body>
 </html>
