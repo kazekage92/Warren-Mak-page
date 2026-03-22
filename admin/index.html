@@ -163,22 +163,18 @@
   'use strict';
 
   // ===================== CONFIGURATION =====================
-  // The site owner must fill in these two values:
-  // 1. GITHUB_TOKEN: A fine-grained GitHub PAT scoped to this repo with Contents read/write
-  // 2. PASSWORD_HASH: SHA-256 hash of the simple password the editor will use
-  //
-  // To generate a password hash, run this in the browser console:
-  //   crypto.subtle.digest('SHA-256', new TextEncoder().encode('YOUR_PASSWORD')).then(b => console.log(Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2,'0')).join('')))
-
+  // The GitHub PAT is encrypted with AES-256-GCM using SHA-256(password) as the key.
+  // The editor enters only a simple password; decryption happens client-side.
+  // Format: base64( iv[12] + authTag[16] + ciphertext )
   const CONFIG = {
-    GITHUB_TOKEN: 'PASTE_YOUR_GITHUB_PAT_HERE',
-    PASSWORD_HASH: 'PASTE_SHA256_HASH_HERE',
+    ENCRYPTED_TOKEN: 'I/47YDljbB9O5DdkA0LeTw1CbH9CEN8JBihOdMZzyZlQPGYV0Y1MDno2rVGmhtRVc2NtNkTwWiUOwOsxgNjzTWNNBxE1kjuYfFQ+4lnDYuOeWst2GSQrbZyC9D6XtClr+Wvie351jNFKaHGowLguu3l9QMM2ZF297Q==',
     REPO_OWNER: 'kazekage92',
     REPO_NAME: 'Warren-Mak-page',
     ARTICLES_PATH: 'articles'
   };
 
   // ===================== STATE =====================
+  let githubToken = null;
   let currentFile = null;
   let fileSha = null;
   let originalDoc = null;
@@ -190,15 +186,30 @@
 
   function apiHeaders() {
     return {
-      'Authorization': 'Bearer ' + CONFIG.GITHUB_TOKEN,
+      'Authorization': 'Bearer ' + githubToken,
       'Accept': 'application/vnd.github+json',
       'Content-Type': 'application/json'
     };
   }
 
-  async function sha256(text) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-    return Array.from(new Uint8Array(buf)).map(x => x.toString(16).padStart(2, '0')).join('');
+  // Decrypt the GitHub PAT using AES-256-GCM with SHA-256(password) as key
+  async function decryptToken(password) {
+    const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+    const key = await crypto.subtle.importKey('raw', hashBuf, 'AES-GCM', false, ['decrypt']);
+
+    // Decode combined blob: iv(12) + tag(16) + ciphertext
+    const combined = Uint8Array.from(atob(CONFIG.ENCRYPTED_TOKEN), c => c.charCodeAt(0));
+    const iv = combined.slice(0, 12);
+    const tag = combined.slice(12, 28);
+    const ciphertext = combined.slice(28);
+
+    // Web Crypto AES-GCM expects ciphertext + tag concatenated
+    const encrypted = new Uint8Array(ciphertext.length + tag.length);
+    encrypted.set(ciphertext);
+    encrypted.set(tag, ciphertext.length);
+
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, encrypted);
+    return new TextDecoder().decode(decrypted);
   }
 
   function filenameToTitle(filename) {
@@ -227,13 +238,24 @@
   $('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const password = $('passwordInput').value;
-    const hash = await sha256(password);
 
-    if (hash === CONFIG.PASSWORD_HASH) {
-      sessionStorage.setItem('admin_auth', 'true');
+    try {
+      // Try to decrypt the token — if password is wrong, decryption fails
+      const token = await decryptToken(password);
+
+      // Verify the token works by calling GitHub API
+      const res = await fetch(
+        'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME,
+        { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' } }
+      );
+
+      if (!res.ok) throw new Error('Token invalid');
+
+      githubToken = token;
+      sessionStorage.setItem('admin_token', token);
       $('loginError').style.display = 'none';
       showListScreen();
-    } else {
+    } catch (err) {
       $('loginError').style.display = 'block';
       $('passwordInput').value = '';
       $('passwordInput').focus();
@@ -241,7 +263,8 @@
   });
 
   window.logout = function() {
-    sessionStorage.removeItem('admin_auth');
+    sessionStorage.removeItem('admin_token');
+    githubToken = null;
     hasUnsavedChanges = false;
     location.reload();
   };
@@ -258,19 +281,19 @@
     const container = $('articleListContainer');
     try {
       const res = await fetch(
-        `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${CONFIG.ARTICLES_PATH}`,
+        'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/' + CONFIG.ARTICLES_PATH,
         { headers: apiHeaders() }
       );
       if (!res.ok) throw new Error('Failed to load articles (HTTP ' + res.status + ')');
       const files = await res.json();
-      const htmlFiles = files.filter(f => f.name.endsWith('.html')).sort((a, b) => a.name.localeCompare(b.name));
+      const htmlFiles = files.filter(function(f) { return f.name.endsWith('.html'); }).sort(function(a, b) { return a.name.localeCompare(b.name); });
 
       container.innerHTML = '';
-      htmlFiles.forEach(file => {
-        const item = document.createElement('div');
+      htmlFiles.forEach(function(file) {
+        var item = document.createElement('div');
         item.className = 'article-item';
         item.innerHTML = '<h3>' + filenameToTitle(file.name) + '</h3><span class="arrow">&rarr;</span>';
-        item.onclick = () => openArticle(file.name);
+        item.onclick = function() { openArticle(file.name); };
         container.appendChild(item);
       });
     } catch (err) {
@@ -291,7 +314,7 @@
 
     try {
       const res = await fetch(
-        `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${CONFIG.ARTICLES_PATH}/${filename}`,
+        'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/' + CONFIG.ARTICLES_PATH + '/' + filename,
         { headers: apiHeaders() }
       );
       if (!res.ok) throw new Error('Failed to load article (HTTP ' + res.status + ')');
@@ -312,7 +335,7 @@
       // Initialize Quill editors
       initEditors();
 
-      // Set content using Quill's clipboard (handles HTML → Delta conversion)
+      // Set content using Quill's clipboard (handles HTML to Delta conversion)
       if (heroEn) quillHeroEn.clipboard.dangerouslyPasteHTML(heroEn.innerHTML);
       if (heroZh) quillHeroZh.clipboard.dangerouslyPasteHTML(heroZh.innerHTML);
       if (bodyEn) quillBodyEn.clipboard.dangerouslyPasteHTML(bodyEn.innerHTML);
@@ -346,8 +369,8 @@
     document.querySelector('#bodyEditorZh .ql-editor').classList.add('body-editor');
 
     // Track changes
-    [quillHeroEn, quillHeroZh, quillBodyEn, quillBodyZh].forEach(q => {
-      q.on('text-change', () => {
+    [quillHeroEn, quillHeroZh, quillBodyEn, quillBodyZh].forEach(function(q) {
+      q.on('text-change', function() {
         if (!hasUnsavedChanges) {
           hasUnsavedChanges = true;
           setStatus('Unsaved changes', 'unsaved');
@@ -357,11 +380,10 @@
   }
 
   function destroyEditors() {
-    ['heroEditorEn', 'bodyEditorEn', 'heroEditorZh', 'bodyEditorZh'].forEach(id => {
-      const container = document.getElementById(id);
-      // Clear container and recreate empty div for Quill
-      const parent = container.parentElement;
-      const newDiv = document.createElement('div');
+    ['heroEditorEn', 'bodyEditorEn', 'heroEditorZh', 'bodyEditorZh'].forEach(function(id) {
+      var container = document.getElementById(id);
+      var parent = container.parentElement;
+      var newDiv = document.createElement('div');
       newDiv.id = id;
       parent.replaceChild(newDiv, container);
     });
@@ -370,7 +392,7 @@
 
   // ===================== LANGUAGE TABS =====================
   window.switchTab = function(lang) {
-    document.querySelectorAll('.lang-tab').forEach(t => t.classList.toggle('active', t.dataset.lang === lang));
+    document.querySelectorAll('.lang-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.lang === lang); });
     $('editorsEn').classList.toggle('hidden', lang !== 'en');
     $('editorsZh').classList.toggle('hidden', lang !== 'zh');
   };
@@ -379,22 +401,22 @@
   window.saveArticle = async function() {
     if (!originalDoc || !currentFile) return;
 
-    const saveBtn = $('saveBtn');
+    var saveBtn = $('saveBtn');
     saveBtn.disabled = true;
     setStatus('Saving...', 'saving');
 
     try {
       // Get HTML content from Quill editors
-      const heroEnContent = quillHeroEn.root.innerHTML;
-      const heroZhContent = quillHeroZh.root.innerHTML;
-      const bodyEnContent = quillBodyEn.root.innerHTML;
-      const bodyZhContent = quillBodyZh.root.innerHTML;
+      var heroEnContent = quillHeroEn.root.innerHTML;
+      var heroZhContent = quillHeroZh.root.innerHTML;
+      var bodyEnContent = quillBodyEn.root.innerHTML;
+      var bodyZhContent = quillBodyZh.root.innerHTML;
 
       // Write back into original doc
-      const heroEnEl = originalDoc.querySelector('.course-hero [data-lang="en"]');
-      const heroZhEl = originalDoc.querySelector('.course-hero [data-lang="zh"]');
-      const bodyEnEl = originalDoc.querySelector('.article-body [data-lang="en"]');
-      const bodyZhEl = originalDoc.querySelector('.article-body [data-lang="zh"]');
+      var heroEnEl = originalDoc.querySelector('.course-hero [data-lang="en"]');
+      var heroZhEl = originalDoc.querySelector('.course-hero [data-lang="zh"]');
+      var bodyEnEl = originalDoc.querySelector('.article-body [data-lang="en"]');
+      var bodyZhEl = originalDoc.querySelector('.article-body [data-lang="zh"]');
 
       if (heroEnEl) heroEnEl.innerHTML = heroEnContent;
       if (heroZhEl) heroZhEl.innerHTML = heroZhContent;
@@ -402,12 +424,12 @@
       if (bodyZhEl) bodyZhEl.innerHTML = bodyZhContent;
 
       // Serialize full HTML
-      const doctype = '<!DOCTYPE html>\n';
-      const fullHtml = doctype + originalDoc.documentElement.outerHTML;
+      var doctype = '<!DOCTYPE html>\n';
+      var fullHtml = doctype + originalDoc.documentElement.outerHTML;
 
       // PUT to GitHub API
-      const res = await fetch(
-        `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${CONFIG.ARTICLES_PATH}/${currentFile}`,
+      var res = await fetch(
+        'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/' + CONFIG.ARTICLES_PATH + '/' + currentFile,
         {
           method: 'PUT',
           headers: apiHeaders(),
@@ -420,12 +442,12 @@
       );
 
       if (!res.ok) {
-        const errData = await res.json();
+        var errData = await res.json();
         throw new Error(errData.message || 'Save failed (HTTP ' + res.status + ')');
       }
 
-      const result = await res.json();
-      fileSha = result.content.sha; // Update SHA for next save
+      var result = await res.json();
+      fileSha = result.content.sha;
       hasUnsavedChanges = false;
       setStatus('Saved! Changes will be live in ~1 minute.', 'saved');
     } catch (err) {
@@ -459,7 +481,10 @@
   });
 
   // ===================== INIT =====================
-  if (sessionStorage.getItem('admin_auth') === 'true') {
+  // Restore session if token is still in sessionStorage
+  var savedToken = sessionStorage.getItem('admin_token');
+  if (savedToken) {
+    githubToken = savedToken;
     showListScreen();
   }
 
