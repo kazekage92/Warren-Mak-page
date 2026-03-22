@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money | Warren Mak</title>
+  <meta name="description" content="Understand the real risks of trading structured warrants in Malaysia — time decay (theta), implied volatility, leverage traps, and the 8 factors why traders lose. By Warren Mak, ex-Bursa Head.">
+  <meta name="keywords" content="structured warrant risks Malaysia, time decay warrants Bursa Malaysia, warrant theta Malaysia, structured warrant dangers, warrant leverage risk, why traders lose warrants Malaysia">
+  <link rel="canonical" href="https://www.warrenmak.asia/articles/structured-warrant-risks-time-decay-malaysia.html">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta property="og:title" content="Structured Warrant Risks Malaysia: Time Decay & Leverage Traps">
+  <meta property="og:description" content="Understand the real risks of trading structured warrants on Bursa Malaysia — time decay, leverage, and common trader mistakes.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.warrenmak.asia/articles/structured-warrant-risks-time-decay-malaysia.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"Article","headline":"Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money","author":{"@type":"Person","name":"Warren Mak","url":"https://www.warrenmak.asia/about.html"},"publisher":{"@type":"Organization","name":"TED Optimus Sdn Bhd"},"datePublished":"2026-03-22","dateModified":"2026-03-22","mainEntityOfPage":"https://www.warrenmak.asia/articles/structured-warrant-risks-time-decay-malaysia.html"}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"What is time decay in structured warrants?","acceptedAnswer":{"@type":"Answer","text":"Time decay (theta) is the daily reduction in a structured warrant's value as it approaches its expiry date. Even if the underlying stock doesn't move, a warrant loses value every single day simply due to the passage of time. Time decay accelerates dramatically in the final 1-2 months before expiry."}},
+    {"@type":"Question","name":"Can a structured warrant go to zero?","acceptedAnswer":{"@type":"Answer","text":"Yes. If a structured warrant expires out-of-the-money (call warrant when stock is below strike price, or put warrant when stock is above strike price), it expires worthless — you lose 100% of your investment. This is why Warren Mak emphasizes never holding warrants close to expiry date."}},
+    {"@type":"Question","name":"What are the biggest risks of structured warrants in Malaysia?","acceptedAnswer":{"@type":"Answer","text":"The top risks are: (1) Time decay eating your investment daily, (2) Leverage amplifying losses as much as gains, (3) Implied volatility changes affecting price independent of stock movement, (4) Low liquidity causing poor fill prices, (5) Holding warrants too close to expiry, and (6) Emotional trading without a plan."}},
+    {"@type":"Question","name":"How does leverage work against you in structured warrants?","acceptedAnswer":{"@type":"Answer","text":"Leverage amplifies both gains AND losses. A warrant with 5x effective gearing means a 2% drop in the underlying stock can cause a 10% loss in the warrant. Combined with time decay, even sideways market movement leads to losses for warrant holders."}},
+    {"@type":"Question","name":"How can I manage risk when trading structured warrants?","acceptedAnswer":{"@type":"Answer","text":"Key risk management practices include: set stop-losses before entering any trade, never risk more than 5-10% of capital on a single warrant, avoid warrants with less than 1 month to expiry, choose liquid warrants with tight spreads, and always have a trading plan with clear entry and exit levels."}}
+  ]}
+  </script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <a href="../index.html" class="navbar__logo"><img src="../assets/images/Logo - Trade Wizard Blue Word.png" alt="Trade Wizard"> Warren <span>Mak</span></a>
+      <ul class="navbar__menu" id="navMenu">
+        <li><a href="../index.html">Home</a></li><li><a href="../about.html">About</a></li><li><a href="../ted-optimus.html">TED Optimus</a></li><li><a href="../short-term-trading.html">Short-Term Trading</a></li><li><a href="../structured-warrants.html">Structured Warrants</a></li><li><a href="../articles.html" class="active">Articles</a></li><li><a href="../testimonials.html">Testimonials</a></li><li><a href="../media.html">Media</a></li>
+        <li><a href="https://academy.thetradewizard.com/" target="_blank" class="navbar__cta">Free Webinar</a></li>
+      </ul>
+      <div class="navbar__actions"><button class="lang-toggle" id="langToggle" title="Switch to Chinese">中文</button><button class="navbar__toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button></div>
+    </div>
+  </nav>
+
+  <section class="course-hero">
+    <div class="container">
+      <div class="article-breadcrumb"><a href="../index.html">Home</a> <span>›</span> <a href="../articles.html">Articles</a> <span>›</span> Warrant Risks & Time Decay</div>
+      <span class="tag">Risk Management</span>
+      <h1>Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money</h1>
+      <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">Before you trade structured warrants on Bursa Malaysia, understand these critical risks that cause most traders to lose money.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="article-body">
+        <div class="article-meta"><span>By <strong><a href="../about.html">Warren Mak</a></strong></span><span>11 min read</span><span>Updated: March 2026</span></div>
+
+        <p><strong>Structured warrants</strong> are powerful trading instruments on Bursa Malaysia — but power cuts both ways. The same leverage that can double your money in a week can also wipe out your entire investment. Understanding the risks is not optional — it's the difference between consistent trading and blowing up your account.</p>
+
+        <p>In my Nanyang Siang Pau column "交易计划亏损8因素" (8 Factors Why Traders Lose Despite Having a Plan), I identified the most common reasons traders lose money on structured warrants. This article breaks down every major risk and how to manage it.</p>
+
+        <h2>Risk #1: Time Decay (Theta) — The Silent Killer</h2>
+
+        <p>Time decay is the most misunderstood risk in <a href="what-are-structured-warrants-malaysia.html">structured warrants</a>. Every single day, your warrant loses value — even if the underlying stock stays perfectly still. This daily erosion is called <strong>theta</strong>, and it is relentless.</p>
+
+        <h3>How Time Decay Works</h3>
+        <p>A structured warrant's price has two components:</p>
+        <ul>
+          <li><strong>Intrinsic value:</strong> The real value if exercised today (stock price minus strike price for calls)</li>
+          <li><strong>Time value:</strong> The premium for remaining time until expiry — this is what decays</li>
+        </ul>
+
+        <p>The critical insight: <strong>time decay accelerates as expiry approaches</strong>. A warrant that loses RM0.005/day with 3 months left might lose RM0.02/day with 2 weeks left. The last 30 days are the most dangerous period for warrant holders.</p>
+
+        <h3>Time Decay in Numbers</h3>
+        <table>
+          <thead><tr><th>Time to Expiry</th><th>Daily Time Decay</th><th>Impact</th></tr></thead>
+          <tbody>
+            <tr><td>6+ months</td><td>Very low</td><td>Minimal daily impact</td></tr>
+            <tr><td>3-6 months</td><td>Low</td><td>Gradual erosion, manageable</td></tr>
+            <tr><td>1-3 months</td><td>Moderate</td><td>Noticeable daily loss</td></tr>
+            <tr><td>2-4 weeks</td><td>High</td><td>Aggressive daily erosion</td></tr>
+            <tr><td>Last week</td><td>Extreme</td><td>Warrant can lose 30-50% of remaining value</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>Rule of thumb:</strong> Avoid buying structured warrants with less than 1 month to expiry unless you are an experienced day trader who will exit the same day.</p>
+
+        <h2>Risk #2: Leverage — The Double-Edged Sword</h2>
+
+        <p>Leverage is what makes warrants exciting — and what makes them dangerous. A warrant with <strong>5x effective gearing</strong> means:</p>
+        <ul>
+          <li>If the stock rises 2%, the warrant rises ~10% — great</li>
+          <li>If the stock falls 2%, the warrant falls ~10% — painful</li>
+          <li>If the stock falls 5%, the warrant falls ~25% — devastating</li>
+        </ul>
+
+        <p>The trap: beginners are attracted to high-gearing warrants (10x, 15x, even 20x) because the potential returns look incredible. But these same warrants can lose 50% or more in a single bad day.</p>
+
+        <h2>Risk #3: Implied Volatility (IV) Changes</h2>
+
+        <p>This is the risk most retail traders don't even know exists. Implied volatility is a component of warrant pricing that reflects market uncertainty. When IV rises, warrant prices rise. When IV falls, warrant prices fall — <strong>even if the underlying stock moves in your favour</strong>.</p>
+
+        <p>Common IV trap scenario:</p>
+        <ol>
+          <li>Market is volatile → IV is high → warrant premiums are expensive</li>
+          <li>You buy call warrants at high IV</li>
+          <li>Market calms down → IV drops → your warrant loses value</li>
+          <li>Even though the stock went up, your warrant went DOWN because IV fell more than the stock rose</li>
+        </ol>
+
+        <p>This is why experienced traders always check implied volatility before buying. Buying warrants when IV is already elevated is like buying insurance after the disaster — you pay inflated premiums.</p>
+
+        <h2>Risk #4: Liquidity Risk</h2>
+
+        <p>As I wrote in my Nanyang column: <strong>"Avoid thinly-traded structured warrants. They trade rarely for a reason — they are not good choices among all warrants."</strong></p>
+
+        <p>Liquidity risk manifests in several ways:</p>
+        <ul>
+          <li><strong>Wide bid-ask spreads:</strong> You lose 5-15% just entering and exiting the trade</li>
+          <li><strong>Inability to exit:</strong> In a fast-moving market, you may not be able to sell at a reasonable price</li>
+          <li><strong>Market maker absence:</strong> During extreme volatility, market makers may temporarily widen spreads or reduce size</li>
+        </ul>
+
+        <p>Always compare warrants by <strong>trading value</strong> (volume × average price), not just volume. A warrant with 10 million shares traded at RM0.005 each has only RM50,000 in trading value — far less liquid than a warrant with 500,000 shares at RM0.30 each (RM150,000 value).</p>
+
+        <h2>Risk #5: Expiry to Zero</h2>
+
+        <p>Unlike stocks, structured warrants have an expiry date. If your warrant expires <strong>out-of-the-money</strong> (call warrant with stock below strike price, or put warrant with stock above strike), it expires worthless. Your entire investment goes to zero.</p>
+
+        <p>This is the harshest reality of warrant trading: you can be right about the direction but wrong about the timing, and still lose everything.</p>
+
+        <h2>The 8 Factors Why Traders Lose Money</h2>
+
+        <p>From my Nanyang Siang Pau column, here are the 8 most common reasons traders lose despite having a plan:</p>
+
+        <ol>
+          <li><strong>Emotional decisions (fear):</strong> Panic selling at the worst possible time, turning a temporary drawdown into a permanent loss</li>
+          <li><strong>Emotional decisions (greed):</strong> Refusing to take profits, holding warrants hoping for even bigger gains until time decay or a reversal wipes them out</li>
+          <li><strong>FOMO (Fear of Missing Out):</strong> Buying warrants that have already surged 50-100% because you don't want to miss the move — entering at the top</li>
+          <li><strong>No clear trading plan:</strong> Entering trades without defined entry, target, and stop-loss levels. Flying blind in a leveraged instrument is financial suicide</li>
+          <li><strong>Ignoring time decay:</strong> Holding warrants for weeks or months without realising that time is constantly eroding your investment</li>
+          <li><strong>Wrong warrant selection:</strong> Choosing warrants based on price alone (cheapest) rather than <a href="how-to-choose-best-structured-warrants-malaysia.html">proper selection criteria</a> like liquidity, gearing, and moneyness</li>
+          <li><strong>Position sizing errors:</strong> Putting 50-100% of trading capital into a single warrant trade. One bad move and you're done</li>
+          <li><strong>Trading without education:</strong> Treating warrants like lottery tickets rather than sophisticated financial instruments that require understanding of Greeks, market-making, and technical analysis</li>
+        </ol>
+
+        <h2>How to Manage Structured Warrant Risks</h2>
+
+        <h3>Set Stop-Losses Before You Enter</h3>
+        <p>Decide your maximum acceptable loss BEFORE buying. A common rule: never lose more than 15-20% on any single warrant trade. If the warrant drops to your stop level, exit immediately — no negotiating with yourself.</p>
+
+        <h3>Position Sizing</h3>
+        <p>Never risk more than 5-10% of your total trading capital on a single warrant trade. This means if you have RM20,000 in capital, no single warrant position should exceed RM1,000-2,000.</p>
+
+        <h3>Choose the Right Time to Expiry</h3>
+        <p>For swing trades (days to weeks), choose warrants with at least 2-3 months to expiry. For day trades, 1-2 months is acceptable. Avoid warrants in their final 2 weeks unless you're exiting the same day.</p>
+
+        <h3>Check Implied Volatility</h3>
+        <p>Compare the IV of similar warrants. If one warrant has significantly higher IV than comparable alternatives, it may be overpriced. Look for normal or low IV for better entry prices.</p>
+
+        <h3>Use Leverage Wisely</h3>
+        <p>For beginners, stick to warrants with 3-6x effective gearing. This gives meaningful leverage without the extreme swings that cause panic selling. Higher gearing (8x+) is for experienced traders only.</p>
+
+        <h2>Frequently Asked Questions</h2>
+
+        <div class="faq-item"><h3>What is time decay in structured warrants?</h3><p>Time decay (theta) is the daily reduction in a warrant's value as it approaches expiry. Even if the stock doesn't move, the warrant loses value every day. Time decay accelerates dramatically in the final 1-2 months.</p></div>
+
+        <div class="faq-item"><h3>Can a structured warrant go to zero?</h3><p>Yes. If a warrant expires out-of-the-money, it expires worthless — you lose 100% of your investment. This is why you should never hold warrants close to expiry without a clear exit strategy.</p></div>
+
+        <div class="faq-item"><h3>What are the biggest risks of structured warrants?</h3><p>Time decay, leverage amplifying losses, implied volatility changes, low liquidity, holding too close to expiry, and emotional trading without a plan.</p></div>
+
+        <div class="faq-item"><h3>How does leverage work against you?</h3><p>A warrant with 5x gearing amplifies both gains and losses. A 2% stock drop becomes a 10% warrant loss. Combined with time decay, even sideways markets lead to losses.</p></div>
+
+        <div class="faq-item"><h3>How can I manage risk when trading warrants?</h3><p>Set stop-losses, never risk more than 5-10% of capital per trade, avoid warrants near expiry, choose liquid warrants, and always have a trading plan with clear entry and exit levels.</p></div>
+
+        <div class="article-related"><h3>Continue Learning</h3><ul>
+          <li><a href="what-are-structured-warrants-malaysia.html">What Are Structured Warrants in Malaysia?</a></li>
+          <li><a href="how-to-trade-structured-warrants-bursa-malaysia.html">How to Trade Structured Warrants: Step-by-Step</a></li>
+          <li><a href="hedging-with-put-warrants-malaysia.html">How to Hedge with Put Warrants</a></li>
+          <li><a href="why-90-percent-warrant-traders-lose-money-malaysia.html">Why 90% of Warrant Traders Lose Money</a></li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-section">
+    <div class="container">
+      <h2>Analyse Warrant Risks Before You Trade</h2>
+      <p>Trade Wizard is Malaysia's first Bursa-licensed AI stock analysis platform — scan structured warrants, check implied volatility, and identify the best risk-reward setups instantly.</p>
+      <div class="cta-buttons">
+        <a href="https://www.thetradewizard.com" target="_blank" class="btn btn--primary btn--lg">Try Trade Wizard Free</a>
+        <a href="../structured-warrants.html" class="btn btn--outline">Structured Warrants Course</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer"><div class="container"><div class="footer__grid">
+    <div class="footer__brand"><h3>Warren Mak (&#40614;&#20256;&#29699;)</h3><p>Malaysia's #1 Structured Warrants & Short-Term Trading Coach.</p><p class="mt-16" style="font-size:0.85rem;">Email: warrenmak@tedoptimus.com</p></div>
+    <div><h4>Pages</h4><ul class="footer__links"><li><a href="../index.html">Home</a></li><li><a href="../about.html">About</a></li><li><a href="../articles.html">Articles</a></li><li><a href="../testimonials.html">Testimonials</a></li></ul></div>
+    <div><h4>Programmes</h4><ul class="footer__links"><li><a href="../short-term-trading.html">Short-Term Trading</a></li><li><a href="../structured-warrants.html">Structured Warrants</a></li><li><a href="https://academy.thetradewizard.com/" target="_blank">Trade Wizard Academy</a></li><li><a href="https://www.thetradewizard.com/" target="_blank">Trade Wizard Platform</a></li></ul></div>
+    <div><h4>Connect</h4><ul class="footer__links"><li><a href="https://t.me/tradewizardglobal" target="_blank">Telegram</a></li><li><a href="https://www.facebook.com/TradeWizardGlobal" target="_blank">Facebook</a></li><li><a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank">YouTube</a></li><li><a href="https://www.linkedin.com/company/ted-optimus/" target="_blank">LinkedIn</a></li></ul></div>
+  </div><div class="footer__bottom"><p>&copy; 2026 TED Optimus Sdn Bhd. All rights reserved.</p></div></div></footer>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>
