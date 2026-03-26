@@ -52,7 +52,7 @@
   <!-- Navigation -->
   <nav class="navbar">
     <div class="container">
-      <a href="index.html" class="navbar__logo"><img src="assets/images/Logo - Trade Wizard Blue Word.png" alt="Trade Wizard"> Warren <span>Mak</span></a>
+      <a href="index.html" class="navbar__logo"><img src="assets/images/Logo - Trade Wizard Blue Word.png" alt="Trade Wizard" width="28" height="28"> Warren <span>Mak</span></a>
       <ul class="navbar__menu" id="navMenu">
         <li><a href="index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
         <li><a href="about.html"><span data-lang="en">About</span><span data-lang="zh" style="display:none;">关于</span></a></li>
@@ -169,8 +169,14 @@
           </div>
         </div>
         <div>
-          <img src="assets/images/warren-speaking-2.jpg" alt="Warren Mak teaching a live trading seminar with audience" loading="lazy" style="border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 100%; height: 300px; object-fit: cover;">
-          <img src="assets/images/academy-learning.jpg" alt="Trade Wizard Academy classroom" loading="lazy" style="border-radius: var(--radius); box-shadow: var(--shadow-lg); margin-top: 16px; width: 100%; height: 300px; object-fit: cover;">
+          <picture>
+            <source srcset="assets/images/warren-speaking-2.webp" type="image/webp">
+            <img src="assets/images/warren-speaking-2.jpg" alt="Warren Mak teaching a live trading seminar with audience" loading="lazy" width="1600" height="2400" style="border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 100%; height: 300px; object-fit: cover;">
+          </picture>
+          <picture>
+            <source srcset="assets/images/academy-learning.webp" type="image/webp">
+            <img src="assets/images/academy-learning.jpg" alt="Trade Wizard Academy classroom" loading="lazy" width="1600" height="1200" style="border-radius: var(--radius); box-shadow: var(--shadow-lg); margin-top: 16px; width: 100%; height: 300px; object-fit: cover;">
+          </picture>
         </div>
       </div>
     </div>
