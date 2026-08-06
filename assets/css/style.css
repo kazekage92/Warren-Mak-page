@@ -560,6 +560,20 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   font-size: 1.1rem;
 }
 
+/* Low-emphasis button for demoted/secondary CTAs on light backgrounds */
+.btn--secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  box-shadow: none;
+}
+
+.btn--secondary:hover {
+  background: var(--accent);
+  color: var(--white);
+  transform: translateY(-2px);
+}
+
 /* --- Stats Bar --- */
 .stats-bar {
   background: var(--white);
@@ -635,6 +649,71 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 .card__text {
   color: var(--text-light);
   font-size: 0.95rem;
+}
+
+/* --- Collapsible Card Grid ("Show more") ---
+   Structure: a `<details class="card-grid__more">` sits inside a
+   `.card-grid--collapsible` as an extra grid item, wrapping a
+   `.card-grid__more-inner` that holds the "extra" cards. The extra cards
+   stay collapsed behind the native <details> disclosure (keyboard + no-JS
+   accessible, no JS required) at every screen size — desktop included. */
+.card-grid--collapsible .card-grid__more {
+  display: block;
+  grid-column: 1 / -1;
+}
+
+.card-grid--collapsible .card-grid__more-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+  margin-top: 32px;
+}
+
+.card-grid--collapsible .card-grid__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 24px;
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: var(--transition);
+}
+
+.card-grid__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.card-grid__toggle::marker {
+  content: '';
+}
+
+.card-grid--collapsible .card-grid__toggle:hover,
+.card-grid--collapsible .card-grid__toggle:focus-visible {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.card-grid__toggle::after {
+  content: '\25BC';
+  font-size: 0.7rem;
+  transition: transform 0.25s ease;
+}
+
+.card-grid__more[open] .card-grid__toggle::after {
+  transform: rotate(180deg);
+}
+
+.card-grid__more[open] .card-grid__toggle .card-grid__toggle-label--more,
+.card-grid__more:not([open]) .card-grid__toggle .card-grid__toggle-label--less {
+  display: none;
 }
 
 /* --- About / Bio Section --- */
@@ -878,6 +957,19 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   gap: 16px;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+/* Plain-text demoted link, used beneath the primary button in a .cta-section */
+.cta-link {
+  display: block;
+  margin-top: 20px;
+  color: rgba(255,255,255,0.75);
+  text-decoration: underline;
+  font-size: 0.95rem;
+}
+
+.cta-link:hover {
+  color: var(--white);
 }
 
 /* --- Social Links --- */
@@ -1174,6 +1266,16 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   fill: currentColor;
 }
 
+/* --- Sticky Mobile CTA Bar ---
+   Slim fixed bottom bar, mobile-only, holding the page's single primary CTA
+   (see extra-md-files/done/03-cta-consolidation.md). Hidden by default;
+   shown only under the 640px breakpoint below. Sits below the navbar's
+   z-index (1000) and is hidden while the mobile nav dropdown is open
+   (body.nav-open) so the two never visually collide. */
+.sticky-cta-bar {
+  display: none;
+}
+
 /* --- Responsive --- */
 @media (max-width: 968px) {
   .hero .container {
@@ -1386,6 +1488,38 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
   .media-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Sticky mobile CTA bar: single primary-CTA button pinned to the
+     viewport bottom. Only the pages that opt in add the markup
+     (.sticky-cta-bar), so this rule is a no-op elsewhere. */
+  body:has(.sticky-cta-bar) {
+    padding-bottom: 76px;
+  }
+
+  .sticky-cta-bar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(26, 35, 50, 0.97);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+  }
+
+  .sticky-cta-bar .btn {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    padding: 13px 24px;
+    font-size: 0.95rem;
+  }
+
+  body.nav-open .sticky-cta-bar {
+    display: none;
   }
 }
 
@@ -1661,6 +1795,107 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   text-decoration: none;
 }
 
+/* --- Article Author Credibility Box --- */
+.author-box {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  background: var(--off-white);
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-top: 48px;
+}
+
+.author-box__photo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.author-box__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.author-box__title {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.author-box__credentials {
+  list-style: none;
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.author-box__credentials li {
+  font-size: 0.85rem;
+  color: var(--text);
+  padding-left: 18px;
+  position: relative;
+  margin-bottom: 0;
+}
+
+.author-box__credentials li::before {
+  content: '\2713';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.author-box__links {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* --- "As Featured In" Press Strip --- */
+.press-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 28px;
+  padding: 32px 0;
+}
+
+.press-strip__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-light);
+  margin-right: 6px;
+}
+
+.press-strip__item {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--text);
+  opacity: 0.7;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+a.press-strip__item:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
 @media (max-width: 640px) {
   .article-grid {
     grid-template-columns: 1fr;
@@ -1677,5 +1912,31 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   .article-meta {
     flex-direction: column;
     gap: 8px;
+  }
+
+  .author-box {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .author-box__credentials {
+    align-items: center;
+  }
+
+  .author-box__credentials li {
+    padding-left: 0;
+  }
+
+  .author-box__credentials li::before {
+    display: none;
+  }
+
+  .press-strip {
+    gap: 8px 18px;
+  }
+
+  .press-strip__item {
+    font-size: 0.9rem;
   }
 }

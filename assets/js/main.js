@@ -151,4 +151,12 @@ function applyLanguage(lang) {
 
   // Update html lang attribute
   document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hans';
+
+  // Reveal body if it was hidden by the anti-flash snippet in <head>
+  // (see wm-lang-hide / data-lang-pending — only present for zh-preference visitors)
+  if (document.documentElement.hasAttribute('data-lang-pending')) {
+    document.documentElement.removeAttribute('data-lang-pending');
+    var hideStyle = document.getElementById('wm-lang-hide');
+    if (hideStyle) hideStyle.remove();
+  }
 }

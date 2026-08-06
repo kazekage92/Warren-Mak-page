@@ -16,38 +16,63 @@
   <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+    :root {
+      --na1: #7c3aed; --na2: #2563eb; --na3: #0891b2; --na4: #ea580c; --na5: #16a34a;
+      --rainbow: linear-gradient(90deg, var(--na1), var(--na2), var(--na3), var(--na4), var(--na5));
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(180deg, #f6f7fc 0%, #eef1f8 100%); color: #1a1a2e; min-height: 100vh; }
 
     /* Login */
-    .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-    .login-box { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 48px 40px; max-width: 420px; width: 100%; text-align: center; }
-    .login-box h1 { font-size: 1.5rem; margin-bottom: 8px; color: #1a1a2e; }
-    .login-box p { color: #666; font-size: 0.9rem; margin-bottom: 28px; }
+    .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: radial-gradient(circle at 15% 20%, rgba(124,58,237,0.10), transparent 45%), radial-gradient(circle at 85% 80%, rgba(37,99,235,0.10), transparent 45%); }
+    .login-box { position: relative; background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(26,26,46,0.12); padding: 44px 40px 40px; max-width: 420px; width: 100%; text-align: center; overflow: hidden; }
+    .login-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--rainbow); }
+    .login-box__badge { width: 56px; height: 56px; margin: 4px auto 16px; border-radius: 16px; background: linear-gradient(135deg, var(--na1), var(--na2)); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; box-shadow: 0 6px 16px rgba(124,58,237,0.3); }
+    .login-box h1 { font-size: 1.4rem; margin-bottom: 6px; color: #1a1a2e; }
+    .login-box p { color: #666; font-size: 0.9rem; margin-bottom: 26px; line-height: 1.5; }
     .login-box input { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; }
-    .login-box input:focus { outline: none; border-color: #2563eb; }
-    .login-box button { width: 100%; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 16px; transition: background 0.2s; }
-    .login-box button:hover { background: #1d4ed8; }
+    .login-box input:focus { outline: none; border-color: var(--na2); }
+    .login-box button { width: 100%; padding: 12px; background: linear-gradient(135deg, var(--na1), var(--na2)); color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 16px; transition: filter 0.2s, transform 0.15s; }
+    .login-box button:hover { filter: brightness(1.08); transform: translateY(-1px); }
     .login-error { color: #dc2626; font-size: 0.85rem; margin-top: 12px; display: none; }
 
     /* Header */
-    .admin-header { background: #1a1a2e; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
-    .admin-header h1 { font-size: 1.1rem; font-weight: 600; }
-    .admin-header .back-btn { background: rgba(255,255,255,0.15); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .admin-header { position: relative; background: linear-gradient(135deg, #1a1a2e, #2e2a5c); color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .admin-header::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--rainbow); }
+    .admin-header h1 { font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .admin-header .back-btn { background: rgba(255,255,255,0.15); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
     .admin-header .back-btn:hover { background: rgba(255,255,255,0.25); }
-    .admin-header .logout-btn { background: #dc2626; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .admin-header .logout-btn { background: #dc2626; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+    .admin-header .logout-btn:hover { background: #b91c1c; }
 
     /* Article List */
-    .article-list { max-width: 800px; margin: 32px auto; padding: 0 20px; }
-    .article-list h2 { font-size: 1.3rem; margin-bottom: 20px; color: #1a1a2e; }
-    .article-item { background: #fff; border-radius: 10px; padding: 20px 24px; margin-bottom: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 2px solid transparent; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
-    .article-item:hover { border-color: #2563eb; box-shadow: 0 4px 16px rgba(37,99,235,0.1); }
-    .article-item h3 { font-size: 1rem; color: #1a1a2e; }
-    .article-item .arrow { color: #999; font-size: 1.2rem; }
+    .article-list { max-width: 1000px; margin: 32px auto; padding: 0 20px; }
+    .article-list__top { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+    .article-list h2 { font-size: 1.3rem; color: #1a1a2e; }
+    .article-list__count { font-size: 0.85rem; font-weight: 600; color: #666; background: #fff; padding: 4px 12px; border-radius: 999px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .article-list__intro { color: #666; font-size: 0.9rem; margin: 6px 0 22px; line-height: 1.5; }
+    .article-grid-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .article-item { background: #fff; border-radius: 12px; padding: 18px 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 2px solid transparent; border-left: 5px solid var(--item-accent, var(--na2)); transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .article-item:hover { border-color: var(--item-accent, var(--na2)); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(37,99,235,0.12); }
+    .article-item__main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .article-item__icon { font-size: 1.3rem; flex-shrink: 0; }
+    .article-item h3 { font-size: 0.95rem; color: #1a1a2e; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+    .article-item .arrow { color: var(--item-accent, #999); font-size: 1.2rem; flex-shrink: 0; }
+    .article-item:nth-of-type(5n+1) { --item-accent: var(--na1); }
+    .article-item:nth-of-type(5n+2) { --item-accent: var(--na2); }
+    .article-item:nth-of-type(5n+3) { --item-accent: var(--na3); }
+    .article-item:nth-of-type(5n+4) { --item-accent: var(--na4); }
+    .article-item:nth-of-type(5n+5) { --item-accent: var(--na5); }
 
     /* Editor */
     .editor-wrap { max-width: 960px; margin: 24px auto; padding: 0 20px 60px; }
     .editor-section { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 20px; overflow: hidden; }
     .editor-section-title { font-size: 0.85rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.05em; padding: 16px 20px 0; }
+    .editor-section--a { border-left: 5px solid var(--na2); }
+    .editor-section--b { border-left: 5px solid var(--na5); }
+    .editor-section-title--icon { text-transform: none; font-size: 1rem; color: #1a1a2e; letter-spacing: 0; display: flex; align-items: center; gap: 10px; padding-top: 18px; }
+    .editor-section-title--icon .icon-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; font-size: 0.95rem; flex-shrink: 0; }
+    .editor-section--a .icon-badge { background: #dbeafe; }
+    .editor-section--b .icon-badge { background: #dcfce7; }
 
     /* Tabs */
     .lang-tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin: 0 0 20px; padding: 0 20px; }
@@ -73,6 +98,8 @@
     .btn-save:hover { background: #1d4ed8; }
     .btn-save:disabled { background: #93c5fd; cursor: not-allowed; }
     .btn-preview { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; padding: 10px 20px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
+    .btn-save.btn-save--publish { background: linear-gradient(135deg, #16a34a, #22c55e); box-shadow: 0 2px 10px rgba(22,163,74,0.35); font-size: 1rem; padding: 12px 32px; }
+    .btn-save.btn-save--publish:hover { background: linear-gradient(135deg, #15803d, #16a34a); }
 
     /* Loading */
     .loading { text-align: center; padding: 60px; color: #666; }
@@ -82,11 +109,139 @@
     /* Hidden */
     .hidden { display: none !important; }
 
+    /* ============ NEW ARTICLE: VISUAL SYSTEM ============ */
+    /* --na1..--na5 are defined globally on :root above and shared with the
+       login/list/editor screens so the whole admin tool reads as one system. */
+
+    .na-sticky-top { position: sticky; top: 0; z-index: 200; }
+
+    .na-intro { max-width: 960px; margin: 20px auto 0; padding: 0 20px; color: #555; font-size: 0.92rem; line-height: 1.5; }
+
+    /* Stepper */
+    .na-stepper { display: flex; align-items: center; max-width: 960px; margin: 0 auto; padding: 14px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; overflow-x: auto; gap: 4px; }
+    .na-step { display: flex; align-items: center; gap: 8px; background: none; border: none; cursor: pointer; padding: 6px 8px; border-radius: 8px; flex-shrink: 0; }
+    .na-step:hover { background: #f3f4f6; }
+    .na-step__circle { width: 26px; height: 26px; border-radius: 50%; background: #e5e7eb; color: #888; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s, color 0.2s; }
+    .na-step__label { font-size: 0.82rem; font-weight: 600; color: #888; white-space: nowrap; }
+    .na-step[data-step="1"] .na-step__circle { background: #f3e8ff; color: var(--na1); }
+    .na-step[data-step="2"] .na-step__circle { background: #dbeafe; color: var(--na2); }
+    .na-step[data-step="3"] .na-step__circle { background: #cffafe; color: var(--na3); }
+    .na-step[data-step="4"] .na-step__circle { background: #ffedd5; color: var(--na4); }
+    .na-step[data-step="5"] .na-step__circle { background: #dcfce7; color: var(--na5); }
+    .na-step.active .na-step__label { color: #1a1a2e; }
+    .na-step[data-step="1"].active .na-step__circle { background: var(--na1); color: #fff; }
+    .na-step[data-step="2"].active .na-step__circle { background: var(--na2); color: #fff; }
+    .na-step[data-step="3"].active .na-step__circle { background: var(--na3); color: #fff; }
+    .na-step[data-step="4"].active .na-step__circle { background: var(--na4); color: #fff; }
+    .na-step[data-step="5"].active .na-step__circle { background: var(--na5); color: #fff; }
+    .na-step.complete .na-step__circle { background: #16a34a; color: #fff; font-size: 0; }
+    .na-step.complete .na-step__circle::after { content: '✓'; font-size: 0.85rem; }
+    .na-step__line { width: 24px; height: 2px; background: #e5e7eb; flex-shrink: 0; }
+
+    /* Section accent borders matching stepper colours, plus scroll offset for the sticky stepper */
+    .na-card-1, .na-card-2, .na-card-3, .na-card-4, .na-card-5 { scroll-margin-top: 150px; }
+    .na-card-1 { border-left: 5px solid var(--na1); }
+    .na-card-2 { border-left: 5px solid var(--na2); }
+    .na-card-3 { border-left: 5px solid var(--na3); }
+    .na-card-4 { border-left: 5px solid var(--na4); }
+    .na-card-5 { border-left: 5px solid var(--na5); }
+
+    .editor-section-title--na { text-transform: none; font-size: 1.02rem; color: #1a1a2e; display: flex; align-items: center; letter-spacing: 0; padding-top: 18px; }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 0.72rem; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
+    .na-card-1 .step-num { background: var(--na1); }
+    .na-card-2 .step-num { background: var(--na2); }
+    .na-card-3 .step-num { background: var(--na3); }
+    .na-card-4 .step-num { background: var(--na4); }
+    .na-card-5 .step-num { background: var(--na5); }
+
+    /* Admin header row with multiple buttons */
+    .admin-header .header-actions { display: flex; gap: 8px; align-items: center; }
+    .new-article-btn { background: #16a34a; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+    .new-article-btn:hover { background: #15803d; }
+    .new-article-btn:disabled { background: #86efac; cursor: not-allowed; }
+
+    /* Method tabs (New Article source selector) */
+    .method-tabs { display: flex; gap: 12px; padding: 16px 20px 4px; flex-wrap: wrap; }
+    .method-tab { flex: 1; min-width: 170px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 20px 16px; border: 2px solid #e5e7eb; background: #fafbfc; border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+    .method-tab:hover { border-color: #93c5fd; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .method-tab.active { border-color: var(--na1, #7c3aed); background: #f3e8ff; }
+    .method-tab__icon { font-size: 1.8rem; line-height: 1; }
+    .method-tab__title { font-size: 0.92rem; font-weight: 700; color: #1a1a2e; }
+    .method-tab.active .method-tab__title { color: var(--na1, #7c3aed); }
+    .method-tab__desc { font-size: 0.78rem; color: #777; line-height: 1.35; font-weight: 400; }
+    .method-panel { padding: 12px 20px 20px; }
+    .method-panel .hint { color: #666; font-size: 0.85rem; margin-bottom: 10px; line-height: 1.5; }
+    .method-panel textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; font-family: inherit; resize: vertical; margin-bottom: 10px; }
+    .method-panel input[type="file"] { margin-bottom: 10px; display: block; }
+    .file-drop-hint { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border: 2px dashed #d1d5db; border-radius: 10px; background: #fafbfc; margin-bottom: 10px; }
+    .file-drop-hint input[type="file"] { margin: 0; }
+    input[type="file"]::file-selector-button { background: var(--na2, #2563eb); color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-right: 12px; font-size: 0.85rem; }
+    input[type="file"]::file-selector-button:hover { background: #1d4ed8; }
+
+    /* Form grid (New Article basic/SEO fields) */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 4px 20px 20px; }
+    .form-grid.single { grid-template-columns: 1fr; }
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+    .form-field label { font-size: 0.82rem; font-weight: 600; color: #444; }
+    .form-field .req { color: #dc2626; }
+    .form-field input[type="text"], .form-field input[type="date"], .form-field input[type="url"], .form-field textarea, .form-field select {
+      padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; font-family: inherit; width: 100%;
+    }
+    .form-field input:focus, .form-field textarea:focus, .form-field select:focus { outline: none; border-color: #2563eb; }
+    .form-field textarea { resize: vertical; min-height: 70px; }
+    .form-field .field-hint { font-size: 0.78rem; color: #888; }
+    .form-field .char-count { font-size: 0.78rem; color: #888; text-align: right; }
+    .form-field .char-count.warn { color: #dc2626; }
+    .form-field input[readonly] { background: #f3f4f6; color: #666; }
+    .field-error { color: #dc2626; font-size: 0.78rem; }
+
+    /* Featured image */
+    .featured-image-field { padding: 4px 20px 20px; }
+    .featured-image-field label { font-size: 0.82rem; font-weight: 600; color: #444; display: block; margin-bottom: 6px; }
+    #featuredImagePreview { max-width: 280px; max-height: 160px; border-radius: 8px; margin-top: 10px; display: block; border: 1px solid #e5e7eb; object-fit: cover; }
+
+    /* Buttons */
+    .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; padding: 9px 18px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
+    .btn-secondary:hover { background: #e5e7eb; }
+
+    /* Reading time row */
+    .reading-time-row { display: flex; align-items: center; gap: 10px; padding: 0 20px 20px; flex-wrap: wrap; font-size: 0.88rem; color: #444; }
+    .reading-time-row input { padding: 6px 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.85rem; width: 130px; }
+
+    /* Preview */
+    .preview-toolbar { padding: 16px 20px 0; display: flex; align-items: center; gap: 12px; }
+    #previewFrame { width: 100%; height: 640px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 16px 20px 0; display: block; background: #fff; }
+
+    /* Validation checklist */
+    .validation-summary { padding: 16px 20px 0; }
+    .validation-summary__top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .validation-summary__top span { font-size: 0.85rem; font-weight: 700; color: #444; }
+    .validation-summary__bar { height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .validation-summary__fill { height: 100%; width: 0%; background: linear-gradient(90deg, #16a34a, #4ade80); border-radius: 999px; transition: width 0.3s ease; }
+    .validation-checklist { list-style: none; padding: 16px 20px 20px; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+    .validation-checklist li { font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px; }
+    .validation-checklist li.ok { color: #16a34a; background: #f0fdf4; }
+    .validation-checklist li.warn { color: #d97706; background: #fffbeb; }
+    .validation-checklist li .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+    /* Success panel */
+    .publish-success { text-align: center; padding: 60px 20px; max-width: 560px; margin: 40px auto; background: linear-gradient(180deg, #f0fdf4, #ffffff); border: 1px solid #bbf7d0; border-radius: 16px; }
+    .publish-success .icon { font-size: 3rem; margin-bottom: 16px; }
+    .publish-success h2 { color: #16a34a; margin-bottom: 10px; }
+    .publish-success p { color: #666; margin-bottom: 24px; }
+    .publish-success .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
     /* Responsive */
     @media (max-width: 600px) {
       .login-box { padding: 32px 24px; }
       .lang-tab { padding: 10px 16px; font-size: 0.85rem; }
       .editor-wrap { padding: 0 12px 60px; }
+      .form-grid, .validation-checklist { grid-template-columns: 1fr; }
+      .na-stepper { padding: 10px 12px; }
+      .na-step__label { display: none; }
+      .method-tabs { flex-direction: column; }
+      .article-grid-list { grid-template-columns: 1fr; }
+      .article-list__top { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
@@ -95,8 +250,9 @@
 <!-- ==================== LOGIN SCREEN ==================== -->
 <div id="loginScreen" class="login-wrap">
   <div class="login-box">
+    <div class="login-box__badge" aria-hidden="true">&#128274;</div>
     <h1>Article Editor</h1>
-    <p>Warren Mak — warrenmak.asia</p>
+    <p>Welcome back! Enter your password to manage articles on <strong>warrenmak.asia</strong>.</p>
     <form id="loginForm">
       <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off" required>
       <button type="submit">Log In</button>
@@ -108,12 +264,19 @@
 <!-- ==================== ARTICLE LIST SCREEN ==================== -->
 <div id="listScreen" class="hidden">
   <div class="admin-header">
-    <h1>Article Editor</h1>
-    <button class="logout-btn" onclick="logout()">Log Out</button>
+    <h1><span aria-hidden="true">&#128218;</span> Article Editor</h1>
+    <div class="header-actions">
+      <button id="newArticleBtn" class="new-article-btn" onclick="openNewArticle()" disabled>&#10024; New Article</button>
+      <button class="logout-btn" onclick="logout()">Log Out</button>
+    </div>
   </div>
   <div class="article-list">
-    <h2>Select an Article to Edit</h2>
-    <div id="articleListContainer">
+    <div class="article-list__top">
+      <h2>Select an Article to Edit</h2>
+      <span class="article-list__count" id="articleListCount">&hellip;</span>
+    </div>
+    <p class="article-list__intro">Click any article below to open it in the editor, or use <strong>+ New Article</strong> above to start a brand-new one.</p>
+    <div id="articleListContainer" class="article-grid-list">
       <div class="loading"><div class="spinner"></div><p style="margin-top:12px;">Loading articles...</p></div>
     </div>
   </div>
@@ -123,7 +286,7 @@
 <div id="editorScreen" class="hidden">
   <div class="admin-header">
     <button class="back-btn" onclick="backToList()">&larr; Back to Articles</button>
-    <h1 id="editorTitle">Editing Article</h1>
+    <h1><span aria-hidden="true">&#9999;&#65039;</span> <span id="editorTitle">Editing Article</span></h1>
     <button class="logout-btn" onclick="logout()">Log Out</button>
   </div>
 
@@ -135,24 +298,24 @@
 
     <!-- EN editors -->
     <div id="editorsEn">
-      <div class="editor-section">
-        <div class="editor-section-title">Hero Section (Title &amp; Subtitle)</div>
+      <div class="editor-section editor-section--a">
+        <div class="editor-section-title editor-section-title--icon"><span class="icon-badge" aria-hidden="true">&#127991;&#65039;</span>Hero Section (Title &amp; Subtitle)</div>
         <div class="editor-container"><div id="heroEditorEn"></div></div>
       </div>
-      <div class="editor-section">
-        <div class="editor-section-title">Article Body</div>
+      <div class="editor-section editor-section--b">
+        <div class="editor-section-title editor-section-title--icon"><span class="icon-badge" aria-hidden="true">&#128221;</span>Article Body</div>
         <div class="editor-container"><div id="bodyEditorEn"></div></div>
       </div>
     </div>
 
     <!-- ZH editors -->
     <div id="editorsZh" class="hidden">
-      <div class="editor-section">
-        <div class="editor-section-title">Hero Section (标题和副标题)</div>
+      <div class="editor-section editor-section--a">
+        <div class="editor-section-title editor-section-title--icon"><span class="icon-badge" aria-hidden="true">&#127991;&#65039;</span>Hero Section (标题和副标题)</div>
         <div class="editor-container"><div id="heroEditorZh"></div></div>
       </div>
-      <div class="editor-section">
-        <div class="editor-section-title">文章正文 (Article Body)</div>
+      <div class="editor-section editor-section--b">
+        <div class="editor-section-title editor-section-title--icon"><span class="icon-badge" aria-hidden="true">&#128221;</span>文章正文 (Article Body)</div>
         <div class="editor-container"><div id="bodyEditorZh"></div></div>
       </div>
     </div>
@@ -165,7 +328,214 @@
   </div>
 </div>
 
+<!-- ==================== NEW ARTICLE SCREEN ==================== -->
+<div id="newArticleScreen" class="hidden">
+  <div class="na-sticky-top">
+    <div class="admin-header">
+      <button class="back-btn" onclick="cancelNewArticle()">&larr; Back to Articles</button>
+      <h1>&#10024; New Article</h1>
+      <button class="logout-btn" onclick="logout()">Log Out</button>
+    </div>
+    <div class="na-stepper" id="naStepper">
+      <button type="button" class="na-step active" data-step="1" data-target="naSection1"><span class="na-step__circle">1</span><span class="na-step__label">Start</span></button>
+      <div class="na-step__line"></div>
+      <button type="button" class="na-step" data-step="2" data-target="naSection2"><span class="na-step__circle">2</span><span class="na-step__label">Basic Info</span></button>
+      <div class="na-step__line"></div>
+      <button type="button" class="na-step" data-step="3" data-target="naSection3"><span class="na-step__circle">3</span><span class="na-step__label">SEO</span></button>
+      <div class="na-step__line"></div>
+      <button type="button" class="na-step" data-step="4" data-target="naSection4"><span class="na-step__circle">4</span><span class="na-step__label">Content</span></button>
+      <div class="na-step__line"></div>
+      <button type="button" class="na-step" data-step="5" data-target="naSection5"><span class="na-step__circle">5</span><span class="na-step__label">Preview</span></button>
+    </div>
+  </div>
+
+  <p class="na-intro">Follow the steps below — pick how you want to start, fill in the details, write your content, then preview and publish. Click any step above to jump straight to it; a green check appears once that step's required fields are filled in.</p>
+
+  <div class="editor-wrap" id="newArticleForm">
+
+    <!-- Source method -->
+    <div class="editor-section na-card-1" id="naSection1">
+      <div class="editor-section-title editor-section-title--na"><span class="step-num">1</span>Start Your Article</div>
+      <div class="method-tabs">
+        <button type="button" class="method-tab active" data-method="scratch" onclick="selectMethod('scratch')">
+          <span class="method-tab__icon">&#9997;&#65039;</span>
+          <span class="method-tab__title">Write from Scratch</span>
+          <span class="method-tab__desc">Start with a blank editor and type directly.</span>
+        </button>
+        <button type="button" class="method-tab" data-method="upload" onclick="selectMethod('upload')">
+          <span class="method-tab__icon">&#128196;</span>
+          <span class="method-tab__title">Upload Document</span>
+          <span class="method-tab__desc">Import a DOCX, PDF, TXT or Markdown file.</span>
+        </button>
+        <button type="button" class="method-tab" data-method="paste" onclick="selectMethod('paste')">
+          <span class="method-tab__icon">&#128203;</span>
+          <span class="method-tab__title">Paste / Import</span>
+          <span class="method-tab__desc">Paste text or HTML copied from another source.</span>
+        </button>
+      </div>
+      <div class="method-panel hidden" id="methodPanelUpload">
+        <p class="hint">Supported: DOCX, PDF, TXT, Markdown (.md). The extracted text is inserted into the English article body below — review it, fix any formatting issues, and add the Chinese translation yourself.</p>
+        <div class="file-drop-hint">
+          <input type="file" id="uploadFileInput" accept=".docx,.pdf,.txt,.md,.markdown" onchange="handleUploadFile(event)">
+        </div>
+        <div id="uploadStatus" class="hint"></div>
+      </div>
+      <div class="method-panel hidden" id="methodPanelPaste">
+        <p class="hint">Paste the article text or HTML you copied from the source (a Nanyang column, a news site, an existing page). We can't fetch URLs directly from the browser (cross-origin restrictions), so copy the content from the source page first, then paste it here — we'll clean it up and drop it into the editor below for you to review.</p>
+        <textarea id="pasteInput" rows="8" placeholder="Paste content here..."></textarea>
+        <button type="button" class="btn-secondary" onclick="cleanAndInsertPaste()">Clean &amp; Insert into Editor</button>
+      </div>
+    </div>
+
+    <!-- Basic fields -->
+    <div class="editor-section na-card-2" id="naSection2">
+      <div class="editor-section-title editor-section-title--na"><span class="step-num">2</span>Basic Info</div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Title (English) <span class="req">*</span></label>
+          <input type="text" id="naTitleEn" oninput="onTitleEnInput()">
+        </div>
+        <div class="form-field">
+          <label>标题 (Chinese) <span class="req">*</span></label>
+          <input type="text" id="naTitleZh">
+        </div>
+        <div class="form-field">
+          <label>Subtitle (English) <span class="req">*</span></label>
+          <input type="text" id="naSubtitleEn">
+        </div>
+        <div class="form-field">
+          <label>副标题 (Chinese) <span class="req">*</span></label>
+          <input type="text" id="naSubtitleZh">
+        </div>
+        <div class="form-field">
+          <label>Category Tag (English) <span class="req">*</span></label>
+          <input type="text" id="naCategoryEn" placeholder="e.g. Beginner Guide">
+          <span class="field-hint">Shown as a small tag above the title.</span>
+        </div>
+        <div class="form-field">
+          <label>分类标签 (Chinese) <span class="req">*</span></label>
+          <input type="text" id="naCategoryZh" placeholder="e.g. 入门指南">
+        </div>
+        <div class="form-field">
+          <label>Author (English)</label>
+          <input type="text" id="naAuthorEn" value="Warren Mak">
+        </div>
+        <div class="form-field">
+          <label>作者 (Chinese)</label>
+          <input type="text" id="naAuthorZh" value="麦传球 Warren Mak">
+        </div>
+        <div class="form-field">
+          <label>Publish Date <span class="req">*</span></label>
+          <input type="date" id="naPublishDate">
+        </div>
+        <div class="form-field">
+          <label>Tags / Keywords</label>
+          <input type="text" id="naTags" placeholder="comma, separated, keywords">
+          <span class="field-hint">Used for meta keywords and SEO.</span>
+        </div>
+        <div class="form-field">
+          <label>CTA Section</label>
+          <select id="naCtaPreset">
+            <option value="warrants">Structured Warrants course CTA</option>
+            <option value="shortterm">Short-Term Trading course CTA</option>
+          </select>
+          <span class="field-hint">Shown at the end of the article to promote a course.</span>
+        </div>
+      </div>
+      <div class="featured-image-field">
+        <label>Featured Image</label>
+        <input type="file" id="featuredImageInput" accept="image/*" onchange="onFeaturedImageChange(event)">
+        <span class="field-hint">Used as the social-share (Open Graph) image for this article. Falls back to the site default if left empty.</span>
+        <img id="featuredImagePreview" class="hidden">
+      </div>
+    </div>
+
+    <!-- SEO -->
+    <div class="editor-section na-card-3" id="naSection3">
+      <div class="editor-section-title editor-section-title--na"><span class="step-num">3</span>SEO</div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label>URL Slug <span class="req">*</span></label>
+          <input type="text" id="naSlug" oninput="onSlugInput()" onblur="normalizeSlugField()">
+          <span class="field-hint" id="slugHint">articles/&lt;slug&gt;.html</span>
+        </div>
+        <div class="form-field">
+          <label>Meta Title</label>
+          <input type="text" id="naMetaTitle" placeholder="Defaults to the English title">
+        </div>
+        <div class="form-field" style="grid-column: 1 / -1;">
+          <label>Meta Description <span class="req">*</span></label>
+          <textarea id="naMetaDescription" maxlength="300" oninput="updateMetaDescCount()"></textarea>
+          <span class="char-count" id="metaDescCount">0 / 160 recommended</span>
+        </div>
+        <div class="form-field" style="grid-column: 1 / -1;">
+          <label>Canonical URL</label>
+          <input type="text" id="naCanonicalUrl" readonly>
+          <span class="field-hint">Auto-generated from the URL slug.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="editor-section na-card-4" id="naSection4">
+      <div class="editor-section-title editor-section-title--na"><span class="step-num">4</span>Article Content</div>
+      <div class="lang-tabs">
+        <button type="button" class="lang-tab active" data-lang="en" onclick="switchNaTab('en')">English</button>
+        <button type="button" class="lang-tab" data-lang="zh" onclick="switchNaTab('zh')">中文 Chinese</button>
+      </div>
+      <div id="naBodyEn">
+        <div class="editor-container"><div id="naBodyEditorEn"></div></div>
+      </div>
+      <div id="naBodyZh" class="hidden">
+        <div class="editor-container"><div id="naBodyEditorZh"></div></div>
+      </div>
+      <div class="reading-time-row">
+        <span>Estimated reading time: <strong id="readingTimeDisplay">0 min read</strong></span>
+        <button type="button" class="btn-secondary" onclick="recalcReadingTime()">Recalculate</button>
+        <span>Override text:</span>
+        <input type="text" id="readingTimeOverride" placeholder="e.g. 8 min read">
+      </div>
+    </div>
+
+    <!-- Preview + validation -->
+    <div class="editor-section na-card-5" id="naSection5">
+      <div class="editor-section-title editor-section-title--na"><span class="step-num">5</span>Preview &amp; Checklist</div>
+      <div class="preview-toolbar">
+        <button type="button" class="btn-secondary" onclick="refreshPreview()">Refresh Preview</button>
+        <span class="field-hint">Renders against the live site stylesheet — refresh after making changes.</span>
+      </div>
+      <iframe id="previewFrame" title="Article preview"></iframe>
+      <div class="validation-summary">
+        <div class="validation-summary__top"><span>Publish checklist</span><span id="validationSummaryText">0 / 9 complete</span></div>
+        <div class="validation-summary__bar"><div class="validation-summary__fill" id="validationFill"></div></div>
+      </div>
+      <ul class="validation-checklist" id="validationChecklist"></ul>
+    </div>
+
+  </div>
+
+  <!-- Success screen (shown in place of the form after publish) -->
+  <div class="publish-success hidden" id="publishSuccess">
+    <div class="icon">&#9989;</div>
+    <h2>Article published successfully.</h2>
+    <p id="publishSuccessDetail">Changes will be live in ~1 minute.</p>
+    <div class="actions">
+      <button class="btn-secondary" id="viewLiveBtn">View Live Article</button>
+      <button class="btn-secondary" onclick="openNewArticle()">Create Another</button>
+      <button class="btn-save" onclick="backToList()">Back to Article List</button>
+    </div>
+  </div>
+
+  <div class="save-bar" id="newArticleSaveBar">
+    <span class="status" id="newArticleStatus">&#128221; Draft &mdash; not yet published</span>
+    <button class="btn-save btn-save--publish" id="publishBtn" onclick="publishNewArticle()">&#128640; Publish to Website</button>
+  </div>
+</div>
+
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script>
 (function() {
   'use strict';
@@ -181,13 +551,26 @@
     ARTICLES_PATH: 'articles'
   };
 
+  // GitHub's Contents/Git Data API rejects large payloads with an opaque HTTP error;
+  // this keeps the failure mode a clear, actionable message instead.
+  const MAX_FEATURED_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+
   // ===================== STATE =====================
   let githubToken = null;
+  let repoDefaultBranch = 'main'; // resolved from the repo API at login; used for Git Data API ref/commit calls
   let currentFile = null;
   let fileSha = null;
   let originalDoc = null;
   let hasUnsavedChanges = false;
   let quillHeroEn, quillBodyEn, quillHeroZh, quillBodyZh;
+
+  // New Article workspace state
+  let existingArticleFiles = [];
+  let naQuillBodyEn, naQuillBodyZh;
+  let naHasUnsavedChanges = false;
+  let naSlugManuallyEdited = false;
+  let naFeaturedImage = null; // { fileName, ext, base64 }
+  let naPublishing = false;
 
   // ===================== HELPERS =====================
   const $ = id => document.getElementById(id);
@@ -258,9 +641,12 @@
       );
 
       if (!res.ok) throw new Error('Token invalid');
+      const repoData = await res.json();
+      repoDefaultBranch = repoData.default_branch || 'main';
 
       githubToken = token;
       sessionStorage.setItem('admin_token', token);
+      sessionStorage.setItem('admin_branch', repoDefaultBranch);
       $('loginError').style.display = 'none';
       showListScreen();
     } catch (err) {
@@ -281,12 +667,15 @@
   async function showListScreen() {
     $('loginScreen').classList.add('hidden');
     $('editorScreen').classList.add('hidden');
+    $('newArticleScreen').classList.add('hidden');
     $('listScreen').classList.remove('hidden');
     await loadArticleList();
   }
 
   async function loadArticleList() {
     const container = $('articleListContainer');
+    $('newArticleBtn').disabled = true;
+    $('articleListCount').textContent = '…';
     try {
       const res = await fetch(
         'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/' + CONFIG.ARTICLES_PATH,
@@ -295,17 +684,21 @@
       if (!res.ok) throw new Error('Failed to load articles (HTTP ' + res.status + ')');
       const files = await res.json();
       const htmlFiles = files.filter(function(f) { return f.name.endsWith('.html'); }).sort(function(a, b) { return a.name.localeCompare(b.name); });
+      existingArticleFiles = htmlFiles.map(function(f) { return f.name; });
 
       container.innerHTML = '';
       htmlFiles.forEach(function(file) {
         var item = document.createElement('div');
         item.className = 'article-item';
-        item.innerHTML = '<h3>' + filenameToTitle(file.name) + '</h3><span class="arrow">&rarr;</span>';
+        item.innerHTML = '<span class="article-item__main"><span class="article-item__icon" aria-hidden="true">&#128196;</span><h3>' + filenameToTitle(file.name) + '</h3></span><span class="arrow">&rarr;</span>';
         item.onclick = function() { openArticle(file.name); };
         container.appendChild(item);
       });
+      $('newArticleBtn').disabled = false;
+      $('articleListCount').textContent = htmlFiles.length + (htmlFiles.length === 1 ? ' article' : ' articles');
     } catch (err) {
       container.innerHTML = '<p style="color:#dc2626;padding:20px;">Error: ' + err.message + '</p>';
+      $('articleListCount').textContent = '';
     }
   }
 
@@ -474,25 +867,1085 @@
 
   // ===================== BACK TO LIST =====================
   window.backToList = function() {
-    if (hasUnsavedChanges && !confirm('You have unsaved changes. Leave without saving?')) return;
+    if ((hasUnsavedChanges || naHasUnsavedChanges) && !confirm('You have unsaved changes. Leave without saving?')) return;
     hasUnsavedChanges = false;
+    naHasUnsavedChanges = false;
     $('editorScreen').classList.add('hidden');
+    $('newArticleScreen').classList.add('hidden');
     showListScreen();
   };
 
   // ===================== PREVENT ACCIDENTAL CLOSE =====================
   window.addEventListener('beforeunload', function(e) {
-    if (hasUnsavedChanges) {
+    if (hasUnsavedChanges || naHasUnsavedChanges) {
       e.preventDefault();
       e.returnValue = '';
     }
   });
+
+  // ===================== NEW ARTICLE: TEMPLATE FRAGMENTS =====================
+  // Copied verbatim from published articles so new pages match the site's
+  // hand-authored boilerplate (navbar/footer/CTA). Keep in sync manually if
+  // the shared chrome changes elsewhere — see CLAUDE.md.
+
+  var NAV_HTML = [
+    '  <!-- Navigation -->',
+    '  <nav class="navbar">',
+    '    <div class="container">',
+    '      <a href="../index.html" class="navbar__logo"><img src="../assets/images/logo/favicon.png" alt="Warren Mak" width="38" height="38"> Warren <span>Mak</span></a>',
+    '      <ul class="navbar__menu" id="navMenu">',
+    '        <li class="navbar__dropdown">',
+    '          <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">',
+    '            <span data-lang="en">About</span><span data-lang="zh" style="display:none;">关于</span>',
+    '            <span class="navbar__dropdown-caret" aria-hidden="true"></span>',
+    '          </button>',
+    '          <ul class="navbar__dropdown-menu">',
+    '            <li><a href="../about.html"><span data-lang="en">Warren Mak</span><span data-lang="zh" style="display:none;">Warren Mak</span></a></li>',
+    '            <li><a href="../ted-optimus.html"><span data-lang="en">TED Optimus</span><span data-lang="zh" style="display:none;">TED Optimus</span></a></li>',
+    '            <li><a href="../media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>',
+    '          </ul>',
+    '        </li>',
+    '        <li class="navbar__dropdown">',
+    '          <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">',
+    '            <span data-lang="en">Courses</span><span data-lang="zh" style="display:none;">课程</span>',
+    '            <span class="navbar__dropdown-caret" aria-hidden="true"></span>',
+    '          </button>',
+    '          <ul class="navbar__dropdown-menu">',
+    '            <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>',
+    '            <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>',
+    '          </ul>',
+    '        </li>',
+    '        <li class="navbar__dropdown">',
+    '          <button type="button" class="navbar__dropdown-trigger active" aria-haspopup="true" aria-expanded="false">',
+    '            <span data-lang="en">Learn</span><span data-lang="zh" style="display:none;">学习资源</span>',
+    '            <span class="navbar__dropdown-caret" aria-hidden="true"></span>',
+    '          </button>',
+    '          <ul class="navbar__dropdown-menu">',
+    '            <li><a href="../articles.html" class="active"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>',
+    '            <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>',
+    '          </ul>',
+    '        </li>',
+    '        <li><a href="https://www.thetradewizard.com/" target="_blank" class="navbar__cta navbar__cta--tool">Trade Wizard</a></li>',
+    '        <li><a href="https://academy.thetradewizard.com/" target="_blank" class="navbar__cta"><span data-lang="en">Free Webinar</span><span data-lang="zh" style="display:none;">免费网络研讨会</span></a></li>',
+    '      </ul>',
+    '      <div class="navbar__actions">',
+    '        <button class="lang-toggle" id="langToggle" title="Switch to Chinese">中文</button>',
+    '        <button class="navbar__toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button>',
+    '      </div>',
+    '    </div>',
+    '  </nav>'
+  ].join('\n');
+
+  var FOOTER_HTML = [
+    '  <!-- Footer -->',
+    '  <footer class="footer">',
+    '    <div class="container">',
+    '      <div class="footer__grid">',
+    '        <div class="footer__brand">',
+    '          <div class="footer__logo"><img src="../assets/images/logo/logo-long.png" alt="Warren Mak"></div>',
+    '          <h3>Warren Mak (麦传球)</h3>',
+    '          <p><span data-lang="en">Malaysia\'s #1 Structured Warrants &amp; Short-Term Trading Coach.</span><span data-lang="zh" style="display:none;">马来西亚第一结构性凭单与短线交易教练。</span></p>',
+    '          <p class="mt-16" style="font-size:0.85rem;">Email: warrenmak@tedoptimus.com</p>',
+    '        </div>',
+    '        <div>',
+    '          <h4><span data-lang="en">Pages</span><span data-lang="zh" style="display:none;">页面</span></h4>',
+    '          <ul class="footer__links">',
+    '            <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>',
+    '            <li><a href="../about.html"><span data-lang="en">About Warren</span><span data-lang="zh" style="display:none;">关于Warren</span></a></li>',
+    '            <li><a href="../articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>',
+    '            <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>',
+    '          </ul>',
+    '        </div>',
+    '        <div>',
+    '          <h4><span data-lang="en">Programmes</span><span data-lang="zh" style="display:none;">课程</span></h4>',
+    '          <ul class="footer__links">',
+    '            <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>',
+    '            <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>',
+    '            <li><a href="https://academy.thetradewizard.com/" target="_blank">Trade Wizard Academy</a></li>',
+    '            <li><a href="https://www.thetradewizard.com/" target="_blank">Trade Wizard Platform</a></li>',
+    '          </ul>',
+    '        </div>',
+    '        <div>',
+    '          <h4><span data-lang="en">Connect</span><span data-lang="zh" style="display:none;">联系我们</span></h4>',
+    '          <ul class="footer__links">',
+    '            <li><a href="https://t.me/tradewizardglobal" target="_blank">Telegram</a></li>',
+    '            <li><a href="https://www.facebook.com/TradeWizardGlobal" target="_blank">Facebook</a></li>',
+    '            <li><a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank">YouTube</a></li>',
+    '            <li><a href="https://www.linkedin.com/company/ted-optimus/" target="_blank">LinkedIn</a></li>',
+    '          </ul>',
+    '        </div>',
+    '      </div>',
+    '      <div class="footer__bottom">',
+    '        <p>© 2026 TED Optimus Sdn Bhd. <span data-lang="en">All rights reserved.</span><span data-lang="zh" style="display:none;">版权所有。</span></p>',
+    '      </div>',
+    '    </div>',
+    '  </footer>'
+  ].join('\n');
+
+  var CTA_PRESETS = {
+    warrants: [
+      '  <section class="cta-section">',
+      '    <div class="container">',
+      '      <div data-lang="en">',
+      '        <h2>Want to Master Structured Warrants?</h2>',
+      '        <p>Join Warren Mak\'s free live webinar and learn to trade structured warrants profitably with 32+ years of real market experience.</p>',
+      '        <div class="cta-buttons">',
+      '          <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary btn--lg">Join Free Webinar</a>',
+      '          <a href="../structured-warrants.html" class="btn btn--outline">Structured Warrants Course</a>',
+      '        </div>',
+      '      </div>',
+      '      <div data-lang="zh" style="display:none;" aria-hidden="true">',
+      '        <h2>想要精通结构性凭单？</h2>',
+      '        <p>加入麦传球的免费直播网络研讨会，学习如何凭借32年以上实战市场经验，实现结构性凭单盈利交易。</p>',
+      '        <div class="cta-buttons">',
+      '          <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary btn--lg">参加免费网络研讨会</a>',
+      '          <a href="../structured-warrants.html" class="btn btn--outline">结构性凭单课程</a>',
+      '        </div>',
+      '      </div>',
+      '    </div>',
+      '  </section>'
+    ].join('\n'),
+    shortterm: [
+      '  <section class="cta-section">',
+      '    <div class="container">',
+      '      <div data-lang="en">',
+      '        <h2>Ready to Master Short-Term Trading on Bursa Malaysia?</h2>',
+      '        <p>Join Warren Mak\'s free live webinar and learn the exact strategies that his students use to trade profitably every week.</p>',
+      '        <div class="cta-buttons">',
+      '          <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary btn--lg">Join Free Webinar</a>',
+      '          <a href="../short-term-trading.html" class="btn btn--outline">View Course Details</a>',
+      '        </div>',
+      '      </div>',
+      '      <div data-lang="zh" style="display:none;" aria-hidden="true">',
+      '        <h2>准备在马来西亚交易所掌握短线交易？</h2>',
+      '        <p>参加Warren Mak的免费直播网络研讨会，学习他的学员每周用于盈利交易的精确策略。</p>',
+      '        <div class="cta-buttons">',
+      '          <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary btn--lg">参加免费网络研讨会</a>',
+      '          <a href="../short-term-trading.html" class="btn btn--outline">查看课程详情</a>',
+      '        </div>',
+      '      </div>',
+      '    </div>',
+      '  </section>'
+    ].join('\n')
+  };
+
+  // ===================== NEW ARTICLE: SMALL HELPERS =====================
+  function escapeHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+  function escapeAttr(str) {
+    return escapeHtml(str).replace(/"/g, '&quot;');
+  }
+  // Defensive: JSON-LD is embedded in a script[type="application/ld+json"] block,
+  // so any "<" in a text field (e.g. a title containing a closing script tag)
+  // must not be able to close that tag early.
+  function jsonLdScript(obj) {
+    return JSON.stringify(obj).replace(/</g, '\\u003c');
+  }
+  function slugify(str) {
+    return String(str || '')
+      .toLowerCase()
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+  function truncateWords(str, n) {
+    var words = String(str || '').trim().split(/\s+/).filter(Boolean);
+    if (words.length <= n) return words.join(' ');
+    return words.slice(0, n).join(' ') + '…';
+  }
+  function truncateChars(str, n) {
+    str = String(str || '').trim();
+    return str.length <= n ? str : str.slice(0, n) + '…';
+  }
+  function formatMonthYear(dateStr) {
+    var d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+    var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+  function formatMonthYearZh(dateStr) {
+    var d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月';
+  }
+  function readingTimeTextZh(readingTimeText) {
+    var digits = String(readingTimeText || '').replace(/[^0-9]/g, '') || '5';
+    return '阅读时间：' + digits + '分钟';
+  }
+  function escapeHtmlBlock(text) {
+    // For plain-text imports (TXT) split into paragraphs.
+    return text.split(/\n\s*\n/).map(function(block) {
+      var line = block.replace(/[ \t]+/g, ' ').trim();
+      return line ? '<p>' + escapeHtml(line) + '</p>' : '';
+    }).filter(Boolean).join('');
+  }
+
+  // ===================== NEW ARTICLE: QUILL BODY EDITORS =====================
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  var naToolbarOptions = [
+    [{ 'header': [2, 3, false] }],
+    ['bold', 'italic'],
+    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+    ['blockquote', 'link', 'image'],
+    ['clean']
+  ];
+
+  function naImageHandler() {
+    var url = prompt('Enter the image URL to insert:');
+    if (!url) return;
+    var quill = getActiveNaBodyQuill();
+    if (!quill) return;
+    var range = quill.getSelection(true) || { index: quill.getLength() };
+    quill.insertEmbed(range.index, 'image', url, 'user');
+  }
+
+  function initNaEditors() {
+    naQuillBodyEn = new Quill('#naBodyEditorEn', { theme: 'snow', modules: { toolbar: { container: naToolbarOptions, handlers: { image: naImageHandler } } } });
+    naQuillBodyZh = new Quill('#naBodyEditorZh', { theme: 'snow', modules: { toolbar: { container: naToolbarOptions, handlers: { image: naImageHandler } } } });
+    document.querySelector('#naBodyEditorEn .ql-editor').classList.add('body-editor');
+    document.querySelector('#naBodyEditorZh .ql-editor').classList.add('body-editor');
+    [naQuillBodyEn, naQuillBodyZh].forEach(function(q) {
+      q.on('text-change', function() {
+        if (!naHasUnsavedChanges) {
+          naHasUnsavedChanges = true;
+          updateNaStatus('✏️ Unsaved changes', 'unsaved');
+        }
+        recalcReadingTime();
+        refreshValidation();
+      });
+    });
+  }
+
+  function destroyNaEditors() {
+    ['naBodyEditorEn', 'naBodyEditorZh'].forEach(function(id) {
+      var container = document.getElementById(id);
+      if (!container) return;
+      var parent = container.parentElement;
+      var newDiv = document.createElement('div');
+      newDiv.id = id;
+      parent.replaceChild(newDiv, container);
+    });
+    naQuillBodyEn = naQuillBodyZh = null;
+  }
+
+  function getActiveNaLang() {
+    var activeTab = document.querySelector('#newArticleScreen .lang-tabs .lang-tab.active');
+    return activeTab ? activeTab.dataset.lang : 'en';
+  }
+  function getActiveNaBodyQuill() {
+    return getActiveNaLang() === 'zh' ? naQuillBodyZh : naQuillBodyEn;
+  }
+
+  function insertIntoActiveBodyEditor(html, isImport) {
+    var quill = getActiveNaBodyQuill();
+    if (!quill) return;
+    var isEmpty = quill.getText().trim().length === 0;
+    if (!isEmpty && isImport) {
+      var langLabel = getActiveNaLang() === 'zh' ? 'Chinese' : 'English';
+      if (!confirm('This will replace the existing content in the ' + langLabel + ' editor. Continue?')) return;
+    }
+    quill.setText('');
+    quill.clipboard.dangerouslyPasteHTML(html);
+    naHasUnsavedChanges = true;
+    recalcReadingTime();
+    refreshValidation();
+  }
+
+  window.switchNaTab = function(lang) {
+    document.querySelectorAll('#newArticleScreen .lang-tabs .lang-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.lang === lang); });
+    $('naBodyEn').classList.toggle('hidden', lang !== 'en');
+    $('naBodyZh').classList.toggle('hidden', lang !== 'zh');
+  };
+
+  function updateNaStatus(text, type) {
+    var el = $('newArticleStatus');
+    el.textContent = text;
+    el.className = 'status ' + (type || '');
+  }
+
+  // ===================== NEW ARTICLE: SOURCE METHOD (write / upload / paste) =====================
+  window.selectMethod = function(method) {
+    document.querySelectorAll('.method-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.method === method); });
+    $('methodPanelUpload').classList.toggle('hidden', method !== 'upload');
+    $('methodPanelPaste').classList.toggle('hidden', method !== 'paste');
+  };
+
+  async function extractPdfHtml(file) {
+    var arrayBuffer = await file.arrayBuffer();
+    var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    var pageTexts = [];
+    for (var i = 1; i <= pdf.numPages; i++) {
+      var page = await pdf.getPage(i);
+      var content = await page.getTextContent();
+      var lines = {};
+      content.items.forEach(function(item) {
+        var y = Math.round(item.transform[5]);
+        if (!lines[y]) lines[y] = [];
+        lines[y].push(item.str);
+      });
+      var ys = Object.keys(lines).map(Number).sort(function(a, b) { return b - a; });
+      pageTexts.push(ys.map(function(y) { return lines[y].join(' '); }).join('\n'));
+    }
+    return escapeHtmlBlock(pageTexts.join('\n\n'));
+  }
+
+  window.handleUploadFile = async function(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    var statusEl = $('uploadStatus');
+    statusEl.textContent = 'Reading file…';
+    try {
+      var name = file.name.toLowerCase();
+      var html;
+      var inlineImageWarning = '';
+      if (name.endsWith('.docx')) {
+        var arrayBuffer = await file.arrayBuffer();
+        var result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+        html = result.value;
+        // mammoth's default image handling bakes embedded DOCX images in as inline
+        // data: URIs with no size limit, unlike the featured-image upload (which is
+        // capped at MAX_FEATURED_IMAGE_BYTES). Warn so the admin can strip/replace
+        // them with hosted <img> URLs before publishing, rather than silently
+        // bloating the article's HTML and the resulting git commit.
+        var dataUriMatches = html.match(/data:image\/[^"']+/g) || [];
+        if (dataUriMatches.length) {
+          var approxBytes = dataUriMatches.reduce(function(sum, uri) { return sum + uri.length; }, 0) * 0.75;
+          inlineImageWarning = ' ⚠ Contains ' + dataUriMatches.length + ' embedded image' +
+            (dataUriMatches.length === 1 ? '' : 's') + ' (~' + (approxBytes / (1024 * 1024)).toFixed(1) +
+            ' MB inline) — remove them or replace with hosted <img> URLs before publishing, or the article page and commit will be bloated.';
+        }
+      } else if (name.endsWith('.pdf')) {
+        html = await extractPdfHtml(file);
+      } else if (name.endsWith('.md') || name.endsWith('.markdown')) {
+        html = marked.parse(await file.text());
+      } else if (name.endsWith('.txt')) {
+        html = escapeHtmlBlock(await file.text());
+      } else {
+        throw new Error('Unsupported file type. Please upload a .docx, .pdf, .txt, or .md file.');
+      }
+      insertIntoActiveBodyEditor(html, true);
+      statusEl.textContent = 'Imported "' + file.name + '" into the ' + (getActiveNaLang() === 'zh' ? 'Chinese' : 'English') + ' editor — review it below.' + inlineImageWarning;
+    } catch (err) {
+      statusEl.textContent = 'Error: ' + err.message;
+    }
+    event.target.value = '';
+  };
+
+  function cleanPastedContent(raw) {
+    if (raw.indexOf('<') === -1) {
+      return escapeHtmlBlock(raw);
+    }
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(raw, 'text/html');
+    doc.querySelectorAll('script,style,nav,header,footer,aside,iframe,noscript,form,button,svg').forEach(function(el) { el.remove(); });
+    var walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_COMMENT, null);
+    var comments = [];
+    var node;
+    while ((node = walker.nextNode())) comments.push(node);
+    comments.forEach(function(c) { c.remove(); });
+    doc.body.querySelectorAll('*').forEach(function(el) {
+      var tag = el.tagName.toLowerCase();
+      Array.from(el.attributes).forEach(function(attr) {
+        var keep = (tag === 'a' && attr.name === 'href') || (tag === 'img' && (attr.name === 'src' || attr.name === 'alt'));
+        if (!keep) el.removeAttribute(attr.name);
+      });
+    });
+    return doc.body.innerHTML;
+  }
+
+  window.cleanAndInsertPaste = function() {
+    var raw = $('pasteInput').value;
+    if (!raw.trim()) return;
+    insertIntoActiveBodyEditor(cleanPastedContent(raw), true);
+    $('pasteInput').value = '';
+  };
+
+  // ===================== NEW ARTICLE: BASIC / SEO FIELD LOGIC =====================
+  function naVal(id) { return ($(id).value || '').trim(); }
+
+  window.onTitleEnInput = function() {
+    if (!naSlugManuallyEdited) {
+      $('naSlug').value = slugify($('naTitleEn').value);
+      updateCanonicalUrl();
+      refreshSlugHint();
+    }
+  };
+
+  window.onSlugInput = function() {
+    naSlugManuallyEdited = true;
+    updateCanonicalUrl();
+    refreshSlugHint();
+  };
+
+  window.normalizeSlugField = function() {
+    $('naSlug').value = slugify($('naSlug').value);
+    updateCanonicalUrl();
+    refreshSlugHint();
+  };
+
+  function updateCanonicalUrl() {
+    var slug = slugify(naVal('naSlug'));
+    $('naCanonicalUrl').value = slug ? ('https://www.warrenmak.asia/articles/' + slug + '.html') : '';
+  }
+
+  function refreshSlugHint() {
+    var slug = slugify(naVal('naSlug'));
+    var hintEl = $('slugHint');
+    if (!slug) {
+      hintEl.textContent = 'articles/<slug>.html';
+      hintEl.className = 'field-hint';
+    } else if (existingArticleFiles.indexOf(slug + '.html') !== -1) {
+      hintEl.textContent = 'articles/' + slug + '.html — an article with this slug already exists!';
+      hintEl.className = 'field-hint field-error';
+    } else {
+      hintEl.textContent = 'articles/' + slug + '.html';
+      hintEl.className = 'field-hint';
+    }
+  }
+
+  window.onFeaturedImageChange = function(event) {
+    var file = event.target.files[0];
+    if (!file) { naFeaturedImage = null; $('featuredImagePreview').classList.add('hidden'); return; }
+    if (file.type.indexOf('image/') !== 0) {
+      alert('Please select an image file.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > MAX_FEATURED_IMAGE_BYTES) {
+      alert(
+        'That image is ' + (file.size / (1024 * 1024)).toFixed(1) + ' MB, which is over the ' +
+        (MAX_FEATURED_IMAGE_BYTES / (1024 * 1024)) + ' MB limit for featured images.\n\n' +
+        'Please resize or compress it (e.g. via tinypng.com or your photo editor) and try again.'
+      );
+      event.target.value = '';
+      naFeaturedImage = null;
+      $('featuredImagePreview').classList.add('hidden');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var dataUrl = e.target.result;
+      var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      naFeaturedImage = { fileName: '', ext: ext, base64: dataUrl.split(',')[1] };
+      var img = $('featuredImagePreview');
+      img.src = dataUrl;
+      img.classList.remove('hidden');
+      naHasUnsavedChanges = true;
+      refreshValidation();
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.updateMetaDescCount = function() {
+    var len = $('naMetaDescription').value.length;
+    var el = $('metaDescCount');
+    el.textContent = len + ' / 160 recommended';
+    el.className = 'char-count' + (len > 160 ? ' warn' : '');
+  };
+
+  window.recalcReadingTime = function() {
+    var minutes;
+    var enText = naQuillBodyEn ? naQuillBodyEn.getText().trim() : '';
+    if (enText) {
+      var words = enText.split(/\s+/).filter(Boolean).length;
+      minutes = Math.max(1, Math.round(words / 200));
+    } else {
+      var zhText = naQuillBodyZh ? naQuillBodyZh.getText().trim() : '';
+      var chars = zhText.replace(/\s+/g, '').length;
+      minutes = Math.max(1, Math.round(chars / 300));
+    }
+    var text = minutes + ' min read';
+    $('readingTimeDisplay').textContent = text;
+    return text;
+  };
+
+  function getReadingTimeText() {
+    return naVal('readingTimeOverride') || $('readingTimeDisplay').textContent || '5 min read';
+  }
+
+  // ===================== NEW ARTICLE: FORM STATE / VALIDATION =====================
+  function getFormState() {
+    var slug = slugify(naVal('naSlug'));
+    return {
+      titleEn: naVal('naTitleEn'),
+      titleZh: naVal('naTitleZh'),
+      subtitleEn: naVal('naSubtitleEn'),
+      subtitleZh: naVal('naSubtitleZh'),
+      categoryEn: naVal('naCategoryEn'),
+      categoryZh: naVal('naCategoryZh'),
+      authorEn: naVal('naAuthorEn') || 'Warren Mak',
+      authorZh: naVal('naAuthorZh') || '麦传球 Warren Mak',
+      publishDate: naVal('naPublishDate') || new Date().toISOString().slice(0, 10),
+      tags: naVal('naTags'),
+      ctaPreset: $('naCtaPreset').value === 'shortterm' ? 'shortterm' : 'warrants',
+      slug: slug,
+      metaTitle: naVal('naMetaTitle'),
+      metaDescription: naVal('naMetaDescription'),
+      canonicalUrl: 'https://www.warrenmak.asia/articles/' + slug + '.html',
+      bodyEnHtml: naQuillBodyEn ? naQuillBodyEn.root.innerHTML : '',
+      bodyZhHtml: naQuillBodyZh ? naQuillBodyZh.root.innerHTML : '',
+      readingTimeText: getReadingTimeText(),
+      ogImageUrl: naFeaturedImage ? ('https://www.warrenmak.asia/assets/images/articles/' + slug + '.' + naFeaturedImage.ext) : 'https://www.warrenmak.asia/assets/images/og-image.jpg'
+    };
+  }
+
+  function computeValidation(state) {
+    return [
+      { label: 'Title (EN & ZH)', ok: !!(state.titleEn && state.titleZh) },
+      { label: 'Subtitle (EN & ZH)', ok: !!(state.subtitleEn && state.subtitleZh) },
+      { label: 'Category (EN & ZH)', ok: !!(state.categoryEn && state.categoryZh) },
+      { label: 'Featured image', ok: !!naFeaturedImage },
+      { label: 'URL slug (unique)', ok: !!state.slug && existingArticleFiles.indexOf(state.slug + '.html') === -1 },
+      { label: 'SEO meta title', ok: !!(state.metaTitle || state.titleEn) },
+      { label: 'Meta description', ok: !!state.metaDescription },
+      { label: 'Content not empty (EN)', ok: !!(naQuillBodyEn && naQuillBodyEn.getText().trim().length > 20) },
+      { label: 'Content not empty (ZH)', ok: !!(naQuillBodyZh && naQuillBodyZh.getText().trim().length > 20) }
+    ];
+  }
+
+  function refreshValidation() {
+    var state = getFormState();
+    var items = computeValidation(state);
+    $('validationChecklist').innerHTML = items.map(function(item) {
+      return '<li class="' + (item.ok ? 'ok' : 'warn') + '"><span class="dot"></span>' + (item.ok ? '✓ ' : '⚠ ') + escapeHtml(item.label) + '</li>';
+    }).join('');
+
+    var okCount = items.filter(function(i) { return i.ok; }).length;
+    var fillEl = $('validationFill'), summaryEl = $('validationSummaryText');
+    if (fillEl) fillEl.style.width = Math.round((okCount / items.length) * 100) + '%';
+    if (summaryEl) summaryEl.textContent = okCount + ' / ' + items.length + ' complete';
+
+    updateNaStepper(items);
+    return items;
+  }
+
+  // Maps each stepper pill to the validation checks that must pass for that step to
+  // be considered done, so the stepper reflects real completeness rather than just
+  // "have you visited this section yet". Steps 1 (source method) and 5 (preview) have
+  // no required fields of their own, so they're left out and never show a checkmark.
+  var NA_STEP_CHECK_INDICES = { 2: [0, 1, 2], 3: [4, 5, 6], 4: [7, 8] };
+  function updateNaStepper(items) {
+    Object.keys(NA_STEP_CHECK_INDICES).forEach(function(step) {
+      var complete = NA_STEP_CHECK_INDICES[step].every(function(i) { return items[i] && items[i].ok; });
+      var pill = document.querySelector('.na-step[data-step="' + step + '"]');
+      if (pill) pill.classList.toggle('complete', complete);
+    });
+  }
+
+  // ===================== NEW ARTICLE: DOCUMENT BUILDER =====================
+  function buildArticleDocument(state) {
+    var metaTitleFull = state.metaTitle || state.titleEn;
+    var pageTitle = metaTitleFull + ' | Warren Mak';
+    var breadcrumbEn = truncateWords(state.titleEn, 6);
+    var breadcrumbZh = truncateChars(state.titleZh, 12);
+    var ctaHtml = CTA_PRESETS[state.ctaPreset] || CTA_PRESETS.warrants;
+
+    var articleLd = jsonLdScript({
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: state.titleEn,
+      description: state.metaDescription,
+      image: state.ogImageUrl,
+      author: { '@type': 'Person', name: 'Warren Mak', url: 'https://www.warrenmak.asia/about.html' },
+      publisher: { '@type': 'Organization', name: 'TED Optimus Sdn Bhd', logo: { '@type': 'ImageObject', url: 'https://www.warrenmak.asia/assets/images/logo/favicon.png' } },
+      datePublished: state.publishDate,
+      dateModified: state.publishDate,
+      mainEntityOfPage: state.canonicalUrl
+    });
+
+    var breadcrumbLd = jsonLdScript({
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.warrenmak.asia/' },
+        { '@type': 'ListItem', position: 2, name: 'Articles', item: 'https://www.warrenmak.asia/articles.html' },
+        { '@type': 'ListItem', position: 3, name: metaTitleFull }
+      ]
+    });
+
+    var bylineEn = '<div class="article-meta"><span>By <strong><a href="../about.html">' + escapeHtml(state.authorEn) + '</a></strong></span><span>' + escapeHtml(state.readingTimeText) + '</span><span>Published: ' + formatMonthYear(state.publishDate) + '</span></div>';
+    var bylineZh = '<div class="article-meta"><span>作者：<strong><a href="../about.html">' + escapeHtml(state.authorZh) + '</a></strong></span><span>' + readingTimeTextZh(state.readingTimeText) + '</span><span>发布：' + formatMonthYearZh(state.publishDate) + '</span></div>';
+
+    return [
+      '<!DOCTYPE html>',
+      '<html lang="en"><head>',
+      '  <!-- Google tag (gtag.js) -->',
+      '  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9H2NEZCD20"><\/script>',
+      '  <script>',
+      '    window.dataLayer = window.dataLayer || [];',
+      '    function gtag(){dataLayer.push(arguments);}',
+      "    gtag('js', new Date());",
+      "    gtag('config', 'G-9H2NEZCD20');",
+      '  <\/script>',
+      '  <meta charset="UTF-8">',
+      '  <script>',
+      '    /* Anti-flash: for returning zh-preference visitors, hide body until',
+      '       main.js applies the stored language (avoids a flash of English before',
+      '       the bottom-of-body script runs). No-op for default/English visitors. */',
+      '    (function(){',
+      '      try {',
+      "        if (localStorage.getItem('wm_lang') === 'zh') {",
+      "          document.documentElement.setAttribute('data-lang-pending', '1');",
+      "          document.write('<style id=\"wm-lang-hide\">body{visibility:hidden}<\/style>');",
+      '        }',
+      '      } catch (e) {}',
+      '    })();',
+      '  <\/script>',
+      '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+      '  <title>' + escapeHtml(pageTitle) + '</title>',
+      '  <meta name="description" content="' + escapeAttr(state.metaDescription) + '">',
+      '  <meta name="keywords" content="' + escapeAttr(state.tags) + '">',
+      '  <link rel="canonical" href="' + state.canonicalUrl + '">',
+      '  <link rel="icon" type="image/png" href="../assets/images/logo/favicon.png">',
+      '  <link rel="apple-touch-icon" href="../assets/images/logo/favicon.png">',
+      '  <link rel="stylesheet" href="../assets/css/style.css">',
+      '  <link rel="preconnect" href="https://fonts.googleapis.com">',
+      '  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">',
+      '  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" onload="this.onload=null;this.rel=\'stylesheet\'">',
+      '  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap"></noscript>',
+      '',
+      '  <meta property="og:title" content="' + escapeAttr(metaTitleFull) + '">',
+      '  <meta property="og:description" content="' + escapeAttr(state.metaDescription) + '">',
+      '  <meta property="og:type" content="article">',
+      '  <meta property="og:url" content="' + state.canonicalUrl + '">',
+      '',
+      '  <script type="application/ld+json">',
+      '  ' + articleLd,
+      '  <\/script>',
+      '  <meta property="og:image" content="' + state.ogImageUrl + '">',
+      '  <meta property="og:site_name" content="Warren Mak - Trade Wizard">',
+      '  <meta property="og:locale" content="en_MY">',
+      '  <meta name="twitter:card" content="summary_large_image">',
+      '  <meta name="twitter:title" content="' + escapeAttr(metaTitleFull) + '">',
+      '  <meta name="twitter:description" content="' + escapeAttr(state.metaDescription) + '">',
+      '  <meta name="twitter:image" content="' + state.ogImageUrl + '">',
+      '  <link rel="alternate" hreflang="en" href="' + state.canonicalUrl + '">',
+      '  <link rel="alternate" hreflang="zh" href="' + state.canonicalUrl + '">',
+      '  <link rel="alternate" hreflang="x-default" href="' + state.canonicalUrl + '">',
+      '  <script type="application/ld+json">',
+      '  ' + breadcrumbLd,
+      '  <\/script>',
+      '</head>',
+      '<body>',
+      '',
+      NAV_HTML,
+      '',
+      '  <!-- Article Hero -->',
+      '  <section class="course-hero">',
+      '    <div class="container">',
+      '      <div data-lang="en"><p><a href="../index.html" rel="noopener noreferrer" target="_blank">Home</a> › <a href="../articles.html" rel="noopener noreferrer" target="_blank">Articles</a> › ' + escapeHtml(breadcrumbEn) + '</p><p>' + escapeHtml(state.categoryEn) + '</p><h1>' + escapeHtml(state.titleEn) + '</h1><p>' + escapeHtml(state.subtitleEn) + '</p></div>',
+      '      <div data-lang="zh" style="display:none;" aria-hidden="true"><p><a href="../index.html" rel="noopener noreferrer" target="_blank">首页</a> › <a href="../articles.html" rel="noopener noreferrer" target="_blank">文章</a> › ' + escapeHtml(breadcrumbZh) + '</p><p>' + escapeHtml(state.categoryZh) + '</p><h2>' + escapeHtml(state.titleZh) + '</h2><p>' + escapeHtml(state.subtitleZh) + '</p></div>',
+      '    </div>',
+      '  </section>',
+      '',
+      '  <!-- Article Content -->',
+      '  <section class="section">',
+      '    <div class="container">',
+      '      <div class="article-body">',
+      '',
+      '        <div data-lang="en">' + bylineEn + state.bodyEnHtml + '</div>',
+      '',
+      '        <div data-lang="zh" style="display:none;" aria-hidden="true">' + bylineZh + state.bodyZhHtml + '</div>',
+      '',
+      '        <!-- Related Articles -->',
+      '        <div class="article-related">',
+      '          <h3><span data-lang="en">Continue Learning</span><span data-lang="zh" style="display:none;">继续学习</span></h3>',
+      '          <ul>',
+      '            <li><a href="../articles.html"><span data-lang="en">&larr; Back to All Articles</span><span data-lang="zh" style="display:none;">&larr; 返回所有文章</span></a></li>',
+      '          </ul>',
+      '        </div>',
+      '',
+      '        <!-- Author Credibility Box -->',
+      '        <div class="author-box">',
+      '          <picture>',
+      '            <source srcset="../assets/images/warren-mak-profile.webp" type="image/webp">',
+      '            <img src="../assets/images/warren-mak-profile.jpg" alt="Warren Mak" class="author-box__photo" loading="lazy" width="72" height="72">',
+      '          </picture>',
+      '          <div class="author-box__body">',
+      '            <div data-lang="en">',
+      '              <div class="author-box__name">Warren Mak (麦传球)</div>',
+      '              <div class="author-box__title">Former Head of Investor Education &amp; 4 Departments, Bursa Malaysia &middot; Ex-Structured Products Trader, OCBC Bank</div>',
+      '              <ul class="author-box__credentials">',
+      '                <li>30+ years in securities &amp; derivatives markets</li>',
+      '                <li>15 years at Bursa Malaysia, headed 5 departments</li>',
+      '                <li>Weekly columnist, Nanyang Siang Pau, since 2018</li>',
+      '                <li>Featured in The Edge Malaysia, BFM 89.9, TEDx</li>',
+      '              </ul>',
+      '              <div class="author-box__links">',
+      '                <a href="../about.html">Full Bio &amp; Credentials &rarr;</a>',
+      '                <a href="https://academy.thetradewizard.com/" target="_blank">Join Free Webinar &rarr;</a>',
+      '              </div>',
+      '            </div>',
+      '            <div data-lang="zh" style="display:none;">',
+      '              <div class="author-box__name">麦传球 Warren Mak</div>',
+      '              <div class="author-box__title">前马来西亚交易所投资教育及4个部门主管 &middot; 前华侨银行（OCBC）结构性产品交易员</div>',
+      '              <ul class="author-box__credentials">',
+      '                <li>30多年证券与衍生品市场经验</li>',
+      '                <li>在Bursa Malaysia任职15年，领导5个部门</li>',
+      '                <li>自2018年起南洋商报每周专栏作家</li>',
+      '                <li>曾受The Edge Malaysia、BFM 89.9、TEDx专访</li>',
+      '              </ul>',
+      '              <div class="author-box__links">',
+      '                <a href="../about.html">查看完整简历 &rarr;</a>',
+      '                <a href="https://academy.thetradewizard.com/" target="_blank">参加免费网络研讨会 &rarr;</a>',
+      '              </div>',
+      '            </div>',
+      '          </div>',
+      '        </div>',
+      '',
+      '      </div>',
+      '    </div>',
+      '  </section>',
+      '',
+      ctaHtml,
+      '',
+      FOOTER_HTML,
+      '',
+      '  <div class="sticky-cta-bar" aria-label="Primary call to action">',
+      '    <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary"><span data-lang="en">Join Free Webinar</span><span data-lang="zh" style="display:none;">参加免费网络研讨会</span></a>',
+      '  </div>',
+      '',
+      '  <script src="../assets/js/main.js"><\/script>',
+      '',
+      '',
+      '</body></html>'
+    ].join('\n');
+  }
+
+  function toPreviewHtml(html) {
+    return html
+      .replace(/\.\.\/assets\//g, 'https://www.warrenmak.asia/assets/')
+      .replace(/href="\.\.\//g, 'href="https://www.warrenmak.asia/')
+      .replace(/src="\.\.\//g, 'src="https://www.warrenmak.asia/');
+  }
+
+  window.refreshPreview = function() {
+    var state = getFormState();
+    $('previewFrame').srcdoc = toPreviewHtml(buildArticleDocument(state));
+  };
+
+  // ===================== NEW ARTICLE: SCREEN LIFECYCLE =====================
+  function resetNewArticleForm() {
+    destroyNaEditors();
+    document.querySelectorAll('.na-step').forEach(function(p) { p.classList.toggle('active', p.dataset.step === '1'); });
+    ['naTitleEn', 'naTitleZh', 'naSubtitleEn', 'naSubtitleZh', 'naCategoryEn', 'naCategoryZh', 'naTags', 'naSlug', 'naMetaTitle', 'naMetaDescription', 'naCanonicalUrl', 'readingTimeOverride'].forEach(function(id) { $(id).value = ''; });
+    $('naAuthorEn').value = 'Warren Mak';
+    $('naAuthorZh').value = '麦传球 Warren Mak';
+    $('naPublishDate').value = new Date().toISOString().slice(0, 10);
+    $('naCtaPreset').value = 'warrants';
+    $('pasteInput').value = '';
+    $('uploadFileInput').value = '';
+    $('uploadStatus').textContent = '';
+    $('featuredImageInput').value = '';
+    $('featuredImagePreview').classList.add('hidden');
+    $('featuredImagePreview').src = '';
+    $('readingTimeDisplay').textContent = '0 min read';
+    $('previewFrame').srcdoc = '';
+    $('metaDescCount').textContent = '0 / 160 recommended';
+    naFeaturedImage = null;
+    naSlugManuallyEdited = false;
+    naHasUnsavedChanges = false;
+    $('publishSuccess').classList.add('hidden');
+    $('newArticleForm').classList.remove('hidden');
+    $('newArticleSaveBar').classList.remove('hidden');
+    selectMethod('scratch');
+    initNaEditors();
+    switchNaTab('en');
+    updateNaStatus('📝 Draft — not yet published', '');
+    refreshSlugHint();
+    refreshValidation();
+  }
+
+  window.openNewArticle = function() {
+    $('listScreen').classList.add('hidden');
+    $('editorScreen').classList.add('hidden');
+    $('newArticleScreen').classList.remove('hidden');
+    resetNewArticleForm();
+    window.scrollTo(0, 0);
+  };
+
+  window.cancelNewArticle = function() {
+    if (naHasUnsavedChanges && !confirm('You have unsaved changes. Leave without saving?')) return;
+    naHasUnsavedChanges = false;
+    $('newArticleScreen').classList.add('hidden');
+    showListScreen();
+  };
+
+  // ===================== NEW ARTICLE: PUBLISH =====================
+  function showPublishSuccess(state) {
+    $('newArticleForm').classList.add('hidden');
+    $('newArticleSaveBar').classList.add('hidden');
+    $('publishSuccess').classList.remove('hidden');
+    $('publishSuccessDetail').textContent = '"' + state.titleEn + '" is live at ' + state.canonicalUrl + ' (changes propagate in ~1 minute).';
+    $('viewLiveBtn').onclick = function() { window.open(state.canonicalUrl, '_blank'); };
+  }
+
+  // Pure string transforms — given the *current* file text, return the updated text.
+  // Kept separate from network I/O so the atomic publish flow below can compute every
+  // file's new content up front, before committing to anything on the live branch.
+  function buildUpdatedArticlesListing(html, state) {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(html, 'text/html');
+    var grid = doc.querySelector('.article-grid');
+    if (!grid) throw new Error('Could not find .article-grid in articles.html');
+
+    var readingDigits = state.readingTimeText.replace(/[^0-9]/g, '') || '5';
+    var card = doc.createElement('a');
+    card.setAttribute('href', 'articles/' + state.slug + '.html');
+    card.setAttribute('class', 'article-card');
+    card.setAttribute('data-animate', '');
+    card.innerHTML =
+      '<div class="article-card__tag"><span data-lang="en">' + escapeHtml(state.categoryEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.categoryZh) + '</span></div>' +
+      '<h2 class="article-card__title"><span data-lang="en">' + escapeHtml(state.titleEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.titleZh) + '</span></h2>' +
+      '<p class="article-card__excerpt"><span data-lang="en">' + escapeHtml(state.subtitleEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.subtitleZh) + '</span></p>' +
+      '<div class="article-card__meta">' +
+      '<span data-lang="en">' + escapeHtml(state.authorEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.authorZh) + '</span>' +
+      '<span data-lang="en">' + escapeHtml(state.readingTimeText) + '</span><span data-lang="zh" style="display:none;">阅读时间：' + readingDigits + '分钟</span>' +
+      '</div>';
+
+    grid.insertBefore(card, grid.firstChild);
+    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  }
+
+  function buildUpdatedSitemap(xml, state) {
+    var entry = '  <url>\n    <loc>' + state.canonicalUrl + '</loc>\n    <lastmod>' + state.publishDate + '</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.9</priority>\n  </url>\n';
+    var updatedXml = xml.replace('</urlset>', entry + '</urlset>');
+    if (updatedXml === xml) throw new Error('Could not find </urlset> in sitemap.xml');
+    return updatedXml;
+  }
+
+  // Creates a blob object without touching any branch/ref — safe to call speculatively;
+  // an orphaned blob is invisible on the live site (just an unreferenced object).
+  async function createBlob(content, encoding) {
+    var res = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/git/blobs',
+      {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({ content: content, encoding: encoding })
+      }
+    );
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return {}; });
+      throw new Error('Failed to upload content: ' + (err.message || res.status));
+    }
+    var data = await res.json();
+    return data.sha;
+  }
+
+  // Publishes the new article, the featured image, the articles.html listing, and the
+  // sitemap.xml entry as ONE atomic git commit via the Git Data API (blobs -> tree ->
+  // commit -> ref update), instead of four independent Contents-API PUTs. Every step
+  // before the final ref update only creates loose, unreferenced git objects — nothing
+  // is visible on the live site until the very last call, and that call either succeeds
+  // completely (all four changes land together) or fails and leaves the branch exactly
+  // as it was. There is no way to end up with an orphaned/unlisted article page.
+  async function publishArticleAtomic(state) {
+    updateNaStatus('🔎 Reading current site state…', 'saving');
+    var refRes = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/git/ref/heads/' + repoDefaultBranch,
+      { headers: apiHeaders() }
+    );
+    if (!refRes.ok) throw new Error('Could not read branch state (HTTP ' + refRes.status + ')');
+    var refData = await refRes.json();
+    var baseCommitSha = refData.object.sha;
+
+    var commitRes = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/git/commits/' + baseCommitSha,
+      { headers: apiHeaders() }
+    );
+    if (!commitRes.ok) throw new Error('Could not read base commit (HTTP ' + commitRes.status + ')');
+    var commitData = await commitRes.json();
+    var baseTreeSha = commitData.tree.sha;
+
+    var listRes = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/' + CONFIG.ARTICLES_PATH,
+      { headers: apiHeaders() }
+    );
+    if (!listRes.ok) throw new Error('Could not verify existing articles (HTTP ' + listRes.status + ')');
+    var currentFiles = await listRes.json();
+    existingArticleFiles = currentFiles.filter(function(f) { return f.name.endsWith('.html'); }).map(function(f) { return f.name; });
+    if (existingArticleFiles.indexOf(state.slug + '.html') !== -1) {
+      throw new Error('An article with the slug "' + state.slug + '" already exists. Please choose a different slug.');
+    }
+
+    var articlesListingRes = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/articles.html',
+      { headers: apiHeaders() }
+    );
+    if (!articlesListingRes.ok) throw new Error('Failed to load articles.html (HTTP ' + articlesListingRes.status + ')');
+    var articlesListingData = await articlesListingRes.json();
+    var updatedArticlesHtml = buildUpdatedArticlesListing(base64ToUtf8(articlesListingData.content.replace(/\n/g, '')), state);
+
+    var sitemapRes = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/sitemap.xml',
+      { headers: apiHeaders() }
+    );
+    if (!sitemapRes.ok) throw new Error('Failed to load sitemap.xml (HTTP ' + sitemapRes.status + ')');
+    var sitemapData = await sitemapRes.json();
+    var updatedSitemapXml = buildUpdatedSitemap(base64ToUtf8(sitemapData.content.replace(/\n/g, '')), state);
+
+    updateNaStatus('⬆️ Uploading content…', 'saving');
+    var treeEntries = [];
+
+    if (naFeaturedImage) {
+      naFeaturedImage.fileName = state.slug + '.' + naFeaturedImage.ext;
+      var imgBlobSha = await createBlob(naFeaturedImage.base64, 'base64');
+      treeEntries.push({ path: 'assets/images/articles/' + naFeaturedImage.fileName, mode: '100644', type: 'blob', sha: imgBlobSha });
+    }
+
+    var articleHtml = buildArticleDocument(state);
+    var articleBlobSha = await createBlob(articleHtml, 'utf-8');
+    treeEntries.push({ path: CONFIG.ARTICLES_PATH + '/' + state.slug + '.html', mode: '100644', type: 'blob', sha: articleBlobSha });
+
+    var articlesListingBlobSha = await createBlob(updatedArticlesHtml, 'utf-8');
+    treeEntries.push({ path: 'articles.html', mode: '100644', type: 'blob', sha: articlesListingBlobSha });
+
+    var sitemapBlobSha = await createBlob(updatedSitemapXml, 'utf-8');
+    treeEntries.push({ path: 'sitemap.xml', mode: '100644', type: 'blob', sha: sitemapBlobSha });
+
+    updateNaStatus('🧩 Building commit…', 'saving');
+    var treeRes = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/git/trees',
+      {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries })
+      }
+    );
+    if (!treeRes.ok) {
+      var treeErr = await treeRes.json().catch(function() { return {}; });
+      throw new Error('Failed to build commit tree: ' + (treeErr.message || treeRes.status));
+    }
+    var treeData = await treeRes.json();
+
+    var newCommitRes = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/git/commits',
+      {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          message: 'Add new article: ' + state.slug,
+          tree: treeData.sha,
+          parents: [baseCommitSha]
+        })
+      }
+    );
+    if (!newCommitRes.ok) {
+      var commitErr = await newCommitRes.json().catch(function() { return {}; });
+      throw new Error('Failed to create commit: ' + (commitErr.message || newCommitRes.status));
+    }
+    var newCommitData = await newCommitRes.json();
+
+    // This is the only call that changes what's live — everything above only created
+    // loose objects. A failure here (e.g. someone else pushed in the meantime) leaves
+    // the branch completely untouched; it is safe to just retry.
+    updateNaStatus('🚀 Publishing…', 'saving');
+    var updateRefRes = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/git/refs/heads/' + repoDefaultBranch,
+      {
+        method: 'PATCH',
+        headers: apiHeaders(),
+        body: JSON.stringify({ sha: newCommitData.sha, force: false })
+      }
+    );
+    if (!updateRefRes.ok) {
+      var refErr = await updateRefRes.json().catch(function() { return {}; });
+      throw new Error(
+        'Nothing was published — the live branch changed while this was in progress and the update was rejected (' +
+        (refErr.message || updateRefRes.status) + '). Safe to just retry.'
+      );
+    }
+  }
+
+  window.publishNewArticle = async function() {
+    if (naPublishing) return;
+    var state = getFormState();
+
+    if (!state.slug) {
+      alert('Please enter a URL slug before publishing.');
+      return;
+    }
+    if (!state.titleEn || !state.titleZh) {
+      alert('Please fill in both the English and Chinese titles before publishing.');
+      return;
+    }
+
+    var missing = refreshValidation().filter(function(i) { return !i.ok; }).map(function(i) { return i.label; });
+    var confirmMsg = 'Publish this article to warrenmak.asia now?\n\nThis commits directly to the live site (visible in ~1 minute).';
+    if (missing.length) confirmMsg += '\n\nWarning — missing/incomplete:\n- ' + missing.join('\n- ');
+    if (!confirm(confirmMsg)) return;
+
+    naPublishing = true;
+    var btn = $('publishBtn');
+    btn.disabled = true;
+    updateNaStatus('🚀 Publishing…', 'saving');
+
+    try {
+      await publishArticleAtomic(state);
+
+      naHasUnsavedChanges = false;
+      updateNaStatus('🎉 Published!', 'saved');
+      showPublishSuccess(state);
+    } catch (err) {
+      updateNaStatus('Error: ' + err.message, 'error');
+      alert('Publish failed: ' + err.message + '\n\nThis publish is atomic — since it failed, nothing was changed on the live site. It is safe to fix the issue and try again.');
+    } finally {
+      naPublishing = false;
+      btn.disabled = false;
+    }
+  };
+
+  // Delegated listeners so every field in the New Article form marks the draft
+  // as unsaved and refreshes the validation checklist without wiring each input.
+  document.addEventListener('input', function(e) {
+    if (e.target.closest && e.target.closest('#newArticleForm')) {
+      naHasUnsavedChanges = true;
+      updateNaStatus('✏️ Unsaved changes', 'unsaved');
+      refreshValidation();
+    }
+  });
+  document.addEventListener('change', function(e) {
+    if (e.target.closest && e.target.closest('#newArticleForm') && e.target.tagName === 'SELECT') {
+      naHasUnsavedChanges = true;
+      refreshValidation();
+    }
+  });
+
+  // ===================== NEW ARTICLE: STEPPER NAVIGATION =====================
+  // Clicking a step pill jumps to that section; scrolling highlights whichever
+  // section is currently in view. Both are wired once at load — the pills and
+  // sections are static markup that's only ever shown/hidden, never rebuilt.
+  document.querySelectorAll('.na-step').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      var target = $(pill.dataset.target);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  if ('IntersectionObserver' in window) {
+    var naStepSectionIds = ['naSection1', 'naSection2', 'naSection3', 'naSection4', 'naSection5'];
+    var naStepObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (!entry.isIntersecting) return;
+        var step = naStepSectionIds.indexOf(entry.target.id) + 1;
+        document.querySelectorAll('.na-step').forEach(function(p) { p.classList.toggle('active', Number(p.dataset.step) === step); });
+      });
+    }, { rootMargin: '-150px 0px -60% 0px', threshold: 0 });
+    naStepSectionIds.forEach(function(id) { var el = $(id); if (el) naStepObserver.observe(el); });
+  }
 
   // ===================== INIT =====================
   // Restore session if token is still in sessionStorage
   var savedToken = sessionStorage.getItem('admin_token');
   if (savedToken) {
     githubToken = savedToken;
+    repoDefaultBranch = sessionStorage.getItem('admin_branch') || repoDefaultBranch;
     showListScreen();
   }
 
