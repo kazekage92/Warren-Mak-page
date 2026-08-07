@@ -1,0 +1,863 @@
+{
+  "_meta": {
+    "description": "Sample/reference data for the article-generator knowledge graph store described in extra-md-files/article-generator-knowledge-graph.md, Section 4 (Logical Schema). This file is NOT produced by a real extraction run -- Step 2 (extraction script) and Step 4 (LLM entity/relationship extraction) are both still unbuilt and blocked on the LLM provider/API-key decision noted in that doc. It exists to show what the .db (SQLite) physical format looks like once populated, seeded with the 12 real articles that exist under articles/ today and their real .article-related internal links.",
+    "schema_source": "extra-md-files/article-generator-knowledge-graph.md#4-logical-schema",
+    "generated_at": "2026-08-07",
+    "generated_by": "hand-authored sample, not the (unbuilt) extraction pipeline",
+    "article_count": "12",
+    "note_on_body_text": "Real body_text values would be the full cleaned, boilerplate-stripped English article text (Step 2). Here they are short representative excerpts only, to keep this sample readable.",
+    "export_note": "Human/LLM-readable JSON mirror of admin/knowledge-graph.db, generated 2026-08-07. Regenerate this file whenever knowledge-graph.db changes -- it is a read-only export, not a second source of truth. The .db remains authoritative; edit it (or its future extraction pipeline output), then re-export."
+  },
+  "articles": [
+    {
+      "slug": "best-stock-trading-course-malaysia",
+      "filepath": "articles/best-stock-trading-course-malaysia.html",
+      "title": "Best Stock Trading Course Malaysia: Why Warren Mak's Programme Stands Out",
+      "summary": "Compare the best stock trading courses in Malaysia. Discover why Warren Mak's 32-year market experience, ex-Bursa Head credentials, and hands-on approach make his programme the top choice for Malaysian traders.",
+      "body_text": "[excerpt] Choosing a stock trading course in Malaysia means weighing instructor credentials, curriculum depth, and real track record. Warren Mak's programme draws on 32 years of market experience and his former role as Head of Investor Education & 4 Departments at Bursa Malaysia...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Stock Trading Course",
+          "type": "product",
+          "relevance_score": 0.95
+        },
+        {
+          "name": "Warren Mak",
+          "type": "person",
+          "relevance_score": 0.9
+        },
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.5
+        },
+        {
+          "name": "Risk Management",
+          "type": "concept",
+          "relevance_score": 0.4
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "what-are-structured-warrants-malaysia",
+          "target_title": "What Are Structured Warrants in Malaysia? Complete Guide",
+          "link_text": "What Are Structured Warrants in Malaysia? Complete Guide"
+        },
+        {
+          "target_slug": "how-to-trade-structured-warrants-bursa-malaysia",
+          "target_title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+          "link_text": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step"
+        },
+        {
+          "target_slug": "how-to-choose-best-structured-warrants-malaysia",
+          "target_title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+          "link_text": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria"
+        },
+        {
+          "target_slug": "why-90-percent-warrant-traders-lose-money-malaysia",
+          "target_title": "Why 90% of Structured Warrant Traders Lose Money in Malaysia (And How to Be in the 10%)",
+          "link_text": "Why 90% of Structured Warrant Traders Lose Money in Malaysia"
+        }
+      ]
+    },
+    {
+      "slug": "bottom-fishing-structured-warrants-malaysia",
+      "filepath": "articles/bottom-fishing-structured-warrants-malaysia.html",
+      "title": "Bottom Fishing with Structured Warrants Malaysia: Buy the Dip Strategy",
+      "summary": "How to use structured warrants to bottom-fish on Bursa Malaysia -- leveraged recovery strategies, when to buy the dip, and Warren Mak's 'unusual bottom-fishing technique' from his Nanyang column.",
+      "body_text": "[excerpt] Bottom fishing means buying into a stock or its structured warrant after a sharp decline, betting on a recovery. Because call warrants offer leveraged exposure, a modest rebound in the underlying can produce an outsized return on the warrant...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Bottom Fishing Strategy",
+          "type": "strategy",
+          "relevance_score": 0.95
+        },
+        {
+          "name": "Call Warrant",
+          "type": "product",
+          "relevance_score": 0.7
+        },
+        {
+          "name": "Leverage",
+          "type": "concept",
+          "relevance_score": 0.6
+        },
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.5
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "how-to-trade-structured-warrants-bursa-malaysia",
+          "target_title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+          "link_text": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step"
+        },
+        {
+          "target_slug": "structured-warrant-risks-time-decay-malaysia",
+          "target_title": "Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money",
+          "link_text": "Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money"
+        },
+        {
+          "target_slug": "leverage-strategies-structured-warrants-malaysia",
+          "target_title": "Leverage Strategies for Structured Warrants Malaysia: Multiply Returns on Bursa",
+          "link_text": "Leverage Strategies for Structured Warrants Malaysia"
+        },
+        {
+          "target_slug": "hsi-structured-warrants-malaysia",
+          "target_title": "HSI Structured Warrants Malaysia: How to Trade Hang Seng Index Warrants",
+          "link_text": "HSI Structured Warrants Malaysia"
+        }
+      ]
+    },
+    {
+      "slug": "hedging-with-put-warrants-malaysia",
+      "filepath": "articles/hedging-with-put-warrants-malaysia.html",
+      "title": "How to Hedge Your Portfolio with Put Warrants in Malaysia",
+      "summary": "Learn how to use structured put warrants to hedge your stock portfolio on Bursa Malaysia. Practical hedging strategies by Warren Mak, ex-Bursa Head of Investor Education with 32+ years experience.",
+      "body_text": "[excerpt] A put warrant rises in value as its underlying share price falls, which makes it a practical hedge against an existing long portfolio. Rather than liquidating core holdings ahead of expected weakness, traders can buy put warrants sized to offset the expected drawdown...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Hedging",
+          "type": "strategy",
+          "relevance_score": 0.95
+        },
+        {
+          "name": "Put Warrant",
+          "type": "product",
+          "relevance_score": 0.9
+        },
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.5
+        },
+        {
+          "name": "Risk Management",
+          "type": "concept",
+          "relevance_score": 0.5
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "what-are-structured-warrants-malaysia",
+          "target_title": "What Are Structured Warrants in Malaysia? Complete Guide",
+          "link_text": "What Are Structured Warrants in Malaysia? Complete Guide"
+        },
+        {
+          "target_slug": "hsi-structured-warrants-malaysia",
+          "target_title": "HSI Structured Warrants Malaysia: How to Trade Hang Seng Index Warrants",
+          "link_text": "HSI Structured Warrants Malaysia"
+        },
+        {
+          "target_slug": "structured-warrant-risks-time-decay-malaysia",
+          "target_title": "Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money",
+          "link_text": "Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money"
+        },
+        {
+          "target_slug": "how-to-choose-best-structured-warrants-malaysia",
+          "target_title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+          "link_text": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria"
+        }
+      ]
+    },
+    {
+      "slug": "how-to-choose-best-structured-warrants-malaysia",
+      "filepath": "articles/how-to-choose-best-structured-warrants-malaysia.html",
+      "title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+      "summary": "Learn 7 key criteria for choosing profitable structured warrants on Bursa Malaysia -- implied volatility, effective gearing, time decay, issuer quality. By Warren Mak, ex-Bursa Head.",
+      "body_text": "[excerpt] Not all warrants tracking the same underlying are equal. Implied volatility, effective gearing, time to expiry, and issuer quality all shape how a warrant behaves -- two call warrants on the same stock can produce very different returns...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Issuer Quality",
+          "type": "concept",
+          "relevance_score": 0.85
+        },
+        {
+          "name": "Implied Volatility",
+          "type": "concept",
+          "relevance_score": 0.8
+        },
+        {
+          "name": "Effective Gearing",
+          "type": "concept",
+          "relevance_score": 0.75
+        },
+        {
+          "name": "Time Decay (Theta)",
+          "type": "concept",
+          "relevance_score": 0.6
+        },
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.5
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "what-are-structured-warrants-malaysia",
+          "target_title": "What Are Structured Warrants in Malaysia? Complete Guide",
+          "link_text": "What Are Structured Warrants in Malaysia? Complete Guide"
+        },
+        {
+          "target_slug": "how-to-trade-structured-warrants-bursa-malaysia",
+          "target_title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+          "link_text": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step"
+        },
+        {
+          "target_slug": "structured-warrants-vs-options-malaysia",
+          "target_title": "Structured Warrants vs Options in Malaysia: Key Differences",
+          "link_text": "Structured Warrants vs Options in Malaysia: Key Differences"
+        }
+      ]
+    },
+    {
+      "slug": "how-to-trade-structured-warrants-bursa-malaysia",
+      "filepath": "articles/how-to-trade-structured-warrants-bursa-malaysia.html",
+      "title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+      "summary": "Step-by-step guide to trading structured warrants on Bursa Malaysia -- from opening a CDS account to executing trades, with strategies from Warren Mak, ex-Bursa Head with 32+ years experience.",
+      "body_text": "[excerpt] Trading structured warrants starts with opening a CDS account and a trading account with a licensed broker. From there, warrants trade on Bursa Malaysia's exchange like ordinary shares, quoted in sen, with board lots of 100 units...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.9
+        },
+        {
+          "name": "CDS Account",
+          "type": "concept",
+          "relevance_score": 0.8
+        },
+        {
+          "name": "Bursa Malaysia",
+          "type": "organization",
+          "relevance_score": 0.6
+        },
+        {
+          "name": "Call Warrant",
+          "type": "product",
+          "relevance_score": 0.4
+        },
+        {
+          "name": "Put Warrant",
+          "type": "product",
+          "relevance_score": 0.4
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "what-are-structured-warrants-malaysia",
+          "target_title": "What Are Structured Warrants in Malaysia? Complete Guide",
+          "link_text": "What Are Structured Warrants in Malaysia? Complete Guide"
+        },
+        {
+          "target_slug": "structured-warrants-vs-options-malaysia",
+          "target_title": "Structured Warrants vs Options in Malaysia: Key Differences",
+          "link_text": "Structured Warrants vs Options in Malaysia: Key Differences"
+        },
+        {
+          "target_slug": "how-to-choose-best-structured-warrants-malaysia",
+          "target_title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+          "link_text": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria"
+        }
+      ]
+    },
+    {
+      "slug": "hsi-structured-warrants-malaysia",
+      "filepath": "articles/hsi-structured-warrants-malaysia.html",
+      "title": "HSI Structured Warrants Malaysia: How to Trade Hang Seng Index Warrants",
+      "summary": "Complete guide to trading HSI structured warrants on Bursa Malaysia -- how Hang Seng Index warrants work, why they're popular, trading hours, and strategies. By Warren Mak, ex-Bursa Head.",
+      "body_text": "[excerpt] HSI structured warrants let Malaysian traders take a leveraged view on the Hang Seng Index without a Hong Kong brokerage account. Because the underlying index trades during Hong Kong hours, timing and overnight gap risk matter more here than for single-stock warrants...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Hang Seng Index (HSI)",
+          "type": "topic",
+          "relevance_score": 0.95
+        },
+        {
+          "name": "Call Warrant",
+          "type": "product",
+          "relevance_score": 0.7
+        },
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.5
+        },
+        {
+          "name": "Bursa Malaysia",
+          "type": "organization",
+          "relevance_score": 0.4
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "what-are-structured-warrants-malaysia",
+          "target_title": "What Are Structured Warrants in Malaysia? Complete Guide",
+          "link_text": "What Are Structured Warrants in Malaysia? Complete Guide"
+        },
+        {
+          "target_slug": "how-to-trade-structured-warrants-bursa-malaysia",
+          "target_title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+          "link_text": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step"
+        },
+        {
+          "target_slug": "hedging-with-put-warrants-malaysia",
+          "target_title": "How to Hedge Your Portfolio with Put Warrants in Malaysia",
+          "link_text": "How to Hedge Your Portfolio with Put Warrants in Malaysia"
+        },
+        {
+          "target_slug": "how-to-choose-best-structured-warrants-malaysia",
+          "target_title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+          "link_text": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria"
+        }
+      ]
+    },
+    {
+      "slug": "leverage-strategies-structured-warrants-malaysia",
+      "filepath": "articles/leverage-strategies-structured-warrants-malaysia.html",
+      "title": "Leverage Strategies for Structured Warrants Malaysia: Multiply Returns on Bursa",
+      "summary": "How to use leverage effectively in structured warrants on Bursa Malaysia -- gearing strategies, capital-efficient trading, and how to multiply returns without blowing up. By Warren Mak.",
+      "body_text": "[excerpt] Effective gearing determines how much a warrant's price moves for a given move in the underlying. Used deliberately, this lets a trader express a view with far less capital than buying the shares outright -- but the same gearing compounds losses just as fast...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Leverage",
+          "type": "concept",
+          "relevance_score": 0.95
+        },
+        {
+          "name": "Effective Gearing",
+          "type": "concept",
+          "relevance_score": 0.8
+        },
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.5
+        },
+        {
+          "name": "Risk Management",
+          "type": "concept",
+          "relevance_score": 0.4
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "how-to-trade-structured-warrants-bursa-malaysia",
+          "target_title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+          "link_text": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step"
+        },
+        {
+          "target_slug": "how-to-choose-best-structured-warrants-malaysia",
+          "target_title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+          "link_text": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria"
+        },
+        {
+          "target_slug": "bottom-fishing-structured-warrants-malaysia",
+          "target_title": "Bottom Fishing with Structured Warrants Malaysia: Buy the Dip Strategy",
+          "link_text": "Bottom Fishing with Structured Warrants Malaysia: Buy the Dip Strategy"
+        },
+        {
+          "target_slug": "structured-warrant-risks-time-decay-malaysia",
+          "target_title": "Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money",
+          "link_text": "Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money"
+        }
+      ]
+    },
+    {
+      "slug": "short-term-intraday-trading-malaysia",
+      "filepath": "articles/short-term-intraday-trading-malaysia.html",
+      "title": "Short-Term & Intraday Trading Malaysia: Strategies for Bursa Malaysia",
+      "summary": "Master short-term and intraday trading on Bursa Malaysia. Learn proven strategies -- momentum breakouts, gap trading, scalping techniques -- from Warren Mak, ex-Bursa Head with 32 years of experience.",
+      "body_text": "[excerpt] Intraday trading on Bursa Malaysia rewards traders who can read momentum breakouts, opening gaps, and short-term volume shifts within a single session. Unlike position trading, every setup here is closed out before the close...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Intraday Trading",
+          "type": "strategy",
+          "relevance_score": 0.95
+        },
+        {
+          "name": "Momentum Breakout",
+          "type": "strategy",
+          "relevance_score": 0.8
+        },
+        {
+          "name": "Gap Trading",
+          "type": "strategy",
+          "relevance_score": 0.75
+        },
+        {
+          "name": "Scalping",
+          "type": "strategy",
+          "relevance_score": 0.7
+        },
+        {
+          "name": "Warren Mak",
+          "type": "person",
+          "relevance_score": 0.4
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "best-stock-trading-course-malaysia",
+          "target_title": "Best Stock Trading Course Malaysia: Why Warren Mak's Programme Stands Out",
+          "link_text": "Best Stock Trading Course Malaysia: Why Warren Mak's Programme Stands Out"
+        },
+        {
+          "target_slug": "leverage-strategies-structured-warrants-malaysia",
+          "target_title": "Leverage Strategies for Structured Warrants Malaysia: Multiply Returns on Bursa",
+          "link_text": "Leverage Strategies for Structured Warrants Malaysia"
+        },
+        {
+          "target_slug": "how-to-choose-best-structured-warrants-malaysia",
+          "target_title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+          "link_text": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria"
+        },
+        {
+          "target_slug": "why-90-percent-warrant-traders-lose-money-malaysia",
+          "target_title": "Why 90% of Structured Warrant Traders Lose Money in Malaysia (And How to Be in the 10%)",
+          "link_text": "Why 90% of Structured Warrant Traders Lose Money in Malaysia"
+        }
+      ]
+    },
+    {
+      "slug": "structured-warrant-risks-time-decay-malaysia",
+      "filepath": "articles/structured-warrant-risks-time-decay-malaysia.html",
+      "title": "Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money",
+      "summary": "Understand the real risks of trading structured warrants in Malaysia -- time decay (theta), implied volatility, leverage traps, and the 8 factors why traders lose. By Warren Mak, ex-Bursa Head.",
+      "body_text": "[excerpt] Every structured warrant loses time value as it approaches expiry, regardless of what the underlying does -- this is time decay, or theta. Combined with elevated implied volatility at purchase and the amplifying effect of leverage, it is the single biggest reason undisciplined traders lose money...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Time Decay (Theta)",
+          "type": "concept",
+          "relevance_score": 0.95
+        },
+        {
+          "name": "Implied Volatility",
+          "type": "concept",
+          "relevance_score": 0.85
+        },
+        {
+          "name": "Leverage",
+          "type": "concept",
+          "relevance_score": 0.6
+        },
+        {
+          "name": "Risk Management",
+          "type": "concept",
+          "relevance_score": 0.6
+        },
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.5
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "what-are-structured-warrants-malaysia",
+          "target_title": "What Are Structured Warrants in Malaysia? Complete Guide",
+          "link_text": "What Are Structured Warrants in Malaysia? Complete Guide"
+        },
+        {
+          "target_slug": "how-to-trade-structured-warrants-bursa-malaysia",
+          "target_title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+          "link_text": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step"
+        },
+        {
+          "target_slug": "hedging-with-put-warrants-malaysia",
+          "target_title": "How to Hedge Your Portfolio with Put Warrants in Malaysia",
+          "link_text": "How to Hedge Your Portfolio with Put Warrants in Malaysia"
+        },
+        {
+          "target_slug": "why-90-percent-warrant-traders-lose-money-malaysia",
+          "target_title": "Why 90% of Structured Warrant Traders Lose Money in Malaysia (And How to Be in the 10%)",
+          "link_text": "Why 90% of Structured Warrant Traders Lose Money in Malaysia"
+        }
+      ]
+    },
+    {
+      "slug": "structured-warrants-vs-options-malaysia",
+      "filepath": "articles/structured-warrants-vs-options-malaysia.html",
+      "title": "Structured Warrants vs Options in Malaysia: Key Differences",
+      "summary": "Understand the key differences between structured warrants, company warrants, and options in Malaysia. Expert comparison by Warren Mak, former Bursa Malaysia Head & ex-OCBC trader.",
+      "body_text": "[excerpt] Structured warrants and options both offer leveraged, defined-risk exposure, but they differ in issuer, liquidity provider structure, and market maturity in Malaysia. Company warrants differ again, being issued by the underlying company itself rather than a third-party bank...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Options",
+          "type": "product",
+          "relevance_score": 0.9
+        },
+        {
+          "name": "Company Warrants",
+          "type": "product",
+          "relevance_score": 0.7
+        },
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.6
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "what-are-structured-warrants-malaysia",
+          "target_title": "What Are Structured Warrants in Malaysia? Complete Guide",
+          "link_text": "What Are Structured Warrants in Malaysia? Complete Guide"
+        },
+        {
+          "target_slug": "how-to-trade-structured-warrants-bursa-malaysia",
+          "target_title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+          "link_text": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step"
+        },
+        {
+          "target_slug": "how-to-choose-best-structured-warrants-malaysia",
+          "target_title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+          "link_text": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria"
+        }
+      ]
+    },
+    {
+      "slug": "what-are-structured-warrants-malaysia",
+      "filepath": "articles/what-are-structured-warrants-malaysia.html",
+      "title": "What Are Structured Warrants in Malaysia? Complete Guide",
+      "summary": "Learn what structured warrants are in Malaysia -- how they work on Bursa Malaysia, call vs put warrants, pricing factors, and how to start trading. By Warren Mak, ex-Bursa Malaysia Head.",
+      "body_text": "[excerpt] Structured warrants are cash-settled derivatives listed on Bursa Malaysia, issued by third-party financial institutions rather than the underlying company. A call warrant gives the right to buy, a put warrant the right to sell, before expiry...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.95
+        },
+        {
+          "name": "Call Warrant",
+          "type": "product",
+          "relevance_score": 0.7
+        },
+        {
+          "name": "Put Warrant",
+          "type": "product",
+          "relevance_score": 0.7
+        },
+        {
+          "name": "Bursa Malaysia",
+          "type": "organization",
+          "relevance_score": 0.5
+        },
+        {
+          "name": "Company Warrants",
+          "type": "product",
+          "relevance_score": 0.4
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "how-to-trade-structured-warrants-bursa-malaysia",
+          "target_title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+          "link_text": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step"
+        },
+        {
+          "target_slug": "structured-warrants-vs-options-malaysia",
+          "target_title": "Structured Warrants vs Options in Malaysia: Key Differences",
+          "link_text": "Structured Warrants vs Options in Malaysia: Key Differences"
+        },
+        {
+          "target_slug": "how-to-choose-best-structured-warrants-malaysia",
+          "target_title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+          "link_text": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria"
+        }
+      ]
+    },
+    {
+      "slug": "why-90-percent-warrant-traders-lose-money-malaysia",
+      "filepath": "articles/why-90-percent-warrant-traders-lose-money-malaysia.html",
+      "title": "Why 90% of Structured Warrant Traders Lose Money in Malaysia (And How to Be in the 10%)",
+      "summary": "Why most structured warrant traders on Bursa Malaysia lose money -- the 8 common mistakes and how to avoid them. Based on Warren Mak's Nanyang Siang Pau column with 32+ years of market experience.",
+      "body_text": "[excerpt] Most losing warrant traders share the same handful of mistakes: ignoring time decay, over-leveraging position size, chasing high implied volatility, and trading without a defined risk-management plan...",
+      "published_at": "2026-03-22",
+      "last_updated": "2026-03-26",
+      "status": "published",
+      "entities": [
+        {
+          "name": "Risk Management",
+          "type": "concept",
+          "relevance_score": 0.9
+        },
+        {
+          "name": "Time Decay (Theta)",
+          "type": "concept",
+          "relevance_score": 0.6
+        },
+        {
+          "name": "Leverage",
+          "type": "concept",
+          "relevance_score": 0.6
+        },
+        {
+          "name": "Structured Warrants",
+          "type": "topic",
+          "relevance_score": 0.5
+        },
+        {
+          "name": "Warren Mak",
+          "type": "person",
+          "relevance_score": 0.4
+        }
+      ],
+      "internal_links": [
+        {
+          "target_slug": "what-are-structured-warrants-malaysia",
+          "target_title": "What Are Structured Warrants in Malaysia? Complete Guide",
+          "link_text": "What Are Structured Warrants in Malaysia? Complete Guide"
+        },
+        {
+          "target_slug": "structured-warrant-risks-time-decay-malaysia",
+          "target_title": "Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money",
+          "link_text": "Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money"
+        },
+        {
+          "target_slug": "how-to-choose-best-structured-warrants-malaysia",
+          "target_title": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria",
+          "link_text": "How to Choose the Best Structured Warrants in Malaysia: 7 Criteria"
+        },
+        {
+          "target_slug": "how-to-trade-structured-warrants-bursa-malaysia",
+          "target_title": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step",
+          "link_text": "How to Trade Structured Warrants on Bursa Malaysia: Step-by-Step"
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "name": "Bottom Fishing Strategy",
+      "type": "strategy"
+    },
+    {
+      "name": "Bursa Malaysia",
+      "type": "organization"
+    },
+    {
+      "name": "Call Warrant",
+      "type": "product"
+    },
+    {
+      "name": "CDS Account",
+      "type": "concept"
+    },
+    {
+      "name": "Company Warrants",
+      "type": "product"
+    },
+    {
+      "name": "Effective Gearing",
+      "type": "concept"
+    },
+    {
+      "name": "Gap Trading",
+      "type": "strategy"
+    },
+    {
+      "name": "Hang Seng Index (HSI)",
+      "type": "topic"
+    },
+    {
+      "name": "Hedging",
+      "type": "strategy"
+    },
+    {
+      "name": "Implied Volatility",
+      "type": "concept"
+    },
+    {
+      "name": "Intraday Trading",
+      "type": "strategy"
+    },
+    {
+      "name": "Issuer Quality",
+      "type": "concept"
+    },
+    {
+      "name": "Leverage",
+      "type": "concept"
+    },
+    {
+      "name": "Momentum Breakout",
+      "type": "strategy"
+    },
+    {
+      "name": "Options",
+      "type": "product"
+    },
+    {
+      "name": "Put Warrant",
+      "type": "product"
+    },
+    {
+      "name": "Risk Management",
+      "type": "concept"
+    },
+    {
+      "name": "Scalping",
+      "type": "strategy"
+    },
+    {
+      "name": "Stock Trading Course",
+      "type": "product"
+    },
+    {
+      "name": "Structured Warrants",
+      "type": "topic"
+    },
+    {
+      "name": "Time Decay (Theta)",
+      "type": "concept"
+    },
+    {
+      "name": "Warren Mak",
+      "type": "person"
+    }
+  ],
+  "edges": [
+    {
+      "source": "Call Warrant",
+      "relation": "part_of",
+      "target": "Structured Warrants"
+    },
+    {
+      "source": "Put Warrant",
+      "relation": "part_of",
+      "target": "Structured Warrants"
+    },
+    {
+      "source": "Structured Warrants",
+      "relation": "related_to",
+      "target": "Options"
+    },
+    {
+      "source": "Structured Warrants",
+      "relation": "distinguished_from",
+      "target": "Company Warrants"
+    },
+    {
+      "source": "Time Decay (Theta)",
+      "relation": "related_to",
+      "target": "Implied Volatility"
+    },
+    {
+      "source": "Time Decay (Theta)",
+      "relation": "related_to",
+      "target": "Structured Warrants"
+    },
+    {
+      "source": "Leverage",
+      "relation": "prerequisite_of",
+      "target": "Effective Gearing"
+    },
+    {
+      "source": "Leverage",
+      "relation": "related_to",
+      "target": "Structured Warrants"
+    },
+    {
+      "source": "Hedging",
+      "relation": "related_to",
+      "target": "Put Warrant"
+    },
+    {
+      "source": "Bottom Fishing Strategy",
+      "relation": "related_to",
+      "target": "Call Warrant"
+    },
+    {
+      "source": "Bottom Fishing Strategy",
+      "relation": "related_to",
+      "target": "Leverage"
+    },
+    {
+      "source": "Hang Seng Index (HSI)",
+      "relation": "related_to",
+      "target": "Call Warrant"
+    },
+    {
+      "source": "CDS Account",
+      "relation": "prerequisite_of",
+      "target": "Structured Warrants"
+    },
+    {
+      "source": "Issuer Quality",
+      "relation": "related_to",
+      "target": "Structured Warrants"
+    },
+    {
+      "source": "Risk Management",
+      "relation": "related_to",
+      "target": "Leverage"
+    },
+    {
+      "source": "Risk Management",
+      "relation": "related_to",
+      "target": "Time Decay (Theta)"
+    },
+    {
+      "source": "Intraday Trading",
+      "relation": "related_to",
+      "target": "Momentum Breakout"
+    },
+    {
+      "source": "Intraday Trading",
+      "relation": "related_to",
+      "target": "Gap Trading"
+    },
+    {
+      "source": "Intraday Trading",
+      "relation": "related_to",
+      "target": "Scalping"
+    },
+    {
+      "source": "Warren Mak",
+      "relation": "related_to",
+      "target": "Bursa Malaysia"
+    },
+    {
+      "source": "Stock Trading Course",
+      "relation": "related_to",
+      "target": "Warren Mak"
+    }
+  ]
+}
