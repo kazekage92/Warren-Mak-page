@@ -55,6 +55,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { buildRetrievalContext } from './retrieval-layer.js';
 import { buildReviewPrompt, parseReviewResponse, summarizeReview, openAIReviewer, fixtureReviewer } from './coverage-reviewer.js';
 import { nextArg } from './cli-args.js';
+import { callOpenAIChat } from './openai-client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -62,6 +63,7 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_WRITER_MODEL = 'gpt-4o'; // generation task — worth the stronger tier (§6)
 const DEFAULT_REVIEWER_MODEL = 'gpt-4o-mini'; // judgment task — "can be the same or a cheaper model than the writer" (§5)
 const MAX_RETRIES_ALLOWED = 1; // §5: "Cap auto-repair at 1 retry" — not a tunable-up-forever knob
+const MAX_TOKENS = 4000; // a full article body (title+summary+body_text JSON) — the largest single-call budget in this directory
 
 // ---------------------------------------------------------------------------
 // Checklist assembly — §5 "The checklist": entities + must-include facts
@@ -213,31 +215,25 @@ export function parseWriterResponse(rawText) {
 // Writers (pluggable — same dependency-injection pattern as every sibling script)
 // ---------------------------------------------------------------------------
 
-export async function openAIWriter({ system, user }, { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_WRITER_MODEL } = {}) {
+export async function openAIWriter(
+  { system, user },
+  { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_WRITER_MODEL, topic, attempt } = {}
+) {
   if (!apiKey) {
     throw new Error(
       'No OpenAI API key found. Set OPENAI_API_KEY in the environment before running this ' +
         'script for real, or pass --writer-fixture-dir to validate offline (see scripts/README.md).'
     );
   }
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      temperature: 0.7, // generation task, not judgment — some variation is fine/expected here
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
+  return callOpenAIChat({
+    apiKey,
+    model,
+    system,
+    user,
+    maxTokens: MAX_TOKENS,
+    temperature: 0.7, // generation task, not judgment — some variation is fine/expected here
+    callerLabel: `generate-article.js openAIWriter${topic ? ` ("${topic}"${attempt ? `, ${attempt}` : ''})` : ''}`,
   });
-  if (!res.ok) {
-    throw new Error(`OpenAI API error ${res.status}: ${await res.text()}`);
-  }
-  const data = await res.json();
-  return data.choices[0].message.content;
 }
 
 export function slugifyTopic(topic) {

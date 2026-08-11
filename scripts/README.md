@@ -32,9 +32,13 @@ instead of a raw "Cannot read properties of undefined". Each caller still owns i
 prompt, temperature, and `maxTokens` sizing (no baked-in default — the right size genuinely differs
 per use case, see each script's own `MAX_TOKENS` constant).
 
-**Not yet wired in** — this file exists and is complete, but no script above has been migrated to call
-it yet; every script still has its own inline `fetch()` block, unchanged. Migrating each one is the
-next step here, not done as of this note (2026-08-11).
+All five scripts above call this helper now (migrated 2026-08-11) — none has its own inline `fetch()`
+block anymore. Each script's `MAX_TOKENS` constant reflects its call shape: `generate-article.js`'s
+writer is the largest single-call budget (a full article body); `extract-entities.js` scales its budget
+by article count (`MAX_TOKENS_PER_ARTICLE * articleCount`, capped) since `--batch-size > 1` sends several
+articles in one call; `seo-optimizer.js` sits in between (structured metadata, not a full article); and
+`fact-retention-checker.js`/`coverage-reviewer.js` — pure judgment calls, one short verdict per checklist
+item — carry the smallest budgets.
 
 ## extract-articles.js
 

@@ -51,11 +51,22 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { getArticleEntityEdgeState, checkFactRetention, openAIJudge, fixtureJudge } from './fact-retention-checker.js';
 import { nextArg } from './cli-args.js';
+import { callOpenAIChat } from './openai-client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 
 const DEFAULT_MODEL = 'gpt-4o-mini'; // extraction from ~12 short article bodies — cheapest tier is fine (§6)
+
+// Budget per article's {entities,edges} JSON block. In batch mode
+// (processArticleBatch) one LLM call covers several articles at once, so the
+// ceiling scales with how many articles are actually in that call rather than
+// being a single flat constant — a --batch-size 5 run needs roughly 5x the
+// headroom a single-article call does. Capped at MAX_TOKENS_CAP (gpt-4o-mini's
+// max output) so a very large --batch-size can't request more than the model
+// can return.
+const MAX_TOKENS_PER_ARTICLE = 1500;
+const MAX_TOKENS_CAP = 16000;
 
 // Observed/declared vocabulary — the `entities.type`/`edges.relation` values seen in the
 // hand-authored sample plus the relation set named in the schema comment (§2). Not a hard
@@ -365,31 +376,25 @@ export function parseBatchExtractionResponse(rawText, expectedSlugs) {
 /** Production extractor: a real OpenAI call. Same shape as fact-retention-
  *  checker.js's openAIJudge, kept as its own small function rather than a
  *  shared helper — the two scripts stay independently readable. */
-export async function openAIExtractor({ system, user }, { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_MODEL } = {}) {
+export async function openAIExtractor(
+  { system, user },
+  { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_MODEL, slug, articleCount = 1 } = {}
+) {
   if (!apiKey) {
     throw new Error(
       'No OpenAI API key found. Set OPENAI_API_KEY in the environment before running this ' +
         'script for real, or pass --extract-fixture-dir to validate offline (see scripts/README.md).'
     );
   }
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
+  return callOpenAIChat({
+    apiKey,
+    model,
+    system,
+    user,
+    maxTokens: Math.min(MAX_TOKENS_CAP, MAX_TOKENS_PER_ARTICLE * Math.max(1, articleCount)),
+    temperature: 0,
+    callerLabel: `extract-entities.js openAIExtractor${slug ? ` (${slug})` : ''}`,
   });
-  if (!res.ok) {
-    throw new Error(`OpenAI API error ${res.status}: ${await res.text()}`);
-  }
-  const data = await res.json();
-  return data.choices[0].message.content;
 }
 
 /** Offline extractor: reads a pre-recorded raw JSON response from
@@ -509,7 +514,7 @@ export async function processArticle(db, article, opts) {
 
   const existingEntities = getExistingEntities(db); // re-read every call — sees this run's own prior writes too
   const promptObj = buildExtractionPrompt({ article, existingEntities });
-  const rawResponse = await extract(promptObj, { ...extractOpts, model, slug: article.slug });
+  const rawResponse = await extract(promptObj, { ...extractOpts, model, slug: article.slug, articleCount: 1 });
   const extraction = parseExtractionResponse(rawResponse);
 
   console.log(
@@ -582,7 +587,7 @@ export async function processArticleBatch(db, articles, opts) {
 
   let extractionBySlug;
   try {
-    const rawResponse = await extract(promptObj, { ...extractOpts, model, slug: batchKey });
+    const rawResponse = await extract(promptObj, { ...extractOpts, model, slug: batchKey, articleCount: articles.length });
     extractionBySlug = parseBatchExtractionResponse(rawResponse, slugs);
   } catch (err) {
     console.error(`  ! batch [${slugs.join(', ')}]: extraction failed — ${err.message}`);

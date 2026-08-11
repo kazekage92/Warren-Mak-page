@@ -38,9 +38,11 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { callOpenAIChat } from './openai-client.js';
 
 export const VALID_REVIEW_STATUSES = new Set(['covered', 'partial', 'missing']);
 const DEFAULT_REVIEWER_MODEL = 'gpt-4o-mini'; // judgment task, not generation — cheapest tier is fine (§5)
+const MAX_TOKENS = 1500; // one {status,evidence} judgment per checklist item — judgment-only, smallest budget in this directory (alongside fact-retention-checker.js)
 
 // ---------------------------------------------------------------------------
 // Prompt construction
@@ -138,31 +140,25 @@ export function summarizeReview(result) {
  *  environment — the "(a) local/developer-run Node script" path from §2
  *  "Where extraction runs", same split fact-retention-checker.js's
  *  openAIJudge documents. */
-export async function openAIReviewer({ system, user }, { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_REVIEWER_MODEL } = {}) {
+export async function openAIReviewer(
+  { system, user },
+  { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_REVIEWER_MODEL, topic, attempt } = {}
+) {
   if (!apiKey) {
     throw new Error(
       'No OpenAI API key found. Set OPENAI_API_KEY in the environment before running this ' +
         'script for real, or pass --reviewer-fixture-dir to validate offline (see scripts/README.md).'
     );
   }
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
+  return callOpenAIChat({
+    apiKey,
+    model,
+    system,
+    user,
+    maxTokens: MAX_TOKENS,
+    temperature: 0,
+    callerLabel: `coverage-reviewer.js openAIReviewer${topic ? ` ("${topic}"${attempt ? `, ${attempt}` : ''})` : ''}`,
   });
-  if (!res.ok) {
-    throw new Error(`OpenAI API error ${res.status}: ${await res.text()}`);
-  }
-  const data = await res.json();
-  return data.choices[0].message.content;
 }
 
 /** Offline reviewer: reads a pre-recorded raw JSON response from disk

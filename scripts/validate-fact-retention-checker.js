@@ -62,6 +62,36 @@ function planRegression(dbPath) {
     const article = db.prepare('SELECT id FROM articles WHERE slug = ?').get(SLUG);
     if (!article) throw new Error(`Sample db is missing article "${SLUG}" — did the schema change?`);
 
+    // Case 3 target — pick an edge to alter dynamically, against the
+    // *unmodified* graph, rather than hardcoding a name pair. A hardcoded
+    // pair silently stops existing (and this validator silently stops
+    // testing anything) the moment a future re-extraction changes the
+    // article's entities/edges — this instead just uses whatever edge is
+    // actually there. Chosen from the same induced-subgraph query
+    // getArticleEntityEdgeState() uses (both endpoints attached to this
+    // article), excluding the entities Case 1/2 touch below so the three
+    // simulated regressions stay independent.
+    const alterCandidate = db
+      .prepare(
+        `SELECT edg.rowid AS rowid, s.name AS source, edg.relation AS relation, t.name AS target
+         FROM edges edg
+         JOIN entities s ON s.id = edg.source_entity_id
+         JOIN entities t ON t.id = edg.target_entity_id
+         WHERE edg.source_entity_id IN (SELECT entity_id FROM article_entities WHERE article_id = ?)
+           AND edg.target_entity_id IN (SELECT entity_id FROM article_entities WHERE article_id = ?)
+           AND s.name NOT IN ('Time Decay (Theta)', 'Leverage')
+           AND t.name NOT IN ('Time Decay (Theta)', 'Leverage')
+         ORDER BY s.name, t.name
+         LIMIT 1`
+      )
+      .get(article.id, article.id);
+    if (!alterCandidate) {
+      throw new Error(
+        `Sample db has no edge (outside the Case 1/2 entities) left in article "${SLUG}"'s ` +
+          'induced subgraph to alter — pick different exclusions or a different article.'
+      );
+    }
+
     // Case 1 — harmless REWORD: "Time Decay (Theta)" -> "Theta Decay". Same
     // real-world concept, different string. A naive text diff would call
     // every edge touching it "dropped"; the LLM judge should call it
@@ -73,6 +103,7 @@ function planRegression(dbPath) {
     // (its article_entities row + the edges that depended on it). Simulates
     // a re-extraction pass silently losing a fact.
     const leverage = db.prepare('SELECT id FROM entities WHERE name = ?').get('Leverage');
+    if (!leverage) throw new Error(`Sample db is missing entity "Leverage" — did the schema change?`);
     db.prepare('DELETE FROM article_entities WHERE article_id = ? AND entity_id = ?').run(
       article.id,
       leverage.id
@@ -82,16 +113,20 @@ function planRegression(dbPath) {
       leverage.id
     );
 
-    // Case 3 — ALTERED edge: "Risk Management" -[related_to]-> "Theta Decay"
-    // (renamed from Time Decay above) becomes "-[contradicts]->". Same pair
-    // of entities, different (in fact opposite-sounding) relation — a
+    // Case 3 — ALTERED edge: flip the picked edge to a relation it isn't
+    // already using. Same pair of entities, different relation — a
     // relevance_score/row-count check would miss this; the row still exists.
-    db.prepare(
-      `UPDATE edges SET relation = 'contradicts'
-       WHERE relation = 'related_to'
-         AND source_entity_id = (SELECT id FROM entities WHERE name = 'Risk Management')
-         AND target_entity_id = (SELECT id FROM entities WHERE name = 'Theta Decay')`
-    ).run();
+    const newRelation = alterCandidate.relation === 'contradicts' ? 'related_to' : 'contradicts';
+    db.prepare('UPDATE edges SET relation = ? WHERE rowid = ?').run(newRelation, alterCandidate.rowid);
+
+    return {
+      alteredEdge: {
+        source: alterCandidate.source,
+        target: alterCandidate.target,
+        oldRelation: alterCandidate.relation,
+        newRelation,
+      },
+    };
   } finally {
     db.close();
   }
@@ -169,7 +204,12 @@ async function main() {
   copyFileSync(ORIGINAL_DB, REGRESSED_DB);
 
   console.log('2. Hand-editing the copy to plant one reword + one drop + one alter...');
-  planRegression(REGRESSED_DB);
+  const regressionPlan = planRegression(REGRESSED_DB);
+  console.log(
+    `   Case 3 target (chosen dynamically): "${regressionPlan.alteredEdge.source}" ` +
+      `-[${regressionPlan.alteredEdge.oldRelation}]-> "${regressionPlan.alteredEdge.target}" ` +
+      `becomes "-[${regressionPlan.alteredEdge.newRelation}]->"`
+  );
 
   console.log('3. Extracting old/new entity-edge state...');
   const oldState = getArticleEntityEdgeState(ORIGINAL_DB, SLUG);
@@ -213,15 +253,16 @@ async function main() {
   }
 
   // The altered edge is reported keyed by "source -> target" per the
-  // prompt's naming convention for edges — check loosely by relation text
-  // rather than assume the judge's exact name formatting.
-  const alteredEdge = result.items.find(
-    (i) => /risk management/i.test(i.name) && /(theta decay|time decay)/i.test(i.name)
-  );
+  // prompt's naming convention for edges (formatState/buildSyntheticFixture)
+  // — exact-match on the name planRegression() actually planted, rather than
+  // a hardcoded name pair that could silently stop matching after a future
+  // re-extraction picks a different edge.
+  const alteredEdgeName = `${regressionPlan.alteredEdge.source} -> ${regressionPlan.alteredEdge.target}`;
+  const alteredEdge = result.items.find((i) => i.name === alteredEdgeName);
   const alteredPassed = alteredEdge?.status === 'altered';
   allPassed &&= alteredPassed;
   console.log(
-    `  ${alteredPassed ? 'PASS' : 'FAIL'}: Risk Management -> Theta Decay edge expected "altered", got ` +
+    `  ${alteredPassed ? 'PASS' : 'FAIL'}: "${alteredEdgeName}" edge expected "altered", got ` +
       `${alteredEdge ? `"${alteredEdge.status}"` : '(not found in judge output)'}`
   );
 

@@ -48,12 +48,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { nextArg } from './cli-args.js';
+import { callOpenAIChat } from './openai-client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 
 const VALID_STATUSES = new Set(['retained', 'altered', 'dropped']);
 const DEFAULT_MODEL = 'gpt-4o-mini'; // judgment task, not generation — cheapest tier is fine (§5)
+const MAX_TOKENS = 1500; // one {status,note} judgment per OLD entity/edge — judgment-only, smallest budget in this directory
 
 // ---------------------------------------------------------------------------
 // State extraction — the induced subgraph over one article's own entities
@@ -190,31 +192,25 @@ export function parseJudgeResponse(rawText) {
  *  §2 "Where extraction runs", a separate concern from the client-side
  *  AES-256-GCM key plumbing §6 still has to build for admin/index.html's
  *  in-browser incremental path. */
-export async function openAIJudge({ system, user }, { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_MODEL } = {}) {
+export async function openAIJudge(
+  { system, user },
+  { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_MODEL, slug } = {}
+) {
   if (!apiKey) {
     throw new Error(
       'No OpenAI API key found. Set OPENAI_API_KEY in the environment before running this ' +
         'script for real, or pass --judge-fixture to validate offline (see scripts/README.md).'
     );
   }
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
+  return callOpenAIChat({
+    apiKey,
+    model,
+    system,
+    user,
+    maxTokens: MAX_TOKENS,
+    temperature: 0,
+    callerLabel: `fact-retention-checker.js openAIJudge${slug ? ` (${slug})` : ''}`,
   });
-  if (!res.ok) {
-    throw new Error(`OpenAI API error ${res.status}: ${await res.text()}`);
-  }
-  const data = await res.json();
-  return data.choices[0].message.content;
 }
 
 /** Offline judge: reads a pre-recorded raw JSON response from disk instead of
@@ -298,7 +294,7 @@ async function main() {
   const newState = getArticleEntityEdgeState(opts.newDb, opts.newSlug);
 
   const judge = opts.judgeFixture ? fixtureJudge : openAIJudge;
-  const judgeOpts = opts.judgeFixture ? { fixturePath: opts.judgeFixture } : { model: opts.model };
+  const judgeOpts = opts.judgeFixture ? { fixturePath: opts.judgeFixture } : { model: opts.model, slug: opts.slug };
 
   const result = await checkFactRetention({ slug: opts.slug, oldState, newState, judge, judgeOpts });
 

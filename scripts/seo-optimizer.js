@@ -32,11 +32,13 @@ import { DatabaseSync } from 'node:sqlite';
 import { buildRetrievalContext } from './retrieval-layer.js';
 import { slugifyTopic } from './generate-article.js';
 import { nextArg } from './cli-args.js';
+import { callOpenAIChat } from './openai-client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 
 const DEFAULT_SEO_MODEL = 'gpt-4o-mini'; // metadata generation from an already-written draft — cheaper tier is fine, same reasoning as the reviewer (§5)
+const MAX_TOKENS = 2000; // titles/descriptions/keyword arrays/headings/FAQ — more than a judgment call, well under the writer's full article body
 
 const REQUIRED_STRING_FIELDS = ['seoTitle', 'metaDescription', 'urlSlug', 'ogTitle', 'ogDescription'];
 const REQUIRED_ARRAY_FIELDS = ['primaryKeywords', 'secondaryKeywords', 'longTailKeywords', 'headings', 'faq'];
@@ -150,31 +152,25 @@ export function parseSeoResponse(rawText) {
 // Writers (pluggable — same DI pattern as every sibling script)
 // ---------------------------------------------------------------------------
 
-export async function openAISeoWriter({ system, user }, { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_SEO_MODEL } = {}) {
+export async function openAISeoWriter(
+  { system, user },
+  { apiKey = process.env.OPENAI_API_KEY, model = DEFAULT_SEO_MODEL, topic } = {}
+) {
   if (!apiKey) {
     throw new Error(
       'No OpenAI API key found. Set OPENAI_API_KEY in the environment before running this ' +
         'script for real, or pass --seo-fixture-dir to validate offline (see scripts/README.md).'
     );
   }
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      temperature: 0.3, // metadata generation — light variation is fine, unlike the reviewer's judgment call
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
+  return callOpenAIChat({
+    apiKey,
+    model,
+    system,
+    user,
+    maxTokens: MAX_TOKENS,
+    temperature: 0.3, // metadata generation — light variation is fine, unlike the reviewer's judgment call
+    callerLabel: `seo-optimizer.js openAISeoWriter${topic ? ` ("${topic}")` : ''}`,
   });
-  if (!res.ok) {
-    throw new Error(`OpenAI API error ${res.status}: ${await res.text()}`);
-  }
-  const data = await res.json();
-  return data.choices[0].message.content;
 }
 
 /** Offline writer: reads <fixtureDir>/<slugifyTopic(topic)>.json — reuses
