@@ -1106,8 +1106,10 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   color: var(--white);
 }
 
-.course-hero h1 {
+.course-hero h1,
+.course-hero h2 {
   color: var(--white);
+  font-size: clamp(2rem, 5vw, 3.2rem);
 }
 
 .course-hero p {

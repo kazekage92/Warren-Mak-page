@@ -1,0 +1,27 @@
+{
+  "name": "warren-mak-page-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only Node tooling for the site (article knowledge-graph extraction pipeline). Not part of the deployed static site — see ../CLAUDE.md and ../extra-md-files/ai-article-pipeline.md.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "extract": "node --no-warnings extract-articles.js",
+    "extract-entities": "node --no-warnings extract-entities.js",
+    "validate-extract-entities": "node --no-warnings validate-extract-entities.js",
+    "validate-extract-entities-batch": "node --no-warnings validate-extract-entities-batch.js",
+    "check-retention": "node --no-warnings fact-retention-checker.js",
+    "validate-retention-checker": "node --no-warnings validate-fact-retention-checker.js",
+    "generate-article": "node --no-warnings generate-article.js",
+    "validate-generate-article": "node --no-warnings validate-generate-article.js",
+    "seo-optimizer": "node --no-warnings seo-optimizer.js",
+    "validate-seo-optimizer": "node --no-warnings validate-seo-optimizer.js",
+    "import-source-articles": "node --no-warnings import-source-articles.js",
+    "validate-import-source-articles": "node --no-warnings validate-import-source-articles.js",
+    "encrypt-secret": "node --no-warnings encrypt-secret.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  }
+}

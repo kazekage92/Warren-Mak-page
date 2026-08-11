@@ -224,6 +224,19 @@
     .validation-checklist li.warn { color: #d97706; background: #fffbeb; }
     .validation-checklist li .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
+    /* Knowledge Coverage panel (extra-md-files/ai-article-pipeline.md §5, manual-authoring path) */
+    .coverage-panel { padding: 4px 20px 20px; }
+    .coverage-panel__header { margin-bottom: 10px; }
+    .coverage-panel__title { font-size: 0.85rem; font-weight: 700; color: #444; }
+    .coverage-panel__note { font-size: 0.82rem; color: #888; padding: 6px 2px; }
+    .coverage-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 6px; }
+    .coverage-item.covered { color: #16a34a; background: #f0fdf4; }
+    .coverage-item.partial { color: #d97706; background: #fffbeb; }
+    .coverage-item.missing { color: #dc2626; background: #fef2f2; }
+    .coverage-item .dot { flex-shrink: 0; font-weight: 700; }
+    .coverage-item .name { font-weight: 600; }
+    .coverage-item .evidence { color: #666; font-weight: 400; font-style: italic; }
+
     /* Success panel */
     .publish-success { text-align: center; padding: 60px 20px; max-width: 560px; margin: 40px auto; background: linear-gradient(180deg, #f0fdf4, #ffffff); border: 1px solid #bbf7d0; border-radius: 16px; }
     .publish-success .icon { font-size: 3rem; margin-bottom: 16px; }
@@ -266,6 +279,7 @@
   <div class="admin-header">
     <h1><span aria-hidden="true">&#128218;</span> Article Editor</h1>
     <div class="header-actions">
+      <button id="importSourceBtn" class="new-article-btn" onclick="openImportSource()" disabled>&#128229; Import Source Article</button>
       <button id="newArticleBtn" class="new-article-btn" onclick="openNewArticle()" disabled>&#10024; New Article</button>
       <button class="logout-btn" onclick="logout()">Log Out</button>
     </div>
@@ -474,6 +488,11 @@
           <span class="field-hint">Auto-generated from the URL slug.</span>
         </div>
       </div>
+      <div class="preview-toolbar">
+        <button type="button" class="btn-secondary" onclick="generateSeoSuggestions()">&#10024; Generate SEO Suggestions</button>
+        <span class="field-hint" id="seoSuggestHint">Suggests an SEO title, meta description, keywords, headings and FAQ from your current title/body. Review before applying — nothing is auto-submitted.</span>
+      </div>
+      <div class="coverage-panel" id="seoSuggestPanel"></div>
     </div>
 
     <!-- Content -->
@@ -510,6 +529,16 @@
         <div class="validation-summary__bar"><div class="validation-summary__fill" id="validationFill"></div></div>
       </div>
       <ul class="validation-checklist" id="validationChecklist"></ul>
+
+      <div class="form-field" style="padding: 4px 20px 8px;">
+        <label for="naMustIncludeFacts">Must-include facts <span class="field-hint">(optional — one per line, e.g. an exact stat or credential that must appear)</span></label>
+        <textarea id="naMustIncludeFacts" rows="2" placeholder="e.g. Warren Mak has 32 years of market experience"></textarea>
+      </div>
+      <div class="preview-toolbar">
+        <button type="button" class="btn-secondary" onclick="checkKnowledgeCoverage()">🔎 Check Knowledge Coverage</button>
+        <span class="field-hint" id="coverageHint">Checks this draft's English content against the knowledge graph. Informational only — never blocks publishing.</span>
+      </div>
+      <div class="coverage-panel" id="coveragePanel"></div>
     </div>
 
   </div>
@@ -532,6 +561,62 @@
   </div>
 </div>
 
+<!-- ==================== IMPORT SOURCE ARTICLE SCREEN ==================== -->
+<div id="importSourceScreen" class="hidden">
+  <div class="admin-header">
+    <button class="back-btn" onclick="cancelImportSource()">&larr; Back to Articles</button>
+    <h1>&#128229; Import Source Article</h1>
+    <button class="logout-btn" onclick="logout()">Log Out</button>
+  </div>
+
+  <p class="na-intro">Automates the manual-paste fallback for paywalled/offline source content (e.g. a Nanyang
+    column): copy the original text from its source, paste it below, and save. This stages the source for the
+    developer-run sync script (<code>scripts/import-source-articles.js</code>) — it does not publish anything
+    or touch the live site.</p>
+
+  <div class="editor-wrap">
+    <div class="editor-section na-card-1" id="importSourceSection">
+      <div class="editor-section-title editor-section-title--na"><span class="step-num">&#128229;</span>Source Details</div>
+      <div class="form-grid">
+        <div class="form-field" style="grid-column: 1 / -1;">
+          <label>Title <span class="req">*</span></label>
+          <input type="text" id="importTitle" oninput="refreshImportSlugHint()">
+          <span class="field-hint" id="importSlugHint">admin/source-articles-pending/&lt;slug&gt;.json</span>
+        </div>
+        <div class="form-field" style="grid-column: 1 / -1;">
+          <label>Original URL</label>
+          <input type="text" id="importUrl" placeholder="https://...">
+        </div>
+        <div class="form-field">
+          <label>Published Date</label>
+          <input type="date" id="importPublishedDate">
+        </div>
+        <div class="form-field">
+          <label>Author</label>
+          <input type="text" id="importAuthor" value="Warren Mak">
+        </div>
+        <div class="form-field" style="grid-column: 1 / -1;">
+          <label>Category</label>
+          <input type="text" id="importCategory" placeholder="e.g. Nanyang Siang Pau Column">
+        </div>
+        <div class="form-field" style="grid-column: 1 / -1;">
+          <label>Full Source Text <span class="req">*</span></label>
+          <textarea id="importContent" rows="12" placeholder="Paste the full original article text here..."></textarea>
+        </div>
+        <div class="form-field" style="grid-column: 1 / -1;">
+          <label>Notes</label>
+          <textarea id="importNotes" rows="2" placeholder="Optional — anything the developer running the sync script should know"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="save-bar">
+    <span class="status" id="importSourceStatus">Ready</span>
+    <button class="btn-save" id="importSourceSaveBtn" onclick="submitImportSource()">&#128190; Stage Import</button>
+  </div>
+</div>
+
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -546,6 +631,14 @@
   // Format: base64( iv[12] + authTag[16] + ciphertext )
   const CONFIG = {
     ENCRYPTED_TOKEN: 'S+SuQCZxwHhJCA54HqI5Av1rdDeA9a/gA98BsSFBru5znPmIsS4PORZHI9zpUKIeysSzG1sihJi2+IjIpkFcV3oQmRrcB5L7tiJXWFhdN84VG+gaS2vTj2qDOCq9JqKItjjNeDFA3w9qDcjgiSCn38mySGNihcvnFg==',
+    // OpenAI key, encrypted the same way as ENCRYPTED_TOKEN above (AES-256-GCM,
+    // SHA-256(password) as key, same base64(iv[12]+tag[16]+ciphertext) format) —
+    // see scripts/encrypt-secret.js to produce this blob. Empty until Warren sets a
+    // hard spend cap on the OpenAI account and runs that script (extra-md-files/
+    // ai-article-pipeline.md §6/§8's required precondition before any real call).
+    // Left empty, the Knowledge Coverage panel below (§5) just stays disabled —
+    // nothing else in the admin tool depends on this key.
+    ENCRYPTED_OPENAI_KEY: '',
     REPO_OWNER: 'kazekage92',
     REPO_NAME: 'Warren-Mak-page',
     ARTICLES_PATH: 'articles'
@@ -557,6 +650,8 @@
 
   // ===================== STATE =====================
   let githubToken = null;
+  let openaiApiKey = null; // decrypted at login iff CONFIG.ENCRYPTED_OPENAI_KEY is set — see below
+  let knowledgeGraphJson = null; // admin/knowledge-graph.json, fetched once and cached for the session
   let repoDefaultBranch = 'main'; // resolved from the repo API at login; used for Git Data API ref/commit calls
   let currentFile = null;
   let fileSha = null;
@@ -572,6 +667,10 @@
   let naFeaturedImage = null; // { fileName, ext, base64 }
   let naPublishing = false;
 
+  // Import Source Article workspace state
+  let importHasUnsavedChanges = false;
+  let importSubmitting = false;
+
   // ===================== HELPERS =====================
   const $ = id => document.getElementById(id);
 
@@ -583,13 +682,17 @@
     };
   }
 
-  // Decrypt the GitHub PAT using AES-256-GCM with SHA-256(password) as key
-  async function decryptToken(password) {
+  // Decrypt an AES-256-GCM blob (base64(iv[12]+tag[16]+ciphertext)) using
+  // SHA-256(password) as the key — the shared primitive behind both the
+  // GitHub PAT (decryptToken) and the optional OpenAI key (decryptOpenAIKey)
+  // below. Same format either way, so both secrets can be re-encrypted with
+  // scripts/encrypt-secret.js.
+  async function decryptSecret(encryptedBase64, password) {
     const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
     const key = await crypto.subtle.importKey('raw', hashBuf, 'AES-GCM', false, ['decrypt']);
 
     // Decode combined blob: iv(12) + tag(16) + ciphertext
-    const combined = Uint8Array.from(atob(CONFIG.ENCRYPTED_TOKEN), c => c.charCodeAt(0));
+    const combined = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
     const iv = combined.slice(0, 12);
     const tag = combined.slice(12, 28);
     const ciphertext = combined.slice(28);
@@ -601,6 +704,22 @@
 
     const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, encrypted);
     return new TextDecoder().decode(decrypted);
+  }
+
+  function decryptToken(password) {
+    return decryptSecret(CONFIG.ENCRYPTED_TOKEN, password);
+  }
+
+  // Best-effort — CONFIG.ENCRYPTED_OPENAI_KEY is empty until a real key is
+  // encrypted (see CONFIG's own comment), and a wrong/corrupt OpenAI blob
+  // should never block GitHub login, which is what actually gates the tool.
+  async function decryptOpenAIKey(password) {
+    if (!CONFIG.ENCRYPTED_OPENAI_KEY) return null;
+    try {
+      return await decryptSecret(CONFIG.ENCRYPTED_OPENAI_KEY, password);
+    } catch (e) {
+      return null;
+    }
   }
 
   function filenameToTitle(filename) {
@@ -647,6 +766,11 @@
       githubToken = token;
       sessionStorage.setItem('admin_token', token);
       sessionStorage.setItem('admin_branch', repoDefaultBranch);
+
+      // Optional — see CONFIG.ENCRYPTED_OPENAI_KEY's own comment. Never blocks login.
+      openaiApiKey = await decryptOpenAIKey(password);
+      if (openaiApiKey) sessionStorage.setItem('admin_openai_key', openaiApiKey);
+
       $('loginError').style.display = 'none';
       showListScreen();
     } catch (err) {
@@ -658,7 +782,9 @@
 
   window.logout = function() {
     sessionStorage.removeItem('admin_token');
+    sessionStorage.removeItem('admin_openai_key');
     githubToken = null;
+    openaiApiKey = null;
     hasUnsavedChanges = false;
     location.reload();
   };
@@ -668,6 +794,7 @@
     $('loginScreen').classList.add('hidden');
     $('editorScreen').classList.add('hidden');
     $('newArticleScreen').classList.add('hidden');
+    $('importSourceScreen').classList.add('hidden');
     $('listScreen').classList.remove('hidden');
     await loadArticleList();
   }
@@ -675,6 +802,7 @@
   async function loadArticleList() {
     const container = $('articleListContainer');
     $('newArticleBtn').disabled = true;
+    $('importSourceBtn').disabled = true;
     $('articleListCount').textContent = '…';
     try {
       const res = await fetch(
@@ -695,6 +823,7 @@
         container.appendChild(item);
       });
       $('newArticleBtn').disabled = false;
+      $('importSourceBtn').disabled = false;
       $('articleListCount').textContent = htmlFiles.length + (htmlFiles.length === 1 ? ' article' : ' articles');
     } catch (err) {
       container.innerHTML = '<p style="color:#dc2626;padding:20px;">Error: ' + err.message + '</p>';
@@ -798,6 +927,40 @@
     $('editorsZh').classList.toggle('hidden', lang !== 'zh');
   };
 
+  // ===================== SINGLE-FILE COMMIT HELPER =====================
+  // One-file PUT via the Contents API — creates the file if `sha` is omitted/null,
+  // updates it in place if `sha` is given. The precedent for any single-file commit
+  // in this tool (the existing-article editor's save action below, and the Import
+  // Source Article form) — publishArticleAtomic() below is the separate, multi-file
+  // Git Data API precedent for the New Article wizard's atomic publish, which this
+  // does NOT replace (different guarantee: this is one file, one commit, no ref juggling).
+  async function putSingleFileToRepo(repoPath, contentString, commitMessage, sha) {
+    var body = { message: commitMessage, content: utf8ToBase64(contentString) };
+    if (sha) body.sha = sha;
+    var res = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/' + repoPath,
+      { method: 'PUT', headers: apiHeaders(), body: JSON.stringify(body) }
+    );
+    if (!res.ok) {
+      var errData = await res.json().catch(function() { return {}; });
+      throw new Error(errData.message || ('Save failed (HTTP ' + res.status + ')'));
+    }
+    return res.json();
+  }
+
+  /** Looks up the current sha for `repoPath`, or null if the file doesn't exist yet —
+   *  needed before a putSingleFileToRepo() call that might be updating vs. creating. */
+  async function getFileShaIfExists(repoPath) {
+    var res = await fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/' + repoPath,
+      { headers: apiHeaders() }
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('Could not check for an existing file at ' + repoPath + ' (HTTP ' + res.status + ')');
+    var data = await res.json();
+    return data.sha;
+  }
+
   // ===================== SAVE =====================
   window.saveArticle = async function() {
     if (!originalDoc || !currentFile) return;
@@ -828,26 +991,7 @@
       var doctype = '<!DOCTYPE html>\n';
       var fullHtml = doctype + originalDoc.documentElement.outerHTML;
 
-      // PUT to GitHub API
-      var res = await fetch(
-        'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/' + CONFIG.ARTICLES_PATH + '/' + currentFile,
-        {
-          method: 'PUT',
-          headers: apiHeaders(),
-          body: JSON.stringify({
-            message: 'Update article: ' + currentFile,
-            content: utf8ToBase64(fullHtml),
-            sha: fileSha
-          })
-        }
-      );
-
-      if (!res.ok) {
-        var errData = await res.json();
-        throw new Error(errData.message || 'Save failed (HTTP ' + res.status + ')');
-      }
-
-      var result = await res.json();
+      var result = await putSingleFileToRepo(CONFIG.ARTICLES_PATH + '/' + currentFile, fullHtml, 'Update article: ' + currentFile, fileSha);
       fileSha = result.content.sha;
       hasUnsavedChanges = false;
       setStatus('Saved! Changes will be live in ~1 minute.', 'saved');
@@ -867,19 +1011,113 @@
 
   // ===================== BACK TO LIST =====================
   window.backToList = function() {
-    if ((hasUnsavedChanges || naHasUnsavedChanges) && !confirm('You have unsaved changes. Leave without saving?')) return;
+    if ((hasUnsavedChanges || naHasUnsavedChanges || importHasUnsavedChanges) && !confirm('You have unsaved changes. Leave without saving?')) return;
     hasUnsavedChanges = false;
     naHasUnsavedChanges = false;
+    importHasUnsavedChanges = false;
     $('editorScreen').classList.add('hidden');
     $('newArticleScreen').classList.add('hidden');
+    $('importSourceScreen').classList.add('hidden');
     showListScreen();
   };
 
   // ===================== PREVENT ACCIDENTAL CLOSE =====================
   window.addEventListener('beforeunload', function(e) {
-    if (hasUnsavedChanges || naHasUnsavedChanges) {
+    if (hasUnsavedChanges || naHasUnsavedChanges || importHasUnsavedChanges) {
       e.preventDefault();
       e.returnValue = '';
+    }
+  });
+
+  // ===================== IMPORT SOURCE ARTICLE =====================
+  // Automates Phase 1's own described manual-paste fallback (extra-md-files/
+  // ai-article-pipeline.md: "admin manually opens the original, copies the full
+  // text, pastes into the admin panel, saves") — this is a form-only screen (no
+  // Quill) that stages one JSON file per import at
+  // admin/source-articles-pending/<slug>.json via putSingleFileToRepo(). The
+  // Node sync script (scripts/import-source-articles.js) is what actually lands
+  // the staged file in admin/knowledge-graph.db's `source_articles` table — same
+  // "browser stages, developer runs the Node script" split extract-articles.js/
+  // extract-entities.js already established for the rest of this pipeline. This
+  // screen commits a staging file; it never touches the live site.
+
+  function resetImportSourceForm() {
+    ['importTitle', 'importUrl', 'importAuthor', 'importCategory', 'importContent', 'importNotes'].forEach(function(id) { $(id).value = ''; });
+    $('importAuthor').value = 'Warren Mak';
+    $('importPublishedDate').value = new Date().toISOString().slice(0, 10);
+    importHasUnsavedChanges = false;
+    refreshImportSlugHint();
+    updateImportStatus('Ready', '');
+  }
+
+  function updateImportStatus(text, type) {
+    var el = $('importSourceStatus');
+    el.textContent = text;
+    el.className = 'status ' + (type || '');
+  }
+
+  window.refreshImportSlugHint = function() {
+    var slug = slugify(naVal('importTitle'));
+    var hintEl = $('importSlugHint');
+    hintEl.textContent = slug ? ('admin/source-articles-pending/' + slug + '.json') : 'admin/source-articles-pending/<slug>.json';
+  };
+
+  window.openImportSource = function() {
+    $('listScreen').classList.add('hidden');
+    $('importSourceScreen').classList.remove('hidden');
+    resetImportSourceForm();
+  };
+
+  window.cancelImportSource = function() {
+    if (importHasUnsavedChanges && !confirm('You have unsaved changes. Leave without saving?')) return;
+    importHasUnsavedChanges = false;
+    $('importSourceScreen').classList.add('hidden');
+    showListScreen();
+  };
+
+  window.submitImportSource = async function() {
+    if (importSubmitting) return;
+    var title = naVal('importTitle');
+    var content = $('importContent').value.trim();
+    if (!title) { alert('Please enter a title before staging this import.'); return; }
+    if (!content) { alert('Please paste the full source text before staging this import.'); return; }
+    var slug = slugify(title);
+    if (!slug) { alert('Could not derive a URL-safe slug from this title — please adjust it.'); return; }
+
+    importSubmitting = true;
+    var btn = $('importSourceSaveBtn');
+    btn.disabled = true;
+    updateImportStatus('Staging…', 'saving');
+
+    try {
+      var repoPath = 'admin/source-articles-pending/' + slug + '.json';
+      var payload = {
+        title: title,
+        originalUrl: naVal('importUrl'),
+        publishedAt: naVal('importPublishedDate'),
+        author: naVal('importAuthor') || 'Warren Mak',
+        category: naVal('importCategory'),
+        originalContent: content,
+        notes: naVal('importNotes')
+      };
+      var existingSha = await getFileShaIfExists(repoPath);
+      await putSingleFileToRepo(repoPath, JSON.stringify(payload, null, 2), 'Stage source article import: ' + slug, existingSha);
+
+      importHasUnsavedChanges = false;
+      updateImportStatus('Staged! Run scripts/import-source-articles.js to sync it into the knowledge graph.', 'saved');
+    } catch (err) {
+      updateImportStatus('Error: ' + err.message, 'error');
+      alert('Staging failed: ' + err.message);
+    } finally {
+      importSubmitting = false;
+      btn.disabled = false;
+    }
+  };
+
+  document.addEventListener('input', function(e) {
+    if (e.target.closest && e.target.closest('#importSourceScreen')) {
+      importHasUnsavedChanges = true;
+      updateImportStatus('Unsaved changes', 'unsaved');
     }
   });
 
@@ -1629,11 +1867,371 @@
     $('previewFrame').srcdoc = toPreviewHtml(buildArticleDocument(state));
   };
 
+  // ===================== KNOWLEDGE COVERAGE (§5, manual-authoring path) =====================
+  // extra-md-files/ai-article-pipeline.md §5 "Also applies to manually-authored content": the
+  // coverage-reviewer step isn't gated behind "was this AI-generated" — it also runs here, at
+  // Step 5/Preview, for hand-written/pasted/imported articles. No writer call, no auto-repair
+  // loop (there's no LLM draft to feed corrections back into) — just checklist -> reviewer call
+  // -> a purely informational panel. Never blocks Approve/Publish.
+  //
+  // The functions below are a hand-kept MIRROR of scripts/coverage-reviewer.js
+  // (buildReviewPrompt/parseReviewResponse) and a vanilla-JS reimplementation of a slice of
+  // scripts/retrieval-layer.js's checklist logic (findSeedEntities/expandRelatedEntities/
+  // buildChecklist), run here against admin/knowledge-graph.json (the JSON mirror
+  // extract-articles.js already regenerates) instead of SQL — admin/index.html is a standalone,
+  // self-contained page per root CLAUDE.md (no build step, no imports from the dev-only
+  // scripts/ directory), so this can't be a live import. Keep these in sync with their
+  // scripts/ counterparts if either changes.
+
+  function loadKnowledgeGraphJson() {
+    if (knowledgeGraphJson) return Promise.resolve(knowledgeGraphJson);
+    return fetch(
+      'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/admin/knowledge-graph.json',
+      { headers: apiHeaders() }
+    ).then(function(res) {
+      if (!res.ok) throw new Error('Failed to load knowledge-graph.json (HTTP ' + res.status + ')');
+      return res.json();
+    }).then(function(data) {
+      knowledgeGraphJson = JSON.parse(base64ToUtf8(data.content.replace(/\n/g, '')));
+      return knowledgeGraphJson;
+    });
+  }
+
+  var KC_STOPWORDS = ['the', 'and', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'are', 'how', 'what', 'into', 'about', 'when', 'why', 'can', 'a', 'an', 'to', 'of', 'in', 'on', 'is', 'it', 'as', 'or', 'be', 'by', 'not'];
+
+  // mirrors scripts/retrieval-layer.js's tokenize()
+  function kcTokenize(text) {
+    var matches = (text || '').match(/[a-z0-9]+/gi) || [];
+    return matches.map(function(w) { return w.toLowerCase(); }).filter(function(w) { return w.length >= 4 && KC_STOPWORDS.indexOf(w) === -1; });
+  }
+
+  // mirrors scripts/retrieval-layer.js's findSeedEntities() — same scoring: 1.0 exact,
+  // 0.9 substring overlap either direction, 0.6 shared keyword.
+  function kcFindSeedEntities(graph, topic, limit) {
+    limit = limit || 8;
+    var topicLower = (topic || '').trim().toLowerCase();
+    if (!topicLower) return [];
+    var topicWords = kcTokenize(topicLower);
+    var scored = [];
+    graph.entities.forEach(function(entity) {
+      var nameLower = entity.name.toLowerCase();
+      var score = 0, reason = null;
+      if (nameLower === topicLower) { score = 1; reason = 'exact match with topic'; }
+      else if (topicLower.indexOf(nameLower) !== -1 || nameLower.indexOf(topicLower) !== -1) { score = 0.9; reason = 'entity name "' + entity.name + '" overlaps with the topic text'; }
+      else if (topicWords.some(function(w) { return nameLower.indexOf(w) !== -1; })) { score = 0.6; reason = 'entity name "' + entity.name + '" shares a keyword with the topic'; }
+      if (score > 0) scored.push({ name: entity.name, type: entity.type, score: score, reason: reason });
+    });
+    scored.sort(function(a, b) { return b.score - a.score; });
+    return scored.slice(0, limit);
+  }
+
+  // mirrors scripts/retrieval-layer.js's expandRelatedEntities() (default maxHops=1)
+  function kcExpandRelatedEntities(graph, seedEntities, maxHops) {
+    maxHops = maxHops || 1;
+    var byName = {};
+    seedEntities.forEach(function(e) { byName[e.name] = { name: e.name, type: e.type, hop: 0, via: e.reason || 'topic match' }; });
+    var frontier = seedEntities.map(function(e) { return e.name; });
+    for (var hop = 1; hop <= maxHops && frontier.length; hop++) {
+      var frontierSet = {};
+      frontier.forEach(function(n) { frontierSet[n] = true; });
+      var next = [];
+      graph.edges.forEach(function(edge) {
+        var phrase = edge.source + ' --[' + edge.relation + ']--> ' + edge.target;
+        [{ from: edge.source, to: edge.target }, { from: edge.target, to: edge.source }].forEach(function(c) {
+          if (frontierSet[c.from] && !byName[c.to]) {
+            var entity = graph.entities.filter(function(e) { return e.name === c.to; })[0];
+            byName[c.to] = { name: c.to, type: entity ? entity.type : null, hop: hop, via: phrase };
+            next.push(c.to);
+          }
+        });
+      });
+      frontier = next;
+    }
+    var out = [];
+    for (var name in byName) if (Object.prototype.hasOwnProperty.call(byName, name)) out.push(byName[name]);
+    return out;
+  }
+
+  // mirrors scripts/retrieval-layer.js's buildChecklist()
+  function kcBuildChecklist(relatedEntities) {
+    return relatedEntities.map(function(e) {
+      return { name: e.name, type: e.type, why: e.hop === 0 ? (e.via || 'directly matches the topic') : ('related to the topic via: ' + e.via) };
+    });
+  }
+
+  function buildChecklistFromGraph(graph, topic) {
+    var seedEntities = kcFindSeedEntities(graph, topic, 8);
+    if (!seedEntities.length) return [];
+    return kcBuildChecklist(kcExpandRelatedEntities(graph, seedEntities, 1));
+  }
+
+  // mirrors scripts/generate-article.js's buildFullChecklist()
+  function buildFullChecklistBrowser(entityChecklist, mustIncludeFacts) {
+    var factItems = mustIncludeFacts.map(function(fact) {
+      return { name: fact, type: 'fact', why: 'marked as a must-include fact for this article — non-negotiable' };
+    });
+    return entityChecklist.concat(factItems);
+  }
+
+  // mirrors scripts/coverage-reviewer.js's formatChecklist() + buildReviewPrompt()
+  function kcFormatChecklist(checklist) {
+    if (!checklist.length) return '(empty — nothing was selected as required coverage for this article)';
+    return checklist.map(function(c) { return '- "' + c.name + '"' + (c.type ? ' (' + c.type + ')' : '') + (c.why ? ' — ' + c.why : ''); }).join('\n');
+  }
+
+  function buildReviewPromptBrowser(checklist, draftText) {
+    var system =
+      'You are a knowledge-coverage auditor for an article publishing pipeline (a trading education ' +
+      'site). You are given a CHECKLIST of entities/facts an article is supposed to cover, and the ' +
+      'DRAFT article\'s body text (which may contain HTML markup -- judge the substance, ignore markup). ' +
+      'Your only job: for every checklist item, judge how well the draft covers it.\n\n' +
+      'Statuses:\n' +
+      '- "covered": the draft clearly discusses this entity/fact, correctly and substantively.\n' +
+      '- "partial": the draft mentions it only in passing, vaguely, or incompletely.\n' +
+      '- "missing": the draft does not mention it at all, or mentions something unrelated with a ' +
+      'similar name.\n\n' +
+      'When status is "covered" or "partial", quote a short (<=1 sentence) piece of evidence from the ' +
+      'draft in "evidence". When status is "missing", leave "evidence" as an empty string.\n\n' +
+      'Judge every checklist item individually. Do not invent items that are not on the checklist, and ' +
+      'do not skip any that are.\n\n' +
+      'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
+      '{"items":[{"name":"<the checklist item name, verbatim>","status":"covered|partial|missing",' +
+      '"evidence":"<short quote, or empty string for missing>"}]}';
+    var user = 'Checklist (' + checklist.length + ' item(s)):\n' + kcFormatChecklist(checklist) + '\n\nDraft article body text:\n' + draftText;
+    return { system: system, user: user };
+  }
+
+  // mirrors scripts/coverage-reviewer.js's parseReviewResponse()
+  function parseReviewResponseBrowser(rawText) {
+    var parsed;
+    try { parsed = JSON.parse(rawText); } catch (e) { throw new Error('Reviewer response was not valid JSON: ' + e.message); }
+    if (!parsed || !Array.isArray(parsed.items)) throw new Error('Reviewer response is missing an "items" array.');
+    var validStatuses = { covered: true, partial: true, missing: true };
+    parsed.items.forEach(function(item) {
+      if (!item || typeof item.name !== 'string' || !validStatuses[item.status]) {
+        throw new Error('Malformed reviewer item: ' + JSON.stringify(item));
+      }
+    });
+    return parsed;
+  }
+
+  // The actual network call — Node-only openAIReviewer's browser counterpart, using the
+  // client-side decrypted key instead of OPENAI_API_KEY. gpt-4o-mini per §5: "can be the
+  // same or a cheaper model than the writer" — there's no writer call on this path at all.
+  function callOpenAIReviewer(promptObj) {
+    return fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + openaiApiKey },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: promptObj.system },
+          { role: 'user', content: promptObj.user }
+        ]
+      })
+    }).then(function(res) {
+      if (!res.ok) return res.text().then(function(t) { throw new Error('OpenAI API error ' + res.status + ': ' + t); });
+      return res.json();
+    }).then(function(data) { return data.choices[0].message.content; });
+  }
+
+  function renderCoveragePanel(items, note) {
+    var panel = $('coveragePanel');
+    if (note) { panel.innerHTML = '<p class="coverage-panel__note">' + escapeHtml(note) + '</p>'; return; }
+    if (!items.length) { panel.innerHTML = '<p class="coverage-panel__note">No checklist items to review.</p>'; return; }
+    var covered = items.filter(function(i) { return i.status === 'covered'; }).length;
+    var partial = items.filter(function(i) { return i.status === 'partial'; }).length;
+    var missing = items.filter(function(i) { return i.status === 'missing'; }).length;
+    var html = '<div class="coverage-panel__header"><span class="coverage-panel__title">Knowledge Coverage — ' + covered + ' covered, ' + partial + ' partial, ' + missing + ' missing</span></div>';
+    html += items.map(function(item) {
+      var icon = item.status === 'covered' ? '✓' : (item.status === 'partial' ? '⚠' : '✗');
+      var evidence = item.evidence ? ' — <span class="evidence">&ldquo;' + escapeHtml(item.evidence) + '&rdquo;</span>' : '';
+      return '<div class="coverage-item ' + item.status + '"><span class="dot">' + icon + '</span><span><span class="name">' + escapeHtml(item.name) + '</span>' + evidence + '</span></div>';
+    }).join('');
+    panel.innerHTML = html;
+  }
+
+  window.checkKnowledgeCoverage = function() {
+    var panel = $('coveragePanel');
+    if (!openaiApiKey) {
+      panel.innerHTML = '<p class="coverage-panel__note">OpenAI key not configured for this admin session — knowledge coverage checking is unavailable (see extra-md-files/ai-article-pipeline.md §6/§8). This never blocks publishing.</p>';
+      return;
+    }
+    var draftText = naQuillBodyEn ? naQuillBodyEn.getText().trim() : '';
+    if (!draftText) {
+      panel.innerHTML = '<p class="coverage-panel__note">English content is empty — write the article body first.</p>';
+      return;
+    }
+
+    panel.innerHTML = '<p class="coverage-panel__note">Checking coverage against the knowledge graph…</p>';
+    loadKnowledgeGraphJson().then(function(graph) {
+      var topic = [naVal('naTitleEn'), naVal('naTags')].filter(Boolean).join(' ');
+      var entityChecklist = buildChecklistFromGraph(graph, topic);
+      var mustIncludeFacts = naVal('naMustIncludeFacts').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+      var checklist = buildFullChecklistBrowser(entityChecklist, mustIncludeFacts);
+
+      if (!checklist.length) {
+        renderCoveragePanel([], 'No entity in the knowledge graph matched this title/tags, and no must-include facts were listed — nothing to check yet. Normal for a genuinely new topic.');
+        return null;
+      }
+
+      return callOpenAIReviewer(buildReviewPromptBrowser(checklist, draftText)).then(function(raw) {
+        renderCoveragePanel(parseReviewResponseBrowser(raw).items, null);
+      });
+    }).catch(function(err) {
+      panel.innerHTML = '<p class="coverage-panel__note" style="color:#dc2626;">Coverage check failed: ' + escapeHtml(err.message) + '</p>';
+    });
+  };
+
+  // ===================== SEO SUGGESTIONS (mirrors scripts/seo-optimizer.js) =====================
+  // Same "browser mirror of the Node script" shape as the Knowledge Coverage panel just above:
+  // hand-kept copies of buildSeoPrompt/parseSeoResponse, a plain OpenAI fetch using the
+  // client-side decrypted key, and a render step with a per-field "Apply" action — the admin
+  // reviews/edits before anything is used, never auto-submitted. Keep in sync with
+  // scripts/seo-optimizer.js if either changes.
+
+  var naLastSeoMetadata = null;
+
+  // mirrors scripts/seo-optimizer.js's buildSeoPrompt()
+  function buildSeoPromptBrowser(topic, title, bodyText, checklist) {
+    var system =
+      'You are an SEO specialist for a Malaysian trading education site (structured warrants, ' +
+      'short-term trading on Bursa Malaysia). Given an article\'s topic, title, and body text, generate ' +
+      'complete on-page SEO metadata. Ground every keyword/heading/FAQ in what the article actually ' +
+      'says -- never invent a claim, stat, or credential that is not in the body text or the checklist ' +
+      'below.\n\n' +
+      'Requirements:\n' +
+      '- seoTitle: <=60 characters, includes the primary keyword, compelling for search results.\n' +
+      '- metaDescription: <=160 characters, includes the primary keyword, ends with a soft call to action.\n' +
+      '- urlSlug: lowercase, hyphen-separated, no stopwords, <=60 characters.\n' +
+      '- ogTitle / ogDescription: social-share variants (may repeat seoTitle/metaDescription if already good).\n' +
+      '- primaryKeywords: 1-3 core search terms this article should rank for.\n' +
+      '- secondaryKeywords: 3-8 supporting terms.\n' +
+      '- longTailKeywords: 3-8 longer, more specific search phrases a reader might actually type.\n' +
+      '- headings: a proper H1-H4 outline for the article, as {"level":2-4,"text":"..."} objects (no H1 -- ' +
+      'the page template supplies that from the title), in document order, reflecting the body\'s actual structure.\n' +
+      '- faq: 3-6 {"question":"...","answer":"..."} pairs suitable for an FAQPage schema block, answered ' +
+      'only from the article\'s own content.\n\n' +
+      'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
+      '{"seoTitle":"...","metaDescription":"...","urlSlug":"...","ogTitle":"...","ogDescription":"...",' +
+      '"primaryKeywords":["..."],"secondaryKeywords":["..."],"longTailKeywords":["..."],' +
+      '"headings":[{"level":2,"text":"..."}],"faq":[{"question":"...","answer":"..."}]}';
+    var checklistText = checklist.length
+      ? checklist.map(function(c) { return '- "' + c.name + '"' + (c.type ? ' (' + c.type + ')' : ''); }).join('\n')
+      : '(no specific checklist items — this topic did not match the existing knowledge graph)';
+    var user = 'Topic: ' + topic + '\nTitle: ' + title + '\n\n' +
+      'Known-relevant entities for this topic (ground keywords/headings in these where natural):\n' + checklistText + '\n\n' +
+      'Article body text:\n' + bodyText;
+    return { system: system, user: user };
+  }
+
+  var SEO_REQUIRED_STRING_FIELDS = ['seoTitle', 'metaDescription', 'urlSlug', 'ogTitle', 'ogDescription'];
+  var SEO_REQUIRED_ARRAY_FIELDS = ['primaryKeywords', 'secondaryKeywords', 'longTailKeywords', 'headings', 'faq'];
+
+  // mirrors scripts/seo-optimizer.js's parseSeoResponse()
+  function parseSeoResponseBrowser(rawText) {
+    var parsed;
+    try { parsed = JSON.parse(rawText); } catch (e) { throw new Error('SEO response was not valid JSON: ' + e.message); }
+    if (!parsed || typeof parsed !== 'object') throw new Error('SEO response is not an object.');
+    SEO_REQUIRED_STRING_FIELDS.forEach(function(field) {
+      if (typeof parsed[field] !== 'string' || !parsed[field].trim()) throw new Error('SEO response missing non-empty string field "' + field + '"');
+    });
+    SEO_REQUIRED_ARRAY_FIELDS.forEach(function(field) {
+      if (!Array.isArray(parsed[field]) || !parsed[field].length) throw new Error('SEO response missing non-empty array field "' + field + '"');
+    });
+    return parsed;
+  }
+
+  // The actual network call — Node-only openAISeoWriter's browser counterpart, using the
+  // client-side decrypted key instead of OPENAI_API_KEY.
+  function callOpenAISeoBrowser(promptObj) {
+    return fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + openaiApiKey },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: promptObj.system },
+          { role: 'user', content: promptObj.user }
+        ]
+      })
+    }).then(function(res) {
+      if (!res.ok) return res.text().then(function(t) { throw new Error('OpenAI API error ' + res.status + ': ' + t); });
+      return res.json();
+    }).then(function(data) { return data.choices[0].message.content; });
+  }
+
+  function renderSeoPanel(metadata) {
+    var panel = $('seoSuggestPanel');
+    var keywordsAll = metadata.primaryKeywords.concat(metadata.secondaryKeywords, metadata.longTailKeywords).join(', ');
+    var row = function(label, value, applyField) {
+      var applyBtn = applyField ? ' <button type="button" class="btn-secondary" style="margin-left:8px;" onclick="applySeoField(\'' + applyField + '\')">Apply</button>' : '';
+      return '<div class="coverage-item"><span><span class="name">' + escapeHtml(label) + ':</span> ' + escapeHtml(value) + applyBtn + '</span></div>';
+    };
+    var html = '<div class="coverage-panel__header"><span class="coverage-panel__title">SEO Suggestions</span></div>';
+    html += row('SEO Title', metadata.seoTitle, 'seoTitle');
+    html += row('Meta Description', metadata.metaDescription, 'metaDescription');
+    html += row('Suggested URL Slug', metadata.urlSlug, null);
+    html += row('OG Title', metadata.ogTitle, null);
+    html += row('OG Description', metadata.ogDescription, null);
+    html += row('Keywords (all)', keywordsAll, 'keywords');
+    html += '<div class="coverage-item"><span><span class="name">Suggested headings:</span> ' + metadata.headings.map(function(h) { return 'H' + h.level + ' ' + escapeHtml(h.text); }).join(' &middot; ') + '</span></div>';
+    html += '<div class="coverage-item"><span><span class="name">Suggested FAQ:</span> ' + metadata.faq.map(function(f) { return escapeHtml(f.question); }).join(' &middot; ') + '</span></div>';
+    panel.innerHTML = html;
+  }
+
+  window.applySeoField = function(field) {
+    if (!naLastSeoMetadata) return;
+    if (field === 'seoTitle') {
+      $('naMetaTitle').value = naLastSeoMetadata.seoTitle;
+    } else if (field === 'metaDescription') {
+      $('naMetaDescription').value = naLastSeoMetadata.metaDescription;
+      updateMetaDescCount();
+    } else if (field === 'keywords') {
+      $('naTags').value = naLastSeoMetadata.primaryKeywords.concat(naLastSeoMetadata.secondaryKeywords, naLastSeoMetadata.longTailKeywords).join(', ');
+    }
+    naHasUnsavedChanges = true;
+    refreshValidation();
+  };
+
+  window.generateSeoSuggestions = function() {
+    var panel = $('seoSuggestPanel');
+    if (!openaiApiKey) {
+      panel.innerHTML = '<p class="coverage-panel__note">OpenAI key not configured for this admin session — SEO suggestions are unavailable (see extra-md-files/ai-article-pipeline.md §6/§8). This never blocks publishing.</p>';
+      return;
+    }
+    var titleEn = naVal('naTitleEn');
+    var bodyText = naQuillBodyEn ? naQuillBodyEn.getText().trim() : '';
+    if (!titleEn || !bodyText) {
+      panel.innerHTML = '<p class="coverage-panel__note">Fill in the English title and article body first.</p>';
+      return;
+    }
+
+    panel.innerHTML = '<p class="coverage-panel__note">Generating SEO suggestions…</p>';
+    loadKnowledgeGraphJson().then(function(graph) {
+      var topic = [titleEn, naVal('naTags')].filter(Boolean).join(' ');
+      var checklist = buildChecklistFromGraph(graph, topic);
+      return callOpenAISeoBrowser(buildSeoPromptBrowser(topic, titleEn, bodyText, checklist)).then(function(raw) {
+        naLastSeoMetadata = parseSeoResponseBrowser(raw);
+        renderSeoPanel(naLastSeoMetadata);
+      });
+    }).catch(function(err) {
+      panel.innerHTML = '<p class="coverage-panel__note" style="color:#dc2626;">SEO suggestion failed: ' + escapeHtml(err.message) + '</p>';
+    });
+  };
+
   // ===================== NEW ARTICLE: SCREEN LIFECYCLE =====================
   function resetNewArticleForm() {
     destroyNaEditors();
     document.querySelectorAll('.na-step').forEach(function(p) { p.classList.toggle('active', p.dataset.step === '1'); });
-    ['naTitleEn', 'naTitleZh', 'naSubtitleEn', 'naSubtitleZh', 'naCategoryEn', 'naCategoryZh', 'naTags', 'naSlug', 'naMetaTitle', 'naMetaDescription', 'naCanonicalUrl', 'readingTimeOverride'].forEach(function(id) { $(id).value = ''; });
+    ['naTitleEn', 'naTitleZh', 'naSubtitleEn', 'naSubtitleZh', 'naCategoryEn', 'naCategoryZh', 'naTags', 'naSlug', 'naMetaTitle', 'naMetaDescription', 'naCanonicalUrl', 'readingTimeOverride', 'naMustIncludeFacts'].forEach(function(id) { $(id).value = ''; });
+    $('coveragePanel').innerHTML = '';
+    $('seoSuggestPanel').innerHTML = '';
+    naLastSeoMetadata = null;
     $('naAuthorEn').value = 'Warren Mak';
     $('naAuthorZh').value = '麦传球 Warren Mak';
     $('naPublishDate').value = new Date().toISOString().slice(0, 10);
@@ -1945,6 +2543,7 @@
   var savedToken = sessionStorage.getItem('admin_token');
   if (savedToken) {
     githubToken = savedToken;
+    openaiApiKey = sessionStorage.getItem('admin_openai_key') || null;
     repoDefaultBranch = sessionStorage.getItem('admin_branch') || repoDefaultBranch;
     showListScreen();
   }

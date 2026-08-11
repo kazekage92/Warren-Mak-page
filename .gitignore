@@ -12,5 +12,13 @@ Thumbs.db
 .vscode/
 .idea/
 
+# scripts/ (knowledge-graph extraction tooling) — deps + regeneratable output
+scripts/node_modules/
+scripts/output/
+
+# Secrets (OpenAI API key etc.) — never commit
+.env
+scripts/.env
+
 CLAUDE.md
 progress.md
