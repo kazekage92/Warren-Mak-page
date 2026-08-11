@@ -55,7 +55,27 @@ CREATE TABLE IF NOT EXISTS article_entities (
     UNIQUE(article_id, entity_id)
 );
 
--- Relationships between entities (the "graph" part)
+-- Relationships between entities (the "graph" part). Deliberately global/
+-- entity-level, not per-article — an edge belongs to whichever entity pair it
+-- connects, not to "the article that created it" (there is no article_id
+-- here, and none is planned; see §2 Step 8 in ai-article-pipeline.md).
+--
+-- KNOWN LIMITATION: because of that, scripts/extract-entities.js's
+-- writeExtractionResult() re-extracting ONE article deletes every edge
+-- between that article's own entity set — including an edge that happens to
+-- connect two entities also used by a DIFFERENT article, even though this
+-- write only has that other article's edge secondhand (via shared entities,
+-- not because it re-extracted that article too). If that edge doesn't get
+-- re-emitted by the current article's own extraction, it silently
+-- disappears from the graph until something re-extracts the other article.
+-- This is a real cross-article overwrite risk, not a hypothetical — see the
+-- comment on writeExtractionResult() for the mechanics. Fixing it properly
+-- would mean adding an article_id column here (tracking per-article
+-- provenance) plus a separate global dedup/merge pass for display, since the
+-- same real-world edge could then be legitimately duplicated per article.
+-- That's a structural change, intentionally not done yet — this comment
+-- exists so the gap is a documented, known trade-off rather than a silent
+-- surprise discovered via a missing edge.
 CREATE TABLE IF NOT EXISTS edges (
     source_entity_id INTEGER REFERENCES entities(id),
     relation TEXT,               -- related_to, prerequisite_of, part_of, contradicts, updates
@@ -106,3 +126,11 @@ CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_article_id);
 CREATE INDEX IF NOT EXISTS idx_links_target ON links(target_article_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_source_articles_slug ON source_articles(slug);
 CREATE INDEX IF NOT EXISTS idx_source_articles_status ON source_articles(status);
+
+-- entities.name has no declared UNIQUE (the column itself is just TEXT, above) but every writer
+-- -- extract-entities.js's writeExtractionResult() -- already looks it up `WHERE name = ?
+-- COLLATE NOCASE` before ever inserting, so in practice it's already 1:1. This index turns that
+-- practice into an enforced guarantee (case-insensitive, matching that lookup) instead of a
+-- convention a future writer could silently break -- see admin/index.html's kcExpandRelatedEntities()
+-- comment, which keys a browser-side entity graph by name and depends on this holding.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_entities_name ON entities(name COLLATE NOCASE);

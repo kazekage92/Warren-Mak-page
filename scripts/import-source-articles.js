@@ -33,6 +33,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { slugifyTopic } from './generate-article.js';
+import { nextArg } from './cli-args.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -57,13 +58,13 @@ function parseArgs(argv) {
         opts.dryRun = true;
         break;
       case '--db':
-        opts.dbPath = path.resolve(argv[++i]);
+        opts.dbPath = path.resolve(nextArg(argv, ++i, '--db'));
         break;
       case '--pending-dir':
-        opts.pendingDir = path.resolve(argv[++i]);
+        opts.pendingDir = path.resolve(nextArg(argv, ++i, '--pending-dir'));
         break;
       case '--slug':
-        opts.onlySlug = argv[++i];
+        opts.onlySlug = nextArg(argv, ++i, '--slug');
         break;
       default:
         throw new Error(`Unknown flag: ${arg}`);
@@ -159,6 +160,7 @@ function main() {
   console.log(`Found ${files.length} pending file(s) in ${path.relative(REPO_ROOT, opts.pendingDir)}`);
 
   const outcomes = [];
+  let matchCount = 0; // files whose slug matched --slug (only meaningful when opts.onlySlug is set)
   let db = null;
   if (!opts.dryRun) {
     db = new DatabaseSync(opts.dbPath);
@@ -177,6 +179,7 @@ function main() {
       outcomes.push({ fileName, slug: record.slug, status: 'skipped', detail: `does not match --slug ${opts.onlySlug}` });
       continue;
     }
+    matchCount++;
     if (opts.dryRun) {
       outcomes.push({ fileName, slug: record.slug, status: 'dry-run', detail: `title="${record.title}"` });
       continue;
@@ -199,9 +202,21 @@ function main() {
 
   const errorCount = outcomes.filter((o) => o.status === 'error').length;
   console.log(`\n${outcomes.length} file(s) processed, ${errorCount} error(s).`);
+
+  if (opts.onlySlug && matchCount === 0) {
+    console.error(`\nError: no pending file matched --slug ${opts.onlySlug}`);
+    process.exitCode = 1;
+    return;
+  }
+
   if (errorCount) process.exitCode = 1;
 }
 
 if (path.resolve(fileURLToPath(import.meta.url)) === path.resolve(process.argv[1] ?? '')) {
-  main();
+  try {
+    main();
+  } catch (err) {
+    console.error(err.message);
+    process.exitCode = 1;
+  }
 }

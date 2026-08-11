@@ -27,6 +27,7 @@ import { readFileSync } from 'node:fs';
 import { createHash, createCipheriv, randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { nextArg } from './cli-args.js';
 
 function parseArgs(argv) {
   const opts = { secret: null, secretFile: null, password: null };
@@ -34,13 +35,13 @@ function parseArgs(argv) {
     const arg = argv[i];
     switch (arg) {
       case '--secret':
-        opts.secret = argv[++i];
+        opts.secret = nextArg(argv, ++i, '--secret');
         break;
       case '--secret-file':
-        opts.secretFile = argv[++i];
+        opts.secretFile = nextArg(argv, ++i, '--secret-file');
         break;
       case '--password':
-        opts.password = argv[++i];
+        opts.password = nextArg(argv, ++i, '--password');
         break;
       default:
         throw new Error(`Unknown flag: ${arg}`);

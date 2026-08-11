@@ -23,6 +23,8 @@
  * copy is a hand-kept mirror of those three functions, not a live import.
  * Keep them in sync if either changes; search admin/index.html for
  * "mirrors scripts/coverage-reviewer.js" to find its copy.
+ * validate-admin-mirror-sync.js checks buildReviewPrompt/formatChecklist
+ * against that copy automatically — run it after touching either side.
  *
  * The `openAIReviewer`/`fixtureReviewer` pair below (the actual network call)
  * DOES use `fetch`/`node:fs`-adjacent globals and is Node-only by convention,
@@ -44,7 +46,11 @@ const DEFAULT_REVIEWER_MODEL = 'gpt-4o-mini'; // judgment task, not generation �
 // Prompt construction
 // ---------------------------------------------------------------------------
 
-function formatChecklist(checklist) {
+// Exported (in addition to being used internally by buildReviewPrompt below)
+// so validate-admin-mirror-sync.js can call it directly against
+// admin/index.html's kcFormatChecklist() mirror without re-deriving it from
+// buildReviewPrompt's combined output.
+export function formatChecklist(checklist) {
   if (!checklist.length) return '(empty — nothing was selected as required coverage for this article)';
   return checklist
     .map((c) => `- "${c.name}"${c.type ? ` (${c.type})` : ''}${c.why ? ` — ${c.why}` : ''}`)
@@ -98,9 +104,14 @@ export function parseReviewResponse(rawText) {
     throw new Error(`Reviewer response is missing an "items" array.\nRaw response:\n${rawText}`);
   }
   for (const item of parsed.items) {
-    if (!item || typeof item.name !== 'string' || !VALID_REVIEW_STATUSES.has(item.status)) {
+    if (
+      !item ||
+      typeof item.name !== 'string' ||
+      !VALID_REVIEW_STATUSES.has(item.status) ||
+      typeof item.evidence !== 'string'
+    ) {
       throw new Error(
-        `Malformed reviewer item (needs string "name" + status in covered|partial|missing): ` +
+        `Malformed reviewer item (needs string "name" + status in covered|partial|missing + string "evidence"): ` +
           `${JSON.stringify(item)}`
       );
     }

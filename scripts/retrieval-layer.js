@@ -56,6 +56,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { nextArg } from './cli-args.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -494,22 +495,28 @@ function parseArgs(argv) {
     const arg = argv[i];
     switch (arg) {
       case '--db':
-        opts.dbPath = path.resolve(argv[++i]);
+        opts.dbPath = path.resolve(nextArg(argv, ++i, '--db'));
         break;
       case '--topic':
-        opts.topic = argv[++i];
+        opts.topic = nextArg(argv, ++i, '--topic');
         break;
-      case '--max-hops':
-        opts.maxHops = Number(argv[++i]);
+      case '--max-hops': {
+        const n = Number(nextArg(argv, ++i, '--max-hops'));
+        if (!Number.isFinite(n) || n < 0) throw new Error('--max-hops must be a non-negative number');
+        opts.maxHops = n;
         break;
-      case '--max-links':
-        opts.maxLinks = Number(argv[++i]);
+      }
+      case '--max-links': {
+        const n = Number(nextArg(argv, ++i, '--max-links'));
+        if (!Number.isFinite(n) || n < 0) throw new Error('--max-links must be a non-negative number');
+        opts.maxLinks = n;
         break;
+      }
       case '--candidate-title':
-        opts.candidateTitle = argv[++i];
+        opts.candidateTitle = nextArg(argv, ++i, '--candidate-title');
         break;
       case '--candidate-slug':
-        opts.candidateSlug = argv[++i];
+        opts.candidateSlug = nextArg(argv, ++i, '--candidate-slug');
         break;
       case '--json':
         opts.json = true;

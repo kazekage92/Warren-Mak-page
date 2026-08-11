@@ -237,6 +237,26 @@
     .coverage-item .name { font-weight: 600; }
     .coverage-item .evidence { color: #666; font-weight: 400; font-style: italic; }
 
+    /* Insert Graph panel (extra-md-files/admin-graph-insertion.md, MVP: Flow (steps) only) */
+    .graph-panel { margin: 4px 20px 20px; padding: 18px 20px; background: #fff7ed; border: 1px solid #fed7aa; border-left: 5px solid var(--na4); border-radius: 0 10px 10px 0; }
+    .graph-panel__header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .graph-panel__title { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
+    .graph-panel__type-badge { background: var(--na4); color: #fff; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+    .graph-panel__hint { font-size: 0.8rem; color: #9a3412; margin: 8px 0 16px; line-height: 1.4; }
+    .graph-panel .form-grid { padding: 0 0 4px; }
+    .graph-panel .preview-toolbar { padding: 10px 0; flex-wrap: wrap; }
+    .graph-step-row { display: grid; grid-template-columns: 26px 1fr 1fr 32px; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .graph-step-row--header { margin-bottom: 6px; }
+    .graph-step-row--header label { font-size: 0.8rem; font-weight: 600; color: #444; }
+    .graph-step-row__num { font-size: 0.78rem; font-weight: 700; color: #9a3412; text-align: center; }
+    .graph-step-row input[type="text"] { padding: 9px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; width: 100%; }
+    .graph-step-row input[type="text"]:focus { outline: none; border-color: #2563eb; }
+    .graph-step-row__remove { background: none; border: none; color: #dc2626; font-size: 1.2rem; cursor: pointer; padding: 4px; line-height: 1; }
+    .graph-step-row__remove:disabled { color: #d1d5db; cursor: not-allowed; }
+    .graph-block-chip { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fff; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; margin-bottom: 6px; }
+    .graph-block-chip__id { color: #888; font-weight: 400; }
+    .graph-block-warning { background: #fffbeb; border: 1px solid #fed7aa; color: #9a3412; border-radius: 8px; padding: 12px 16px; font-size: 0.85rem; line-height: 1.5; margin-bottom: 16px; }
+
     /* Success panel */
     .publish-success { text-align: center; padding: 60px 20px; max-width: 560px; margin: 40px auto; background: linear-gradient(180deg, #f0fdf4, #ffffff); border: 1px solid #bbf7d0; border-radius: 16px; }
     .publish-success .icon { font-size: 3rem; margin-bottom: 16px; }
@@ -305,6 +325,7 @@
   </div>
 
   <div class="editor-wrap">
+    <div id="graphBlockWarning" class="graph-block-warning hidden"></div>
     <div class="lang-tabs">
       <button class="lang-tab active" data-lang="en" onclick="switchTab('en')">English</button>
       <button class="lang-tab" data-lang="zh" onclick="switchTab('zh')">中文 Chinese</button>
@@ -459,7 +480,7 @@
       <div class="featured-image-field">
         <label>Featured Image</label>
         <input type="file" id="featuredImageInput" accept="image/*" onchange="onFeaturedImageChange(event)">
-        <span class="field-hint">Used as the social-share (Open Graph) image for this article. Falls back to the site default if left empty.</span>
+        <span class="field-hint">Used only as the social-share preview image (Open Graph/Twitter card) — it will not appear inline on the article page itself. Falls back to the site default if left empty. The thumbnail below is the only visual confirmation you'll get; it won't show up in the Step 5 preview either.</span>
         <img id="featuredImagePreview" class="hidden">
       </div>
     </div>
@@ -514,6 +535,51 @@
         <span>Override text:</span>
         <input type="text" id="readingTimeOverride" placeholder="e.g. 8 min read">
       </div>
+
+      <!-- Insert Graph panel (extra-md-files/admin-graph-insertion.md, MVP: Flow (steps) only) -->
+      <div class="graph-panel">
+        <div class="graph-panel__header">
+          <span class="graph-panel__title">&#128202; Insert Graph</span>
+          <span class="graph-panel__type-badge">Flow (Steps)</span>
+        </div>
+        <p class="graph-panel__hint">MVP: only the Flow (Steps) graph type is available for now — more types are coming in a later pass. Inserting a graph adds it to both the English and Chinese bodies at the current cursor position.</p>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Graph Title (English) <span class="req">*</span></label>
+            <input type="text" id="graphTitleEn" placeholder="e.g. Trading Workflow">
+          </div>
+          <div class="form-field">
+            <label>Graph Title (Chinese) <span class="req">*</span></label>
+            <input type="text" id="graphTitleZh" placeholder="e.g. 交易流程">
+          </div>
+        </div>
+
+        <div class="preview-toolbar">
+          <button type="button" class="btn-secondary" onclick="suggestGraphZh()">&#10024; Suggest ZH</button>
+          <span class="field-hint">Suggests Chinese translations for the step labels below from their English text and fills the Chinese fields — review and edit before inserting the graph.</span>
+        </div>
+        <p class="coverage-panel__note" id="graphZhSuggestStatus"></p>
+
+        <div class="graph-step-row graph-step-row--header">
+          <div></div>
+          <label>Step Label (English) <span class="req">*</span></label>
+          <label>Step Label (Chinese) <span class="req">*</span></label>
+          <div></div>
+        </div>
+        <div id="graphStepRows"></div>
+
+        <div class="preview-toolbar">
+          <button type="button" class="btn-secondary" id="addGraphStepBtn" onclick="addGraphStep()">+ Add Step</button>
+          <span class="field-hint">2–5 steps required, English &amp; Chinese labels both required.</span>
+        </div>
+
+        <div class="preview-toolbar">
+          <button type="button" class="btn-secondary" onclick="insertGraphAtCursor()">Insert Graph at Cursor</button>
+        </div>
+
+        <div id="graphInsertedList"></div>
+      </div>
     </div>
 
     <!-- Preview + validation -->
@@ -523,6 +589,7 @@
         <button type="button" class="btn-secondary" onclick="refreshPreview()">Refresh Preview</button>
         <span class="field-hint">Renders against the live site stylesheet — refresh after making changes.</span>
       </div>
+      <span class="field-hint">Note: the Featured Image is social-share metadata only (Open Graph/Twitter card) — it will not render inline in this preview or on the live article page. Its upload thumbnail in Step 2 is the only visual confirmation available.</span>
       <iframe id="previewFrame" title="Article preview"></iframe>
       <div class="validation-summary">
         <div class="validation-summary__top"><span>Publish checklist</span><span id="validationSummaryText">0 / 9 complete</span></div>
@@ -621,6 +688,11 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<!-- sql.js (WASM SQLite) — the in-browser reader/writer for admin/knowledge-graph.db, per
+     extra-md-files/ai-article-pipeline.md §2's storage-format rationale ("a browser-side
+     reader/writer needs sql.js — budget for it"). Defining initSqlJs() here is cheap; the
+     actual .wasm only downloads the first time loadSqlJs() below runs (New Article publish). -->
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
 <script>
 (function() {
   'use strict';
@@ -636,8 +708,10 @@
     // see scripts/encrypt-secret.js to produce this blob. Empty until Warren sets a
     // hard spend cap on the OpenAI account and runs that script (extra-md-files/
     // ai-article-pipeline.md §6/§8's required precondition before any real call).
-    // Left empty, the Knowledge Coverage panel below (§5) just stays disabled —
-    // nothing else in the admin tool depends on this key.
+    // Left empty, three things just stay disabled/no-op: the Knowledge Coverage
+    // panel (§5), the SEO Suggestions panel (§4 Phase 4), and the incremental
+    // knowledge-graph extraction step inside publishArticleAtomic() (§2 Step 7) —
+    // none of them ever block publishing.
     ENCRYPTED_OPENAI_KEY: '',
     REPO_OWNER: 'kazekage92',
     REPO_NAME: 'Warren-Mak-page',
@@ -658,14 +732,37 @@
   let originalDoc = null;
   let hasUnsavedChanges = false;
   let quillHeroEn, quillBodyEn, quillHeroZh, quillBodyZh;
+  // .graph-block figures (see articles/*.html) are hand-authored and marked
+  // "<!-- graph block: hand-authored, do not edit via admin WYSIWYG -->" — Quill's
+  // dangerouslyPasteHTML doesn't know that markup and silently strips it. Before content
+  // reaches Quill we pull each block out into graphBlockStore keyed by a placeholder token,
+  // and swap the token back for the original raw HTML on save (see openArticle/saveArticle).
+  let graphBlockStore = {};
+  let graphBlockIdCounter = 0;
 
   // New Article workspace state
   let existingArticleFiles = [];
   let naQuillBodyEn, naQuillBodyZh;
+  // Last known cursor/selection range per body editor, keyed 'en'/'zh' — kept in sync via each
+  // editor's 'selection-change' event (see initNaEditors()). Quill's own getSelection(true)
+  // forces focus to resolve a range, which is unreliable on whichever editor isn't the active
+  // lang tab (display:none), so insertGraphAtCursor() reads from here instead of calling it
+  // directly on the hidden editor.
+  let naQuillLastRange = { en: null, zh: null };
   let naHasUnsavedChanges = false;
   let naSlugManuallyEdited = false;
   let naFeaturedImage = null; // { fileName, ext, base64 }
   let naPublishing = false;
+
+  // Insert Graph panel state (extra-md-files/admin-graph-insertion.md).
+  // naGraphBlocks is this workspace's equivalent of the doc's "state.graphBlocks": each
+  // entry is { id, type, titleEn, titleZh, htmlEn, htmlZh } for a graph whose [[GRAPH:id]]
+  // placeholder has been inserted into the Quill bodies. The real HTML never touches Quill —
+  // only step 2's substitution pass (substituteGraphPlaceholders(), inside buildArticleDocument())
+  // reads this array, when assembling the document for Preview/publish.
+  let naGraphBlocks = [];
+  let naGraphIdCounter = 1;
+  let naGraphSteps = [{ en: '', zh: '' }, { en: '', zh: '' }]; // current draft, 2–5 rows
 
   // Import Source Article workspace state
   let importHasUnsavedChanges = false;
@@ -865,11 +962,23 @@
       // Initialize Quill editors
       initEditors();
 
-      // Set content using Quill's clipboard (handles HTML to Delta conversion)
-      if (heroEn) quillHeroEn.clipboard.dangerouslyPasteHTML(heroEn.innerHTML);
-      if (heroZh) quillHeroZh.clipboard.dangerouslyPasteHTML(heroZh.innerHTML);
-      if (bodyEn) quillBodyEn.clipboard.dangerouslyPasteHTML(bodyEn.innerHTML);
-      if (bodyZh) quillBodyZh.clipboard.dangerouslyPasteHTML(bodyZh.innerHTML);
+      // Pull .graph-block figures out before Quill ever sees them (dangerouslyPasteHTML
+      // would silently strip markup it doesn't recognize) — see graphBlockStore comment above.
+      graphBlockStore = {};
+      graphBlockIdCounter = 0;
+      var graphBlockCount = 0;
+      function pasteWithGraphBlocksPreserved(quill, html) {
+        if (!html) return;
+        var before = graphBlockIdCounter;
+        var cleaned = extractGraphBlocks(html);
+        graphBlockCount += graphBlockIdCounter - before;
+        quill.clipboard.dangerouslyPasteHTML(cleaned);
+      }
+      pasteWithGraphBlocksPreserved(quillHeroEn, heroEn && heroEn.innerHTML);
+      pasteWithGraphBlocksPreserved(quillHeroZh, heroZh && heroZh.innerHTML);
+      pasteWithGraphBlocksPreserved(quillBodyEn, bodyEn && bodyEn.innerHTML);
+      pasteWithGraphBlocksPreserved(quillBodyZh, bodyZh && bodyZh.innerHTML);
+      updateGraphBlockWarning(graphBlockCount);
 
       hasUnsavedChanges = false;
       setStatus('Ready', '');
@@ -918,6 +1027,58 @@
       parent.replaceChild(newDiv, container);
     });
     quillHeroEn = quillBodyEn = quillHeroZh = quillBodyZh = null;
+  }
+
+  // ===================== GRAPH BLOCK PRESERVATION (existing-article editor) =====================
+  // .graph-block figures (see articles/*.html, e.g. articles/what-are-structured-warrants-malaysia.html)
+  // are hand-authored chart/diagram markup, each flagged with a preceding
+  // "<!-- graph block: hand-authored, do not edit via admin WYSIWYG -->" comment. Quill's
+  // dangerouslyPasteHTML doesn't recognize that markup and silently drops it, which would
+  // permanently delete the chart on the next Save (saveArticle() overwrites the whole
+  // .article-body innerHTML with whatever Quill produced). Instead of registering a custom
+  // Quill blot for several distinct graph-block layouts (--flow/--concept/--compare/...), we
+  // pull each block out of the HTML before Quill sees it and swap in a plain-text placeholder
+  // token, then restore the original untouched markup on save. This mirrors the New Article
+  // wizard's [[GRAPH:id]] placeholder technique (see insertGraphPlaceholder() above) — the
+  // block itself is never round-tripped through Quill, so it can't be edited via the WYSIWYG,
+  // only preserved or (by deleting the placeholder line) removed entirely.
+  var GRAPH_BLOCK_RE = /(?:<!--\s*graph block:[^>]*-->\s*)?<figure\s+class="graph-block[^"]*"[\s\S]*?<\/figure>/g;
+
+  function extractGraphBlocks(html) {
+    return html.replace(GRAPH_BLOCK_RE, function(match) {
+      var token = 'GRAPHBLOCK_' + (graphBlockIdCounter++) + '_PRESERVED';
+      graphBlockStore[token] = match;
+      return '[[' + token + ']]';
+    });
+  }
+
+  function restoreGraphBlocks(html) {
+    Object.keys(graphBlockStore).forEach(function(token) {
+      var raw = graphBlockStore[token];
+      var exactPara = new RegExp('<p>\\s*\\[\\[' + token + '\\]\\]\\s*<\\/p>', 'i');
+      if (exactPara.test(html)) {
+        html = html.replace(exactPara, raw);
+      } else if (html.indexOf('[[' + token + ']]') !== -1) {
+        // Placeholder line got reformatted (bold/split/etc.) instead of left alone — still
+        // restore the original block untouched rather than lose it, wrapper markup aside.
+        html = html.replace('[[' + token + ']]', raw);
+      }
+      // else: the editor deleted the placeholder line — treat that as an intentional removal.
+    });
+    return html;
+  }
+
+  function updateGraphBlockWarning(count) {
+    var el = $('graphBlockWarning');
+    if (!el) return;
+    if (count > 0) {
+      el.textContent = '⚠️ This article contains ' + count + ' chart/diagram block' + (count === 1 ? '' : 's') +
+        ' (shown below as [[GRAPHBLOCK_…_PRESERVED]] placeholder lines). They are preserved as-is on save but can’t ' +
+        'be edited here — leave those placeholder lines untouched. Delete a placeholder line entirely to remove that chart.';
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
   }
 
   // ===================== LANGUAGE TABS =====================
@@ -970,11 +1131,12 @@
     setStatus('Saving...', 'saving');
 
     try {
-      // Get HTML content from Quill editors
-      var heroEnContent = quillHeroEn.root.innerHTML;
-      var heroZhContent = quillHeroZh.root.innerHTML;
-      var bodyEnContent = quillBodyEn.root.innerHTML;
-      var bodyZhContent = quillBodyZh.root.innerHTML;
+      // Get HTML content from Quill editors, then swap [[GRAPHBLOCK_..._PRESERVED]]
+      // placeholders back for the original .graph-block markup pulled out in openArticle().
+      var heroEnContent = restoreGraphBlocks(quillHeroEn.root.innerHTML);
+      var heroZhContent = restoreGraphBlocks(quillHeroZh.root.innerHTML);
+      var bodyEnContent = restoreGraphBlocks(quillBodyEn.root.innerHTML);
+      var bodyZhContent = restoreGraphBlocks(quillBodyZh.root.innerHTML);
 
       // Write back into original doc
       var heroEnEl = originalDoc.querySelector('.course-hero [data-lang="en"]');
@@ -1079,28 +1241,38 @@
     if (importSubmitting) return;
     var title = naVal('importTitle');
     var content = $('importContent').value.trim();
+    var url = naVal('importUrl');
     if (!title) { alert('Please enter a title before staging this import.'); return; }
     if (!content) { alert('Please paste the full source text before staging this import.'); return; }
+    if (url) {
+      try { new URL(url); } catch (e) { alert('Please enter a valid URL (e.g. https://example.com/article), or leave it blank.'); return; }
+    }
     var slug = slugify(title);
     if (!slug) { alert('Could not derive a URL-safe slug from this title — please adjust it.'); return; }
 
     importSubmitting = true;
     var btn = $('importSourceSaveBtn');
     btn.disabled = true;
-    updateImportStatus('Staging…', 'saving');
+    updateImportStatus('Checking for existing import…', 'saving');
 
     try {
       var repoPath = 'admin/source-articles-pending/' + slug + '.json';
+      var existingSha = await getFileShaIfExists(repoPath);
+      if (existingSha && !confirm('A staged import already exists at ' + repoPath + '. Overwrite it?')) {
+        updateImportStatus('Unsaved changes', 'unsaved');
+        return;
+      }
+      updateImportStatus('Staging…', 'saving');
+
       var payload = {
         title: title,
-        originalUrl: naVal('importUrl'),
+        originalUrl: url,
         publishedAt: naVal('importPublishedDate'),
         author: naVal('importAuthor') || 'Warren Mak',
         category: naVal('importCategory'),
         originalContent: content,
         notes: naVal('importNotes')
       };
-      var existingSha = await getFileShaIfExists(repoPath);
       await putSingleFileToRepo(repoPath, JSON.stringify(payload, null, 2), 'Stage source article import: ' + slug, existingSha);
 
       importHasUnsavedChanges = false;
@@ -1347,6 +1519,9 @@
     naQuillBodyZh = new Quill('#naBodyEditorZh', { theme: 'snow', modules: { toolbar: { container: naToolbarOptions, handlers: { image: naImageHandler } } } });
     document.querySelector('#naBodyEditorEn .ql-editor').classList.add('body-editor');
     document.querySelector('#naBodyEditorZh .ql-editor').classList.add('body-editor');
+    naQuillLastRange = { en: null, zh: null };
+    naQuillBodyEn.on('selection-change', function(range) { if (range) naQuillLastRange.en = range; });
+    naQuillBodyZh.on('selection-change', function(range) { if (range) naQuillLastRange.zh = range; });
     [naQuillBodyEn, naQuillBodyZh].forEach(function(q) {
       q.on('text-change', function() {
         if (!naHasUnsavedChanges) {
@@ -1369,6 +1544,7 @@
       parent.replaceChild(newDiv, container);
     });
     naQuillBodyEn = naQuillBodyZh = null;
+    naQuillLastRange = { en: null, zh: null };
   }
 
   function getActiveNaLang() {
@@ -1405,6 +1581,201 @@
     el.textContent = text;
     el.className = 'status ' + (type || '');
   }
+
+  // ===================== NEW ARTICLE: INSERT GRAPH PANEL =====================
+  // extra-md-files/admin-graph-insertion.md — MVP: Flow (Steps) only. Step 1 of that doc:
+  // this panel builds the real graph HTML from the catalog skeleton and stores it in
+  // naGraphBlocks keyed by id, while Quill only ever sees a plain [[GRAPH:id]] placeholder
+  // (inserted at each editor's last known cursor position — see naQuillLastRange — falling
+  // back to end-of-document). Step 2 of that doc — substituteGraphPlaceholders(), inside
+  // buildArticleDocument() — swaps each placeholder for its real HTML when assembling the
+  // document for Preview/publish, so graphs inserted here now render both places.
+  function renderGraphPanel() {
+    var rowsHtml = naGraphSteps.map(function(step, i) {
+      return '<div class="graph-step-row">' +
+        '<div class="graph-step-row__num">' + (i + 1) + '</div>' +
+        '<div><input type="text" placeholder="e.g. Identify Trend" value="' + escapeAttr(step.en) + '" oninput="updateGraphStep(' + i + ', \'en\', this.value)"></div>' +
+        '<div><input type="text" placeholder="e.g. 识别趋势" value="' + escapeAttr(step.zh) + '" oninput="updateGraphStep(' + i + ', \'zh\', this.value)"></div>' +
+        '<button type="button" class="graph-step-row__remove" title="Remove step" onclick="removeGraphStep(' + i + ')"' + (naGraphSteps.length <= 2 ? ' disabled' : '') + '>&times;</button>' +
+      '</div>';
+    }).join('');
+    $('graphStepRows').innerHTML = rowsHtml;
+    $('addGraphStepBtn').disabled = naGraphSteps.length >= 5;
+
+    $('graphInsertedList').innerHTML = naGraphBlocks.length ? naGraphBlocks.map(function(b) {
+      return '<div class="graph-block-chip"><span>&#128202; ' + escapeHtml(b.titleEn) + ' <span class="graph-block-chip__id">(' + b.id + ')</span></span>' +
+        '<button type="button" class="btn-secondary" onclick="removeGraphBlock(\'' + b.id + '\')">Remove</button></div>';
+    }).join('') : '<p class="field-hint">No graphs inserted yet.</p>';
+  }
+
+  window.updateGraphStep = function(i, field, value) {
+    if (!naGraphSteps[i]) return;
+    naGraphSteps[i][field] = value;
+  };
+
+  window.addGraphStep = function() {
+    if (naGraphSteps.length >= 5) return;
+    naGraphSteps.push({ en: '', zh: '' });
+    renderGraphPanel();
+  };
+
+  window.removeGraphStep = function(i) {
+    if (naGraphSteps.length <= 2) return;
+    naGraphSteps.splice(i, 1);
+    renderGraphPanel();
+  };
+
+  // mirrors the SEO-suggestions/coverage panels' OpenAI call shape (decryptOpenAIKey() at
+  // login → plain fetch with the client-side-decrypted key), but the "suggest, never
+  // auto-apply" boundary here is the Insert Graph at Cursor button, not a per-field Apply
+  // action: this prefills the ZH step inputs directly since they're just draft form fields
+  // the author can still freely edit, and nothing reaches the actual article until Insert
+  // is clicked — per extra-md-files/admin-graph-insertion.md's resolved bilingual decision.
+  function buildGraphZhPromptBrowser(titleEn, stepsEn) {
+    var system =
+      'You are a bilingual (English/Simplified Chinese) editor for a Malaysian trading education site ' +
+      '(structured warrants, short-term trading on Bursa Malaysia). Translate short flow-diagram step ' +
+      'labels from English into natural, concise Simplified Chinese suitable for a trading-education ' +
+      'audience. Keep each translation short (similar length/register to the English label) — these are ' +
+      'diagram step labels, not full sentences.\n\n' +
+      'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape: ' +
+      '{"steps":["...","..."]} — the array must have exactly as many entries as the input steps, in the same order.';
+    var user = 'Graph title: ' + titleEn + '\n\nStep labels to translate:\n' +
+      stepsEn.map(function(s, i) { return (i + 1) + '. ' + s; }).join('\n');
+    return { system: system, user: user };
+  }
+
+  function parseGraphZhResponseBrowser(rawText, expectedCount) {
+    var parsed;
+    try { parsed = JSON.parse(rawText); } catch (e) { throw new Error('Response was not valid JSON: ' + e.message); }
+    if (!parsed || !Array.isArray(parsed.steps)) throw new Error('Response missing a "steps" array.');
+    if (parsed.steps.length !== expectedCount) throw new Error('Expected ' + expectedCount + ' translated steps, got ' + parsed.steps.length + '.');
+    parsed.steps.forEach(function(s) { if (typeof s !== 'string' || !s.trim()) throw new Error('Response contained an empty step translation.'); });
+    return parsed.steps;
+  }
+
+  function callOpenAIGraphZhBrowser(promptObj) {
+    return fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + openaiApiKey },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: promptObj.system },
+          { role: 'user', content: promptObj.user }
+        ]
+      })
+    }).then(function(res) {
+      if (!res.ok) return res.text().then(function(t) { throw new Error('OpenAI API error ' + res.status + ': ' + t); });
+      return res.json();
+    }).then(function(data) { return data.choices[0].message.content; });
+  }
+
+  window.suggestGraphZh = function() {
+    var status = $('graphZhSuggestStatus');
+    if (!openaiApiKey) {
+      status.innerHTML = 'OpenAI key not configured for this admin session — ZH suggestions are unavailable (see extra-md-files/ai-article-pipeline.md §6/§8). This never blocks inserting the graph manually.';
+      return;
+    }
+    var titleEn = naVal('graphTitleEn');
+    var stepsEn = naGraphSteps.map(function(s) { return s.en.trim(); });
+    if (!titleEn || stepsEn.some(function(s) { return !s; })) {
+      status.innerHTML = 'Fill in the graph title and all English step labels first.';
+      return;
+    }
+
+    status.innerHTML = 'Suggesting Chinese translations…';
+    callOpenAIGraphZhBrowser(buildGraphZhPromptBrowser(titleEn, stepsEn)).then(function(raw) {
+      var translated = parseGraphZhResponseBrowser(raw, stepsEn.length);
+      translated.forEach(function(zh, i) { naGraphSteps[i].zh = zh; });
+      renderGraphPanel();
+      naHasUnsavedChanges = true;
+      status.innerHTML = 'Suggested — review and edit before inserting.';
+    }).catch(function(err) {
+      status.innerHTML = '<span style="color:#dc2626;">ZH suggestion failed: ' + escapeHtml(err.message) + '</span>';
+    });
+  };
+
+  function buildFlowGraphHtml(title, steps) {
+    var stepsHtml = steps.map(function(s) { return '<li class="graph-flow__step">' + escapeHtml(s) + '</li>'; }).join('');
+    return '<!-- graph block: hand-authored, do not edit via admin WYSIWYG -->' +
+      '<figure class="graph-block graph-block--flow"><figcaption class="graph-block__title">' + escapeHtml(title) + '</figcaption>' +
+      '<ol class="graph-flow graph-flow--steps">' + stepsHtml + '</ol></figure>';
+  }
+
+  function insertGraphPlaceholder(quill, lang, id) {
+    if (!quill) return;
+    // Use the cached range from this editor's own last 'selection-change' rather than
+    // quill.getSelection(true): that call forces focus to resolve a range, which is
+    // unreliable for whichever of EN/ZH isn't the currently active lang tab (display:none),
+    // so it was landing the two editors' placeholders at inconsistent positions.
+    var range = naQuillLastRange[lang] || { index: quill.getLength() };
+    var text = '[[GRAPH:' + id + ']]\n';
+    quill.insertText(range.index, text, 'user');
+    naQuillLastRange[lang] = { index: range.index + text.length, length: 0 };
+  }
+
+  function removeGraphPlaceholder(quill, id) {
+    if (!quill) return false;
+    var marker = '[[GRAPH:' + id + ']]';
+    var removed = false;
+    var text = quill.getText();
+    var idx = text.indexOf(marker);
+    while (idx !== -1) {
+      var len = marker.length;
+      if (text.charAt(idx + len) === '\n') len += 1;
+      quill.deleteText(idx, len, 'user');
+      removed = true;
+      text = quill.getText();
+      idx = text.indexOf(marker);
+    }
+    return removed;
+  }
+
+  window.insertGraphAtCursor = function() {
+    var titleEn = naVal('graphTitleEn');
+    var titleZh = naVal('graphTitleZh');
+    if (!titleEn || !titleZh) { alert('Please fill in both the English and Chinese graph titles.'); return; }
+    if (naGraphSteps.length < 2 || naGraphSteps.length > 5) { alert('A Flow graph needs 2–5 steps.'); return; }
+    var incomplete = naGraphSteps.some(function(s) { return !s.en.trim() || !s.zh.trim(); });
+    if (incomplete) { alert('Please fill in both the English and Chinese label for every step.'); return; }
+
+    var id = 'graph-' + (naGraphIdCounter++);
+    var stepsEn = naGraphSteps.map(function(s) { return s.en.trim(); });
+    var stepsZh = naGraphSteps.map(function(s) { return s.zh.trim(); });
+    naGraphBlocks.push({
+      id: id,
+      type: 'flow-steps',
+      titleEn: titleEn,
+      titleZh: titleZh,
+      htmlEn: buildFlowGraphHtml(titleEn, stepsEn),
+      htmlZh: buildFlowGraphHtml(titleZh, stepsZh)
+    });
+
+    insertGraphPlaceholder(naQuillBodyEn, 'en', id);
+    insertGraphPlaceholder(naQuillBodyZh, 'zh', id);
+
+    naGraphSteps = [{ en: '', zh: '' }, { en: '', zh: '' }];
+    $('graphTitleEn').value = '';
+    $('graphTitleZh').value = '';
+    renderGraphPanel();
+    naHasUnsavedChanges = true;
+    refreshValidation();
+  };
+
+  window.removeGraphBlock = function(id) {
+    var removedEn = removeGraphPlaceholder(naQuillBodyEn, id);
+    var removedZh = removeGraphPlaceholder(naQuillBodyZh, id);
+    if (!removedEn && !removedZh) {
+      alert('Could not find the [[GRAPH:' + id + ']] marker in either editor — the graph block was left in place. Please remove it manually if it still exists.');
+      return;
+    }
+    naGraphBlocks = naGraphBlocks.filter(function(b) { return b.id !== id; });
+    renderGraphPanel();
+    naHasUnsavedChanges = true;
+  };
 
   // ===================== NEW ARTICLE: SOURCE METHOD (write / upload / paste) =====================
   window.selectMethod = function(method) {
@@ -1568,7 +1939,11 @@
     var reader = new FileReader();
     reader.onload = function(e) {
       var dataUrl = e.target.result;
-      var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      var ALLOWED_IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+      var MIME_TO_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+      var nameParts = file.name.split('.');
+      var rawExt = nameParts.length > 1 ? nameParts.pop().toLowerCase() : '';
+      var ext = ALLOWED_IMAGE_EXTS.indexOf(rawExt) !== -1 ? rawExt : (MIME_TO_EXT[file.type] || 'jpg');
       naFeaturedImage = { fileName: '', ext: ext, base64: dataUrl.split(',')[1] };
       var img = $('featuredImagePreview');
       img.src = dataUrl;
@@ -1637,7 +2012,6 @@
       { label: 'Title (EN & ZH)', ok: !!(state.titleEn && state.titleZh) },
       { label: 'Subtitle (EN & ZH)', ok: !!(state.subtitleEn && state.subtitleZh) },
       { label: 'Category (EN & ZH)', ok: !!(state.categoryEn && state.categoryZh) },
-      { label: 'Featured image', ok: !!naFeaturedImage },
       { label: 'URL slug (unique)', ok: !!state.slug && existingArticleFiles.indexOf(state.slug + '.html') === -1 },
       { label: 'SEO meta title', ok: !!(state.metaTitle || state.titleEn) },
       { label: 'Meta description', ok: !!state.metaDescription },
@@ -1666,7 +2040,7 @@
   // be considered done, so the stepper reflects real completeness rather than just
   // "have you visited this section yet". Steps 1 (source method) and 5 (preview) have
   // no required fields of their own, so they're left out and never show a checkmark.
-  var NA_STEP_CHECK_INDICES = { 2: [0, 1, 2], 3: [4, 5, 6], 4: [7, 8] };
+  var NA_STEP_CHECK_INDICES = { 2: [0, 1, 2], 3: [3, 4, 5], 4: [6, 7] };
   function updateNaStepper(items) {
     Object.keys(NA_STEP_CHECK_INDICES).forEach(function(step) {
       var complete = NA_STEP_CHECK_INDICES[step].every(function(i) { return items[i] && items[i].ok; });
@@ -1675,8 +2049,52 @@
     });
   }
 
+  // Step 2 of extra-md-files/admin-graph-insertion.md: swap each [[GRAPH:id]] placeholder
+  // Quill left in the body HTML for that block's real, hand-built markup (keyed by id in
+  // naGraphBlocks, per language). This is a plain string substitution run once here, when
+  // assembling the document for Preview/publish — Quill itself never sees or touches the
+  // real graph HTML, only the placeholder, so re-opening the editor mid-session still shows
+  // the placeholder untouched. Quill wraps the inserted marker in its own <p>; the figure's
+  // block content (<figure>/<ol>) implicitly closes that <p> per normal HTML parsing rules,
+  // same as the hand-authored articles' graph blocks render as siblings of surrounding <p>s.
+  function substituteGraphPlaceholders(html, lang) {
+    if (!naGraphBlocks.length) return html;
+    return naGraphBlocks.reduce(function(acc, block) {
+      var marker = '[[GRAPH:' + block.id + ']]';
+      var replacement = lang === 'zh' ? block.htmlZh : block.htmlEn;
+      return acc.split(marker).join(replacement);
+    }, html);
+  }
+
+  // Plain-text sibling of substituteGraphPlaceholders(), for text handed to OpenAI (Knowledge
+  // Coverage / SEO Suggestions) rather than to the published document. Those callers read
+  // naQuillBodyEn.getText(), which still contains the literal "[[GRAPH:id]]" marker Quill
+  // inserted (insertGraphPlaceholder() writes it as plain text) — sending that literal marker
+  // to the model would just look like inert noise. This swaps each marker for the graph's
+  // title + step labels instead, so the model sees what the graph actually communicates.
+  function graphBlockPlainText(block, lang) {
+    var title = lang === 'zh' ? block.titleZh : block.titleEn;
+    var html = lang === 'zh' ? block.htmlZh : block.htmlEn;
+    var container = document.createElement('div');
+    container.innerHTML = html;
+    var steps = Array.prototype.map.call(container.querySelectorAll('.graph-flow__step'), function(li) {
+      return li.textContent.trim();
+    }).filter(Boolean);
+    return steps.length ? title + ': ' + steps.join(' → ') : title;
+  }
+
+  function substituteGraphPlaceholdersPlainText(text, lang) {
+    if (!naGraphBlocks.length) return text;
+    return naGraphBlocks.reduce(function(acc, block) {
+      var marker = '[[GRAPH:' + block.id + ']]';
+      return acc.split(marker).join(graphBlockPlainText(block, lang));
+    }, text);
+  }
+
   // ===================== NEW ARTICLE: DOCUMENT BUILDER =====================
   function buildArticleDocument(state) {
+    var bodyEnHtml = substituteGraphPlaceholders(state.bodyEnHtml, 'en');
+    var bodyZhHtml = substituteGraphPlaceholders(state.bodyZhHtml, 'zh');
     var metaTitleFull = state.metaTitle || state.titleEn;
     var pageTitle = metaTitleFull + ' | Warren Mak';
     var breadcrumbEn = truncateWords(state.titleEn, 6);
@@ -1776,8 +2194,8 @@
       '  <!-- Article Hero -->',
       '  <section class="course-hero">',
       '    <div class="container">',
-      '      <div data-lang="en"><p><a href="../index.html" rel="noopener noreferrer" target="_blank">Home</a> › <a href="../articles.html" rel="noopener noreferrer" target="_blank">Articles</a> › ' + escapeHtml(breadcrumbEn) + '</p><p>' + escapeHtml(state.categoryEn) + '</p><h1>' + escapeHtml(state.titleEn) + '</h1><p>' + escapeHtml(state.subtitleEn) + '</p></div>',
-      '      <div data-lang="zh" style="display:none;" aria-hidden="true"><p><a href="../index.html" rel="noopener noreferrer" target="_blank">首页</a> › <a href="../articles.html" rel="noopener noreferrer" target="_blank">文章</a> › ' + escapeHtml(breadcrumbZh) + '</p><p>' + escapeHtml(state.categoryZh) + '</p><h2>' + escapeHtml(state.titleZh) + '</h2><p>' + escapeHtml(state.subtitleZh) + '</p></div>',
+      '      <div data-lang="en"><div class="article-breadcrumb"><a href="../index.html" rel="noopener noreferrer" target="_blank">Home</a> <span>›</span> <a href="../articles.html" rel="noopener noreferrer" target="_blank">Articles</a> <span>›</span> ' + escapeHtml(breadcrumbEn) + '</div><span class="tag">' + escapeHtml(state.categoryEn) + '</span><h1>' + escapeHtml(state.titleEn) + '</h1><p>' + escapeHtml(state.subtitleEn) + '</p></div>',
+      '      <div data-lang="zh" style="display:none;" aria-hidden="true"><div class="article-breadcrumb"><a href="../index.html" rel="noopener noreferrer" target="_blank">首页</a> <span>›</span> <a href="../articles.html" rel="noopener noreferrer" target="_blank">文章</a> <span>›</span> ' + escapeHtml(breadcrumbZh) + '</div><span class="tag">' + escapeHtml(state.categoryZh) + '</span><h2>' + escapeHtml(state.titleZh) + '</h2><p>' + escapeHtml(state.subtitleZh) + '</p></div>',
       '    </div>',
       '  </section>',
       '',
@@ -1786,9 +2204,9 @@
       '    <div class="container">',
       '      <div class="article-body">',
       '',
-      '        <div data-lang="en">' + bylineEn + state.bodyEnHtml + '</div>',
+      '        <div data-lang="en">' + bylineEn + bodyEnHtml + '</div>',
       '',
-      '        <div data-lang="zh" style="display:none;" aria-hidden="true">' + bylineZh + state.bodyZhHtml + '</div>',
+      '        <div data-lang="zh" style="display:none;" aria-hidden="true">' + bylineZh + bodyZhHtml + '</div>',
       '',
       '        <!-- Related Articles -->',
       '        <div class="article-related">',
@@ -1856,10 +2274,17 @@
   }
 
   function toPreviewHtml(html) {
+    // Preview should reflect the branch that's about to be published, not production's
+    // deploy state — so relative asset/link paths resolve against raw.githubusercontent.com
+    // on repoDefaultBranch rather than the hardcoded www.warrenmak.asia domain. Non-asset
+    // pages (about.html, articles.html, ...) don't exist on raw.githubusercontent's flat file
+    // serving in a browsable way, but this is preview-only chrome (the iframe just needs the
+    // CSS/JS/images to render) so pointing all relative "../" paths at raw is still correct.
+    var rawBase = 'https://raw.githubusercontent.com/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/' + repoDefaultBranch + '/';
     return html
-      .replace(/\.\.\/assets\//g, 'https://www.warrenmak.asia/assets/')
-      .replace(/href="\.\.\//g, 'href="https://www.warrenmak.asia/')
-      .replace(/src="\.\.\//g, 'src="https://www.warrenmak.asia/');
+      .replace(/\.\.\/assets\//g, rawBase + 'assets/')
+      .replace(/href="\.\.\//g, 'href="' + rawBase)
+      .replace(/src="\.\.\//g, 'src="' + rawBase);
   }
 
   window.refreshPreview = function() {
@@ -1881,7 +2306,8 @@
   // extract-articles.js already regenerates) instead of SQL — admin/index.html is a standalone,
   // self-contained page per root CLAUDE.md (no build step, no imports from the dev-only
   // scripts/ directory), so this can't be a live import. Keep these in sync with their
-  // scripts/ counterparts if either changes.
+  // scripts/ counterparts if either changes — scripts/validate-admin-mirror-sync.js checks
+  // the prompt-building ones (buildReviewPromptBrowser/kcFormatChecklist) automatically.
 
   function loadKnowledgeGraphJson() {
     if (knowledgeGraphJson) return Promise.resolve(knowledgeGraphJson);
@@ -1925,7 +2351,15 @@
     return scored.slice(0, limit);
   }
 
-  // mirrors scripts/retrieval-layer.js's expandRelatedEntities() (default maxHops=1)
+  // mirrors scripts/retrieval-layer.js's expandRelatedEntities() (default maxHops=1).
+  // NOTE: retrieval-layer.js keys byId (entities.id, the real PK); this browser mirror has no
+  // ids to key off (knowledge-graph.json's entities/edges only carry names) so it keys byName
+  // instead. That's only correct if entities.name is unique. extract-entities.js's
+  // writeExtractionResult() already looks up `WHERE name = ? COLLATE NOCASE` before inserting
+  // rather than always inserting, and admin/knowledge-graph.schema.sql now backs that with a
+  // real `idx_entities_name` UNIQUE index (case-insensitive, matching that lookup) — but any
+  // future writer against this db still needs to go through that same lookup-before-insert
+  // path (or let the unique-index write fail loudly) rather than assuming it for free.
   function kcExpandRelatedEntities(graph, seedEntities, maxHops) {
     maxHops = maxHops || 1;
     var byName = {};
@@ -1963,6 +2397,111 @@
     var seedEntities = kcFindSeedEntities(graph, topic, 8);
     if (!seedEntities.length) return [];
     return kcBuildChecklist(kcExpandRelatedEntities(graph, seedEntities, 1));
+  }
+
+  // mirrors scripts/retrieval-layer.js's getArticleSummariesForEntities() — reads
+  // graph.articles[i].entities (already the article_entities join, per-article) instead of
+  // querying article_entities directly, then filters each article's entity list down to
+  // `entities` (the caller's seed/related set) the same way the SQL WHERE clause does.
+  function kcGetArticleSummariesForEntities(graph, entities) {
+    if (!entities.length) return [];
+    var names = {};
+    entities.forEach(function(e) { names[e.name] = true; });
+    var summaries = [];
+    graph.articles.forEach(function(article) {
+      var matched = (article.entities || []).filter(function(e) { return names[e.name]; });
+      if (!matched.length) return;
+      var matchedEntities = matched.map(function(e) { return { name: e.name, relevance_score: e.relevance_score }; });
+      var maxRelevance = matchedEntities.reduce(function(m, e) { return Math.max(m, e.relevance_score); }, -Infinity);
+      summaries.push({
+        slug: article.slug,
+        title: article.title,
+        matchedEntities: matchedEntities,
+        maxRelevance: maxRelevance,
+        coverageRatio: Number((matchedEntities.length / entities.length).toFixed(2))
+      });
+    });
+    summaries.sort(function(a, b) { return (b.maxRelevance - a.maxRelevance) || (b.coverageRatio - a.coverageRatio); });
+    return summaries;
+  }
+
+  // mirrors scripts/retrieval-layer.js's flagNearDuplicateCoverage() — Phase 7's entity-overlap
+  // half of duplicate detection.
+  function kcFlagNearDuplicateCoverage(articleSummaries, seedEntities, opts) {
+    opts = opts || {};
+    var highThreshold = typeof opts.highThreshold === 'number' ? opts.highThreshold : 0.6;
+    var mediumThreshold = typeof opts.mediumThreshold === 'number' ? opts.mediumThreshold : 0.3;
+    if (!seedEntities.length) return [];
+    var seedNames = {};
+    seedEntities.forEach(function(e) { seedNames[e.name] = true; });
+    var seedCount = Object.keys(seedNames).length;
+
+    var flags = [];
+    articleSummaries.forEach(function(article) {
+      var overlapping = article.matchedEntities.filter(function(m) { return seedNames[m.name]; });
+      if (!overlapping.length) return;
+      var ratio = overlapping.length / seedCount;
+      var level = ratio >= highThreshold ? 'high' : (ratio >= mediumThreshold ? 'medium' : null);
+      if (!level) return;
+      flags.push({
+        slug: article.slug,
+        title: article.title,
+        level: level,
+        overlapRatio: Number(ratio.toFixed(2)),
+        overlappingEntities: overlapping.map(function(m) { return m.name; }),
+        note: level === 'high'
+          ? '"' + article.title + '" already covers ' + overlapping.length + '/' + seedCount + ' of this topic\'s core entities — consider extending that article instead of generating a new, competing one.'
+          : '"' + article.title + '" partially overlaps (' + overlapping.length + '/' + seedCount + ' core entities) — fine to proceed, but angle the new article differently to avoid redundant coverage.'
+      });
+    });
+    flags.sort(function(a, b) { return b.overlapRatio - a.overlapRatio; });
+    return flags;
+  }
+
+  // mirrors scripts/retrieval-layer.js's scoreTitleSlugSimilarity() — Phase 7's title/slug
+  // string-similarity half (catches a rephrased title/slug that shares few or no graph entities).
+  function kcScoreTitleSlugSimilarity(graph, candidate, opts) {
+    candidate = candidate || {};
+    opts = opts || {};
+    var titleThreshold = typeof opts.titleThreshold === 'number' ? opts.titleThreshold : 0.3;
+    var slugThreshold = typeof opts.slugThreshold === 'number' ? opts.slugThreshold : 0;
+
+    var titleTokenSet = {};
+    kcTokenize(candidate.candidateTitle || '').forEach(function(t) { titleTokenSet[t] = true; });
+    var titleTokenKeys = Object.keys(titleTokenSet);
+    var slugLower = (candidate.candidateSlug || '').trim().toLowerCase();
+
+    var scored = [];
+    graph.articles.forEach(function(article) {
+      var titleSimilarityScore = 0;
+      if (titleTokenKeys.length && article.title) {
+        var otherSet = {};
+        kcTokenize(article.title).forEach(function(t) { otherSet[t] = true; });
+        var otherKeys = Object.keys(otherSet);
+        if (otherKeys.length) {
+          var intersectionSize = titleTokenKeys.filter(function(t) { return otherSet[t]; }).length;
+          var unionSet = {};
+          titleTokenKeys.forEach(function(t) { unionSet[t] = true; });
+          otherKeys.forEach(function(t) { unionSet[t] = true; });
+          var unionSize = Object.keys(unionSet).length;
+          titleSimilarityScore = unionSize ? Number((intersectionSize / unionSize).toFixed(2)) : 0;
+        }
+      }
+
+      var slugSimilarityScore = 0;
+      var otherSlug = (article.slug || '').toLowerCase();
+      if (slugLower && otherSlug) {
+        if (slugLower === otherSlug) slugSimilarityScore = 1;
+        else if (slugLower.indexOf(otherSlug) !== -1 || otherSlug.indexOf(slugLower) !== -1) slugSimilarityScore = 0.7;
+      }
+
+      if (titleSimilarityScore >= titleThreshold || slugSimilarityScore > slugThreshold) {
+        scored.push({ slug: article.slug, title: article.title, titleSimilarityScore: titleSimilarityScore, slugSimilarityScore: slugSimilarityScore });
+      }
+    });
+
+    scored.sort(function(a, b) { return Math.max(b.titleSimilarityScore, b.slugSimilarityScore) - Math.max(a.titleSimilarityScore, a.slugSimilarityScore); });
+    return scored;
   }
 
   // mirrors scripts/generate-article.js's buildFullChecklist()
@@ -2008,23 +2547,27 @@
     if (!parsed || !Array.isArray(parsed.items)) throw new Error('Reviewer response is missing an "items" array.');
     var validStatuses = { covered: true, partial: true, missing: true };
     parsed.items.forEach(function(item) {
-      if (!item || typeof item.name !== 'string' || !validStatuses[item.status]) {
+      if (!item || typeof item.name !== 'string' || !validStatuses[item.status] || typeof item.evidence !== 'string') {
         throw new Error('Malformed reviewer item: ' + JSON.stringify(item));
       }
     });
     return parsed;
   }
 
-  // The actual network call — Node-only openAIReviewer's browser counterpart, using the
-  // client-side decrypted key instead of OPENAI_API_KEY. gpt-4o-mini per §5: "can be the
-  // same or a cheaper model than the writer" — there's no writer call on this path at all.
-  function callOpenAIReviewer(promptObj) {
+  // The actual network call — Node-only openAIReviewer/openAISeoWriter/openAIExtractor/
+  // openAIJudge's shared browser counterpart, using the client-side decrypted key instead
+  // of OPENAI_API_KEY. gpt-4o-mini per §5: "can be the same or a cheaper model than the
+  // writer" — there's no writer call on any of these panel paths. temperature defaults to
+  // 0 (deterministic JSON extraction/judging); the SEO panel passes 0.3 for more varied copy.
+  var OPENAI_DEFAULT_MODEL = 'gpt-4o-mini';
+  function callOpenAIJson(promptObj, opts) {
+    var temperature = (opts && typeof opts.temperature === 'number') ? opts.temperature : 0;
     return fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + openaiApiKey },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        temperature: 0,
+        model: OPENAI_DEFAULT_MODEL,
+        temperature: temperature,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: promptObj.system },
@@ -2064,6 +2607,7 @@
       panel.innerHTML = '<p class="coverage-panel__note">English content is empty — write the article body first.</p>';
       return;
     }
+    draftText = substituteGraphPlaceholdersPlainText(draftText, 'en');
 
     panel.innerHTML = '<p class="coverage-panel__note">Checking coverage against the knowledge graph…</p>';
     loadKnowledgeGraphJson().then(function(graph) {
@@ -2077,7 +2621,7 @@
         return null;
       }
 
-      return callOpenAIReviewer(buildReviewPromptBrowser(checklist, draftText)).then(function(raw) {
+      return callOpenAIJson(buildReviewPromptBrowser(checklist, draftText)).then(function(raw) {
         renderCoveragePanel(parseReviewResponseBrowser(raw).items, null);
       });
     }).catch(function(err) {
@@ -2090,7 +2634,8 @@
   // hand-kept copies of buildSeoPrompt/parseSeoResponse, a plain OpenAI fetch using the
   // client-side decrypted key, and a render step with a per-field "Apply" action — the admin
   // reviews/edits before anything is used, never auto-submitted. Keep in sync with
-  // scripts/seo-optimizer.js if either changes.
+  // scripts/seo-optimizer.js if either changes — scripts/validate-admin-mirror-sync.js
+  // checks buildSeoPromptBrowser against buildSeoPrompt automatically.
 
   var naLastSeoMetadata = null;
 
@@ -2141,31 +2686,54 @@
     SEO_REQUIRED_ARRAY_FIELDS.forEach(function(field) {
       if (!Array.isArray(parsed[field]) || !parsed[field].length) throw new Error('SEO response missing non-empty array field "' + field + '"');
     });
-    return parsed;
+    parsed.headings.forEach(function(h) {
+      if (!h || typeof h.level !== 'number' || h.level < 2 || h.level > 4 || typeof h.text !== 'string' || !h.text.trim()) {
+        throw new Error('SEO response has a malformed heading entry (needs level 2-4 + non-empty text): ' + JSON.stringify(h));
+      }
+    });
+    parsed.faq.forEach(function(f) {
+      if (!f || typeof f.question !== 'string' || !f.question.trim() || typeof f.answer !== 'string' || !f.answer.trim()) {
+        throw new Error('SEO response has a malformed faq entry (needs non-empty question + answer): ' + JSON.stringify(f));
+      }
+    });
+    return {
+      seoTitle: parsed.seoTitle.trim(),
+      metaDescription: parsed.metaDescription.trim(),
+      urlSlug: parsed.urlSlug.trim(),
+      ogTitle: parsed.ogTitle.trim(),
+      ogDescription: parsed.ogDescription.trim(),
+      primaryKeywords: parsed.primaryKeywords,
+      secondaryKeywords: parsed.secondaryKeywords,
+      longTailKeywords: parsed.longTailKeywords,
+      headings: parsed.headings,
+      faq: parsed.faq
+    };
   }
 
-  // The actual network call — Node-only openAISeoWriter's browser counterpart, using the
-  // client-side decrypted key instead of OPENAI_API_KEY.
-  function callOpenAISeoBrowser(promptObj) {
-    return fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + openaiApiKey },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: promptObj.system },
-          { role: 'user', content: promptObj.user }
-        ]
-      })
-    }).then(function(res) {
-      if (!res.ok) return res.text().then(function(t) { throw new Error('OpenAI API error ' + res.status + ': ' + t); });
-      return res.json();
-    }).then(function(data) { return data.choices[0].message.content; });
+  // Renders nearDuplicates (kcFlagNearDuplicateCoverage) + titleSlugMatches
+  // (kcScoreTitleSlugSimilarity) as the same coverage-item high/medium (red/amber) treatment
+  // the Knowledge Coverage panel already uses for missing/partial — this is the same signal
+  // scripts/retrieval-layer.js's assessDuplicateRisk() computes for the CLI pipeline, just
+  // surfaced here as a flat list rather than a single combined verdict.
+  function renderDuplicateWarningHtml(nearDuplicates, titleSlugMatches) {
+    if (!nearDuplicates.length && !titleSlugMatches.length) return '';
+    var html = '<div class="coverage-item partial"><span class="dot">⚠</span><span><span class="name">Possible near-duplicate coverage</span> — review before publishing a new article on this topic.</span></div>';
+    nearDuplicates.forEach(function(d) {
+      var cls = d.level === 'high' ? 'missing' : 'partial';
+      html += '<div class="coverage-item ' + cls + '"><span class="dot">' + (d.level === 'high' ? '✗' : '⚠') + '</span><span><span class="name">' + escapeHtml(d.title) + '</span> (' + escapeHtml(d.slug) + ') — <span class="evidence">' + escapeHtml(d.note) + '</span></span></div>';
+    });
+    titleSlugMatches.forEach(function(m) {
+      var strong = m.slugSimilarityScore >= 1 || m.titleSimilarityScore >= 0.6;
+      var cls = strong ? 'missing' : 'partial';
+      var parts = [];
+      if (m.titleSimilarityScore > 0) parts.push('title overlap ' + Math.round(m.titleSimilarityScore * 100) + '%');
+      if (m.slugSimilarityScore > 0) parts.push('slug similarity ' + Math.round(m.slugSimilarityScore * 100) + '%');
+      html += '<div class="coverage-item ' + cls + '"><span class="dot">' + (strong ? '✗' : '⚠') + '</span><span><span class="name">' + escapeHtml(m.title) + '</span> (' + escapeHtml(m.slug) + ') — <span class="evidence">' + escapeHtml(parts.join(', ')) + '</span></span></div>';
+    });
+    return html;
   }
 
-  function renderSeoPanel(metadata) {
+  function renderSeoPanel(metadata, nearDuplicates, titleSlugMatches) {
     var panel = $('seoSuggestPanel');
     var keywordsAll = metadata.primaryKeywords.concat(metadata.secondaryKeywords, metadata.longTailKeywords).join(', ');
     var row = function(label, value, applyField) {
@@ -2173,6 +2741,7 @@
       return '<div class="coverage-item"><span><span class="name">' + escapeHtml(label) + ':</span> ' + escapeHtml(value) + applyBtn + '</span></div>';
     };
     var html = '<div class="coverage-panel__header"><span class="coverage-panel__title">SEO Suggestions</span></div>';
+    html += renderDuplicateWarningHtml(nearDuplicates || [], titleSlugMatches || []);
     html += row('SEO Title', metadata.seoTitle, 'seoTitle');
     html += row('Meta Description', metadata.metaDescription, 'metaDescription');
     html += row('Suggested URL Slug', metadata.urlSlug, null);
@@ -2210,14 +2779,22 @@
       panel.innerHTML = '<p class="coverage-panel__note">Fill in the English title and article body first.</p>';
       return;
     }
+    bodyText = substituteGraphPlaceholdersPlainText(bodyText, 'en');
 
     panel.innerHTML = '<p class="coverage-panel__note">Generating SEO suggestions…</p>';
     loadKnowledgeGraphJson().then(function(graph) {
       var topic = [titleEn, naVal('naTags')].filter(Boolean).join(' ');
-      var checklist = buildChecklistFromGraph(graph, topic);
-      return callOpenAISeoBrowser(buildSeoPromptBrowser(topic, titleEn, bodyText, checklist)).then(function(raw) {
+      var seedEntities = kcFindSeedEntities(graph, topic, 8);
+      var relatedEntities = kcExpandRelatedEntities(graph, seedEntities, 1);
+      var checklist = kcBuildChecklist(relatedEntities);
+      // Phase 6/7 duplicate signal — same computation the CLI pipeline's
+      // buildRetrievalContext() runs, just against the JSON mirror instead of SQL.
+      var articleSummaries = kcGetArticleSummariesForEntities(graph, relatedEntities);
+      var nearDuplicates = kcFlagNearDuplicateCoverage(articleSummaries, seedEntities);
+      var titleSlugMatches = kcScoreTitleSlugSimilarity(graph, { candidateTitle: titleEn, candidateSlug: naVal('naSlug') });
+      return callOpenAIJson(buildSeoPromptBrowser(topic, titleEn, bodyText, checklist), { temperature: 0.3 }).then(function(raw) {
         naLastSeoMetadata = parseSeoResponseBrowser(raw);
-        renderSeoPanel(naLastSeoMetadata);
+        renderSeoPanel(naLastSeoMetadata, nearDuplicates, titleSlugMatches);
       });
     }).catch(function(err) {
       panel.innerHTML = '<p class="coverage-panel__note" style="color:#dc2626;">SEO suggestion failed: ' + escapeHtml(err.message) + '</p>';
@@ -2248,6 +2825,13 @@
     naFeaturedImage = null;
     naSlugManuallyEdited = false;
     naHasUnsavedChanges = false;
+    naGraphBlocks = [];
+    naGraphIdCounter = 1;
+    naGraphSteps = [{ en: '', zh: '' }, { en: '', zh: '' }];
+    $('graphTitleEn').value = '';
+    $('graphTitleZh').value = '';
+    $('graphZhSuggestStatus').innerHTML = '';
+    renderGraphPanel();
     $('publishSuccess').classList.add('hidden');
     $('newArticleForm').classList.remove('hidden');
     $('newArticleSaveBar').classList.remove('hidden');
@@ -2272,10 +2856,14 @@
     naHasUnsavedChanges = false;
     $('newArticleScreen').classList.add('hidden');
     showListScreen();
+    resetNewArticleForm();
   };
 
   // ===================== NEW ARTICLE: PUBLISH =====================
   function showPublishSuccess(state) {
+    // Reset first (clears featured-image/graph-block memory) — it also toggles these same
+    // hidden classes, so the success-screen visibility below must be applied after it, not before.
+    resetNewArticleForm();
     $('newArticleForm').classList.add('hidden');
     $('newArticleSaveBar').classList.add('hidden');
     $('publishSuccess').classList.remove('hidden');
@@ -2287,27 +2875,27 @@
   // Kept separate from network I/O so the atomic publish flow below can compute every
   // file's new content up front, before committing to anything on the live branch.
   function buildUpdatedArticlesListing(html, state) {
-    var parser = new DOMParser();
-    var doc = parser.parseFromString(html, 'text/html');
-    var grid = doc.querySelector('.article-grid');
-    if (!grid) throw new Error('Could not find .article-grid in articles.html');
+    // Targeted string insertion, like buildUpdatedSitemap() below — round-tripping the
+    // whole document through DOMParser/outerHTML reformats unrelated parts of the file
+    // (attribute quoting, self-closing tags, whitespace) on every publish.
+    var anchor = '<div class="article-grid">';
+    var anchorIdx = html.indexOf(anchor);
+    if (anchorIdx === -1) throw new Error('Could not find .article-grid in articles.html');
+    var insertAt = anchorIdx + anchor.length;
 
     var readingDigits = state.readingTimeText.replace(/[^0-9]/g, '') || '5';
-    var card = doc.createElement('a');
-    card.setAttribute('href', 'articles/' + state.slug + '.html');
-    card.setAttribute('class', 'article-card');
-    card.setAttribute('data-animate', '');
-    card.innerHTML =
-      '<div class="article-card__tag"><span data-lang="en">' + escapeHtml(state.categoryEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.categoryZh) + '</span></div>' +
-      '<h2 class="article-card__title"><span data-lang="en">' + escapeHtml(state.titleEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.titleZh) + '</span></h2>' +
-      '<p class="article-card__excerpt"><span data-lang="en">' + escapeHtml(state.subtitleEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.subtitleZh) + '</span></p>' +
-      '<div class="article-card__meta">' +
-      '<span data-lang="en">' + escapeHtml(state.authorEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.authorZh) + '</span>' +
-      '<span data-lang="en">' + escapeHtml(state.readingTimeText) + '</span><span data-lang="zh" style="display:none;">阅读时间：' + readingDigits + '分钟</span>' +
-      '</div>';
+    var card =
+      '\n\n        <a href="articles/' + state.slug + '.html" class="article-card" data-animate>\n' +
+      '          <div class="article-card__tag"><span data-lang="en">' + escapeHtml(state.categoryEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.categoryZh) + '</span></div>\n' +
+      '          <h2 class="article-card__title"><span data-lang="en">' + escapeHtml(state.titleEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.titleZh) + '</span></h2>\n' +
+      '          <p class="article-card__excerpt"><span data-lang="en">' + escapeHtml(state.subtitleEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.subtitleZh) + '</span></p>\n' +
+      '          <div class="article-card__meta">\n' +
+      '            <span data-lang="en">' + escapeHtml(state.authorEn) + '</span><span data-lang="zh" style="display:none;">' + escapeHtml(state.authorZh) + '</span>\n' +
+      '            <span data-lang="en">' + escapeHtml(state.readingTimeText) + '</span><span data-lang="zh" style="display:none;">阅读时间：' + readingDigits + '分钟</span>\n' +
+      '          </div>\n' +
+      '        </a>';
 
-    grid.insertBefore(card, grid.firstChild);
-    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    return html.slice(0, insertAt) + card + html.slice(insertAt);
   }
 
   function buildUpdatedSitemap(xml, state) {
@@ -2334,6 +2922,466 @@
     }
     var data = await res.json();
     return data.sha;
+  }
+
+  // ===================== INCREMENTAL KNOWLEDGE-GRAPH EXTRACTION =====================
+  // extra-md-files/ai-article-pipeline.md §2 Step 7: "hook extraction into the admin
+  // publish workflow ... at the end of publishArticleAtomic(), as one more step in that
+  // atomic commit." Gated on §3's fact-retention checker already existing, which it
+  // does (scripts/fact-retention-checker.js) — this mirrors scripts/extract-entities.js's
+  // per-article pipeline order exactly: upsert the article row -> extract -> write ->
+  // check. Hand-kept browser mirror, same "keep in sync with scripts/" convention as the
+  // Knowledge Coverage / SEO Suggestions sections above, plus a thin sql.js (WASM SQLite)
+  // adapter — the piece §2 Step 6 flagged as the one still-unbuilt part of the in-browser
+  // path, since admin/knowledge-graph.db is a real binary SQLite file, not the JSON mirror
+  // those two panels read. Single-article path only (extract-entities.js's --batch-size N
+  // has no counterpart here — this runs once per publish, one article at a time).
+  // kgBuildExtractionPrompt/kgFormatState/kgBuildJudgePrompt's sync with their
+  // scripts/extract-entities.js / scripts/fact-retention-checker.js originals is checked
+  // automatically by scripts/validate-admin-mirror-sync.js.
+  //
+  // Entirely best-effort and NEVER blocks the article's own publish: no OpenAI key
+  // configured, a network error, or a malformed LLM response all just log a console
+  // warning and fall through to publishing the article without a graph update — same
+  // "never blocks Approve/Publish" rule every other OpenAI-backed panel in this file
+  // follows. See extra-md-files/ai-article-pipeline.md §7 for why this coordinates with
+  // (but, as of this writing, does not conflict with) admin-graph-insertion.md's separate,
+  // still-unbuilt `.graph-*` visual-diagram insertion work on this same function.
+
+  var sqlJsPromise = null;
+  function loadSqlJs() {
+    if (!sqlJsPromise) {
+      sqlJsPromise = initSqlJs({ locateFile: function(file) { return 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/' + file; } });
+    }
+    return sqlJsPromise;
+  }
+
+  // Binary-safe base64 helpers — utf8ToBase64/base64ToUtf8 above are text-only (they
+  // round-trip through decodeURIComponent/escape, which corrupts arbitrary bytes like a
+  // SQLite file). uint8ArrayToBase64 chunks the input to avoid blowing the call stack on
+  // String.fromCharCode(...bytes) for a db file of any real size.
+  function base64ToUint8Array(b64) {
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  function uint8ArrayToBase64(bytes) {
+    var binary = '';
+    var chunkSize = 0x8000;
+    for (var i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  }
+
+  // Thin sql.js adapter — sql.js's Statement API (prepare/bind/step/getAsObject) is
+  // lower-level than node:sqlite's DatabaseSync, so these three wrap it into the
+  // all()/get()/run() shape the ported Node logic below expects.
+  function kgAll(db, sql, params) {
+    var stmt = db.prepare(sql);
+    try {
+      if (params) stmt.bind(params);
+      var rows = [];
+      while (stmt.step()) rows.push(stmt.getAsObject());
+      return rows;
+    } finally {
+      stmt.free();
+    }
+  }
+  function kgGet(db, sql, params) {
+    var rows = kgAll(db, sql, params);
+    return rows.length ? rows[0] : undefined;
+  }
+  function kgRun(db, sql, params) {
+    db.run(sql, params || []);
+  }
+  function kgLastInsertRowId(db) {
+    var row = kgGet(db, 'SELECT last_insert_rowid() AS id');
+    return row ? row.id : null;
+  }
+
+  // Flattens Quill's body HTML to plain text, one block per line — mirrors
+  // scripts/extract-articles.js's extractBodyText() (minus its .article-meta strip,
+  // which doesn't apply here: state.bodyEnHtml is Quill's own content only, the byline
+  // is spliced in separately by buildArticleDocument()).
+  function extractPlainBodyText(html) {
+    var container = document.createElement('div');
+    container.innerHTML = html || '';
+    var parts = [];
+    container.querySelectorAll('h2, h3, h4, p, blockquote, li').forEach(function(el) {
+      var text = el.textContent.replace(/\s+/g, ' ').trim();
+      if (text) parts.push(text);
+    });
+    return parts.join('\n\n');
+  }
+
+  var KG_ENTITY_TYPES = ['topic', 'product', 'organization', 'concept', 'strategy', 'person'];
+  var KG_RELATIONS = ['related_to', 'prerequisite_of', 'part_of', 'contradicts', 'updates', 'distinguished_from'];
+
+  // mirrors scripts/extract-entities.js's buildExtractionPrompt() (single-article path)
+  function kgBuildExtractionPrompt(article, existingEntities) {
+    var system =
+      'You are an entity/relationship extractor populating a knowledge graph behind an article-' +
+      'generation pipeline for a Malaysian structured-warrants trading education site. Given one ' +
+      "article's English body text, extract the entities (topics, products, concepts, strategies, " +
+      'organizations, people) it substantively discusses, and the relations between them.\n\n' +
+      'Entity "type" should normally be one of: ' + KG_ENTITY_TYPES.join(', ') + '.\n' +
+      'Edge "relation" should normally be one of: ' + KG_RELATIONS.join(', ') + '.\n\n' +
+      'You will be given a list of entities that already exist in the graph (from other articles). ' +
+      'If this article discusses the same real-world concept, REUSE that exact existing name — do ' +
+      'not create a near-duplicate node (e.g. "warrant trading" vs "trading warrants" must stay one ' +
+      'entity, not two). Only invent a new entity name when the concept genuinely is not in that list.\n\n' +
+      'relevance_score is 0.0-1.0: how central the entity is to THIS article (a passing mention is ' +
+      'low, e.g. 0.2-0.4; the main subject is high, e.g. 0.8-1.0).\n\n' +
+      'Every edge\'s "source" and "target" MUST each be a name that also appears in your own ' +
+      '"entities" list in this response — do not reference an entity you did not include.\n\n' +
+      'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
+      '{"entities":[{"name":"...","type":"...","relevance_score":0.0}],' +
+      '"edges":[{"source":"...","relation":"...","target":"..."}]}';
+
+    var existingList = existingEntities.length
+      ? existingEntities.map(function(e) { return '- "' + e.name + '" (' + e.type + ')'; }).join('\n')
+      : '(none yet)';
+
+    var user =
+      'Article slug: ' + article.slug + '\n' +
+      'Title: ' + article.title + '\n\n' +
+      'Existing entities already in the graph (reuse these exact names when the same concept ' +
+      'appears):\n' + existingList + '\n\n' +
+      'Article body text:\n' + article.body_text;
+
+    return { system: system, user: user };
+  }
+
+  // mirrors scripts/extract-entities.js's validateAndDedupeExtraction() + parseExtractionResponse()
+  function kgParseExtractionResponse(rawText) {
+    var parsed;
+    try { parsed = JSON.parse(rawText); } catch (e) { throw new Error('Extractor response was not valid JSON: ' + e.message); }
+    if (!parsed || !Array.isArray(parsed.entities) || !Array.isArray(parsed.edges)) {
+      throw new Error('Extractor response is missing "entities"/"edges" arrays.');
+    }
+
+    var entities = parsed.entities.map(function(e) {
+      if (!e || typeof e.name !== 'string' || !e.name.trim() || typeof e.type !== 'string' || !e.type.trim()) {
+        throw new Error('Malformed entity (needs non-empty string "name" + "type"): ' + JSON.stringify(e));
+      }
+      if (KG_ENTITY_TYPES.indexOf(e.type) === -1) {
+        console.warn('  ! unfamiliar entity type "' + e.type + '" on "' + e.name + '" — kept as-is');
+      }
+      var relevance_score = Number(e.relevance_score);
+      if (!isFinite(relevance_score) || relevance_score < 0 || relevance_score > 1) {
+        console.warn('  ! invalid relevance_score on "' + e.name + '" (' + e.relevance_score + ') — defaulting to 0.5');
+        relevance_score = 0.5;
+      }
+      return { name: e.name.trim(), type: e.type.trim(), relevance_score: relevance_score };
+    });
+
+    var seenEntityNames = {};
+    var dedupedEntities = [];
+    entities.forEach(function(entity) {
+      var key = entity.name.toLowerCase();
+      if (seenEntityNames[key]) {
+        console.warn('  ! duplicate entity "' + entity.name + '" (case-insensitive) — dropping, keeping first occurrence');
+        return;
+      }
+      seenEntityNames[key] = true;
+      dedupedEntities.push(entity);
+    });
+
+    var canonicalNameByLower = {};
+    dedupedEntities.forEach(function(e) { canonicalNameByLower[e.name.toLowerCase()] = e.name; });
+    var edges = [];
+    parsed.edges.forEach(function(edge) {
+      if (!edge || typeof edge.source !== 'string' || typeof edge.relation !== 'string' || typeof edge.target !== 'string') {
+        throw new Error('Malformed edge (needs string "source"/"relation"/"target"): ' + JSON.stringify(edge));
+      }
+      if (KG_RELATIONS.indexOf(edge.relation) === -1) {
+        console.warn('  ! unfamiliar relation "' + edge.relation + '" on "' + edge.source + '" -> "' + edge.target + '" — kept as-is');
+      }
+      var canonicalSource = canonicalNameByLower[edge.source.toLowerCase()];
+      var canonicalTarget = canonicalNameByLower[edge.target.toLowerCase()];
+      if (!canonicalSource || !canonicalTarget) {
+        console.warn('  ! skipping edge "' + edge.source + '" -[' + edge.relation + ']-> "' + edge.target + '": endpoint not in this response\'s own entities list');
+        return;
+      }
+      edges.push({ source: canonicalSource, relation: edge.relation, target: canonicalTarget });
+    });
+
+    return { entities: dedupedEntities, edges: edges };
+  }
+
+  // mirrors scripts/extract-entities.js's writeExtractionResult()
+  function kgWriteExtractionResult(db, articleId, extraction) {
+    db.run('BEGIN');
+    try {
+      var oldEntityIds = kgAll(db, 'SELECT entity_id FROM article_entities WHERE article_id = ?', [articleId]).map(function(r) { return r.entity_id; });
+      if (oldEntityIds.length) {
+        var placeholders = oldEntityIds.map(function() { return '?'; }).join(',');
+        kgRun(db, 'DELETE FROM edges WHERE source_entity_id IN (' + placeholders + ') AND target_entity_id IN (' + placeholders + ')', oldEntityIds.concat(oldEntityIds));
+      }
+      kgRun(db, 'DELETE FROM article_entities WHERE article_id = ?', [articleId]);
+
+      var idByName = {};
+      extraction.entities.forEach(function(entity) {
+        var existing = kgGet(db, 'SELECT id, type FROM entities WHERE name = ? COLLATE NOCASE', [entity.name]);
+        var entityId;
+        if (existing) {
+          entityId = existing.id;
+          if (existing.type !== entity.type) kgRun(db, 'UPDATE entities SET type = ? WHERE id = ?', [entity.type, entityId]);
+        } else {
+          kgRun(db, 'INSERT INTO entities (name, type) VALUES (?, ?)', [entity.name, entity.type]);
+          entityId = kgLastInsertRowId(db);
+        }
+        idByName[entity.name] = entityId;
+        kgRun(
+          db,
+          'INSERT INTO article_entities (article_id, entity_id, relevance_score) VALUES (?, ?, ?) ' +
+            'ON CONFLICT(article_id, entity_id) DO UPDATE SET relevance_score = excluded.relevance_score',
+          [articleId, entityId, entity.relevance_score]
+        );
+      });
+
+      var seenEdges = {};
+      extraction.edges.forEach(function(edge) {
+        var key = edge.source + '|' + edge.relation + '|' + edge.target;
+        if (seenEdges[key]) return;
+        seenEdges[key] = true;
+        kgRun(db, 'INSERT INTO edges (source_entity_id, relation, target_entity_id) VALUES (?, ?, ?)', [idByName[edge.source], edge.relation, idByName[edge.target]]);
+      });
+
+      db.run('COMMIT');
+    } catch (err) {
+      db.run('ROLLBACK');
+      throw err;
+    }
+  }
+
+  // mirrors scripts/fact-retention-checker.js's getArticleEntityEdgeState() (takes an
+  // already-resolved articleId instead of {dbPath, slug} — the caller already has it)
+  function kgGetArticleEntityEdgeState(db, articleId) {
+    var entityRows = kgAll(
+      db,
+      'SELECT e.name AS name, e.type AS type FROM article_entities ae JOIN entities e ON e.id = ae.entity_id WHERE ae.article_id = ? ORDER BY e.name',
+      [articleId]
+    );
+    var edgeRows = kgAll(
+      db,
+      'SELECT s.name AS source, edg.relation AS relation, t.name AS target FROM edges edg ' +
+        'JOIN entities s ON s.id = edg.source_entity_id JOIN entities t ON t.id = edg.target_entity_id ' +
+        'WHERE edg.source_entity_id IN (SELECT entity_id FROM article_entities WHERE article_id = ?) ' +
+        'AND edg.target_entity_id IN (SELECT entity_id FROM article_entities WHERE article_id = ?) ' +
+        'ORDER BY s.name, t.name',
+      [articleId, articleId]
+    );
+    return {
+      entities: entityRows.map(function(r) { return { name: r.name, type: r.type }; }),
+      edges: edgeRows.map(function(r) { return { source: r.source, relation: r.relation, target: r.target }; })
+    };
+  }
+
+  // mirrors scripts/fact-retention-checker.js's formatState() + buildJudgePrompt()
+  function kgFormatState(state) {
+    var entityLines = state.entities.map(function(e) { return '- entity: "' + e.name + '" (type: ' + e.type + ')'; });
+    var edgeLines = state.edges.map(function(e) { return '- edge: "' + e.source + '" --[' + e.relation + ']--> "' + e.target + '"'; });
+    var lines = entityLines.concat(edgeLines);
+    return lines.length ? lines.join('\n') : '(empty)';
+  }
+  function kgBuildJudgePrompt(slug, oldState, newState) {
+    var system =
+      'You are a fact-retention auditor for a knowledge graph that backs an article generation ' +
+      'pipeline. You are given the OLD and NEW entity/edge records extracted for one article. Your ' +
+      'only job: for every item in the OLD list, judge whether the same real-world fact still ' +
+      'exists in the NEW list.\n\n' +
+      'Statuses:\n' +
+      '- "retained": the same fact is present in NEW, even if reworded (e.g. an entity renamed from ' +
+      '"Time Decay (Theta)" to "Theta Decay" is the same concept -- retained, not altered).\n' +
+      '- "altered": a related item exists in NEW but the fact itself changed meaning, direction, or ' +
+      'relation (e.g. an edge\'s relation changed from "prerequisite_of" to "contradicts", or a ' +
+      'numeric/factual claim changed).\n' +
+      '- "dropped": no equivalent item exists in NEW at all.\n\n' +
+      'Judge every OLD entity and every OLD edge individually. Do not report NEW items that have no ' +
+      'OLD counterpart -- this check is about retention of OLD facts, not about what is new.\n\n' +
+      'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
+      '{"items":[{"name":"<the OLD entity name, or \\"source -> target\\" for an OLD edge>",' +
+      '"status":"retained|altered|dropped","note":"<one short sentence>"}]}';
+
+    var user =
+      'Article slug: ' + slug + '\n\n' +
+      'OLD state:\n' + kgFormatState(oldState) + '\n\n' +
+      'NEW state:\n' + kgFormatState(newState);
+
+    return { system: system, user: user };
+  }
+
+  // mirrors scripts/fact-retention-checker.js's parseJudgeResponse()
+  function kgParseJudgeResponse(rawText) {
+    var parsed;
+    try { parsed = JSON.parse(rawText); } catch (e) { throw new Error('Judge response was not valid JSON: ' + e.message); }
+    if (!parsed || !Array.isArray(parsed.items)) throw new Error('Judge response is missing an "items" array.');
+    var validStatuses = { retained: true, altered: true, dropped: true };
+    parsed.items.forEach(function(item) {
+      if (!item || typeof item.name !== 'string' || !validStatuses[item.status]) {
+        throw new Error('Malformed judge item: ' + JSON.stringify(item));
+      }
+    });
+    return parsed;
+  }
+
+  // mirrors scripts/extract-articles.js's regenerateJsonMirror() (returns the object
+  // instead of writing it to disk — the caller blobs it for the atomic commit)
+  function kgRegenerateJsonMirror(db) {
+    var articles = kgAll(db, 'SELECT * FROM articles ORDER BY id');
+    var entities = kgAll(db, 'SELECT * FROM entities ORDER BY id');
+    var edgesRaw = kgAll(db, 'SELECT * FROM edges');
+    var articleEntities = kgAll(db, 'SELECT * FROM article_entities');
+    var linksRaw = kgAll(db, 'SELECT * FROM links');
+
+    var entityById = {};
+    entities.forEach(function(e) { entityById[e.id] = e; });
+    var articleById = {};
+    articles.forEach(function(a) { articleById[a.id] = a; });
+
+    return {
+      _meta: {
+        description:
+          'Human/LLM-readable JSON mirror of admin/knowledge-graph.db. Regenerated by ' +
+          "admin/index.html's incremental per-publish extraction step (ai-article-pipeline.md " +
+          '§2 Step 7) or scripts/extract-articles.js — this is a read-only export, not a second ' +
+          'source of truth.',
+        schema_source: 'extra-md-files/ai-article-pipeline.md#2-knowledge-graph-store',
+        generated_at: new Date().toISOString().slice(0, 10),
+        generated_by: 'admin/index.html (publishArticleAtomic, incremental extraction)',
+        article_count: String(articles.length)
+      },
+      articles: articles.map(function(a) {
+        return {
+          slug: a.slug,
+          filepath: a.filepath,
+          title: a.title,
+          summary: a.summary,
+          body_text: a.body_text,
+          published_at: a.published_at,
+          last_updated: a.last_updated,
+          status: a.status,
+          entities: articleEntities.filter(function(ae) { return ae.article_id === a.id; }).map(function(ae) {
+            var e = entityById[ae.entity_id];
+            return { name: e ? e.name : null, type: e ? e.type : null, relevance_score: ae.relevance_score };
+          }),
+          internal_links: linksRaw.filter(function(l) { return l.source_article_id === a.id; }).map(function(l) {
+            var target = articleById[l.target_article_id];
+            return { target_slug: target ? target.slug : null, target_title: target ? target.title : null, link_text: l.link_text };
+          })
+        };
+      }),
+      entities: entities.map(function(e) { return { name: e.name, type: e.type }; }),
+      edges: edgesRaw.map(function(edge) {
+        return {
+          source: entityById[edge.source_entity_id] ? entityById[edge.source_entity_id].name : null,
+          relation: edge.relation,
+          target: entityById[edge.target_entity_id] ? entityById[edge.target_entity_id].name : null
+        };
+      })
+    };
+  }
+
+  // The actual per-publish pipeline: upsert this article's own `articles` row (no HTML
+  // file exists yet for extract-articles.js's Steps 1-3 to parse, so build the same
+  // record straight from the wizard's own state) -> extract -> write -> §3 checker.
+  // Returns a (possibly empty) array of {path, mode, type, sha} tree entries ready to
+  // merge into publishArticleAtomic()'s treeEntries — empty on ANY failure, by design
+  // (see section header: this must never block the article's own publish).
+  async function buildKnowledgeGraphUpdateBlobs(state) {
+    if (!openaiApiKey) {
+      console.warn('Knowledge-graph extraction skipped for "' + state.slug + '" — OpenAI key not configured (ai-article-pipeline.md §6/§8). Publish continues without a graph update.');
+      return [];
+    }
+    // Substitute graph placeholders with their plain-text form (title + step labels) before
+    // flattening, matching the Knowledge Coverage / SEO Suggestions panels (substituteGraphPlaceholdersPlainText()
+    // above). Using the HTML substitution here instead would silently drop the graph's title:
+    // extractPlainBodyText() only selects h2/h3/h4/p/blockquote/li, and the real graph markup's
+    // title lives in a <figcaption> (buildFlowGraphHtml()), which none of those match — only its
+    // <li class="graph-flow__step"> entries would survive. The placeholder itself sits alone in
+    // its own <p> (Quill-inserted), so the plain-text swap happens there and that <p> is picked up.
+    var plainBodyTextEn = extractPlainBodyText(substituteGraphPlaceholdersPlainText(state.bodyEnHtml, 'en'));
+    if (!plainBodyTextEn.trim()) {
+      console.warn('Knowledge-graph extraction skipped for "' + state.slug + '" — English body text is empty.');
+      return [];
+    }
+
+    try {
+      var dbRes = await fetch(
+        'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/contents/admin/knowledge-graph.db',
+        { headers: apiHeaders() }
+      );
+      if (!dbRes.ok) throw new Error('Failed to load knowledge-graph.db (HTTP ' + dbRes.status + ')');
+      var dbResData = await dbRes.json();
+      var dbBytes = base64ToUint8Array(dbResData.content.replace(/\n/g, ''));
+
+      var SQL = await loadSqlJs();
+      var db = new SQL.Database(dbBytes);
+
+      try {
+        // Step 1-3's job for a brand-new article: no HTML file exists yet to re-parse,
+        // so upsert the same {slug, filepath, title, summary, body_text, published_at,
+        // last_updated, status} record straight from the wizard's own state.
+        kgRun(
+          db,
+          'INSERT INTO articles (slug, filepath, title, summary, body_text, published_at, last_updated, status) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?) ' +
+            'ON CONFLICT(slug) DO UPDATE SET filepath=excluded.filepath, title=excluded.title, summary=excluded.summary, ' +
+            'body_text=excluded.body_text, published_at=excluded.published_at, last_updated=excluded.last_updated, status=excluded.status',
+          [state.slug, CONFIG.ARTICLES_PATH + '/' + state.slug + '.html', state.titleEn, state.metaDescription, plainBodyTextEn, state.publishDate, state.publishDate, 'published']
+        );
+        var articleId = kgGet(db, 'SELECT id FROM articles WHERE slug = ?', [state.slug]).id;
+
+        // §3's OLD state — trivially empty for a brand-new slug (this is the incremental
+        // *new-article* path; re-publishing an existing slug through the edit-article
+        // screen doesn't go through publishArticleAtomic() at all, see root CLAUDE.md).
+        // Read generically anyway so this stays correct if this function is ever reused
+        // from an edit flow per §7's coordination note.
+        var oldState = kgGetArticleEntityEdgeState(db, articleId);
+
+        var existingEntities = kgAll(db, 'SELECT name, type FROM entities ORDER BY name');
+        var extraction = kgParseExtractionResponse(
+          await callOpenAIJson(kgBuildExtractionPrompt({ slug: state.slug, title: state.titleEn, body_text: plainBodyTextEn }, existingEntities))
+        );
+
+        kgWriteExtractionResult(db, articleId, extraction);
+
+        // §3 checker — second, separate LLM call. Skipped when there's nothing prior to
+        // retain (always true for a brand-new article) rather than spending a call to
+        // confirm an empty list stayed empty; still purely informational either way, per
+        // the doc's own "never silently dropped or silently force-inserted" rule for this
+        // family of checks — a flagged regression here never blocks the write above.
+        if (oldState.entities.length || oldState.edges.length) {
+          try {
+            var newState = kgGetArticleEntityEdgeState(db, articleId);
+            var judgeResult = kgParseJudgeResponse(await callOpenAIJson(kgBuildJudgePrompt(state.slug, oldState, newState)));
+            var regressions = judgeResult.items.filter(function(i) { return i.status === 'dropped' || i.status === 'altered'; });
+            if (regressions.length) {
+              console.warn('Knowledge-graph fact-retention checker flagged ' + regressions.length + ' regression(s) on "' + state.slug + '" (graph write still proceeds — informational per §3):', regressions);
+            }
+          } catch (judgeErr) {
+            console.warn('Knowledge-graph fact-retention check failed for "' + state.slug + '" (non-blocking): ' + judgeErr.message);
+          }
+        }
+
+        var dbBlobSha = await createBlob(uint8ArrayToBase64(db.export()), 'base64');
+        var jsonBlobSha = await createBlob(JSON.stringify(kgRegenerateJsonMirror(db), null, 2) + '\n', 'utf-8');
+        knowledgeGraphJson = null; // invalidate the Coverage/SEO panels' cache — the file just changed
+
+        return [
+          { path: 'admin/knowledge-graph.db', mode: '100644', type: 'blob', sha: dbBlobSha },
+          { path: 'admin/knowledge-graph.json', mode: '100644', type: 'blob', sha: jsonBlobSha }
+        ];
+      } finally {
+        db.close();
+      }
+    } catch (err) {
+      console.warn('Knowledge-graph extraction failed for "' + state.slug + '" (non-blocking, article still publishes): ' + err.message);
+      return [];
+    }
   }
 
   // Publishes the new article, the featured image, the articles.html listing, and the
@@ -2393,8 +3441,21 @@
 
     if (naFeaturedImage) {
       naFeaturedImage.fileName = state.slug + '.' + naFeaturedImage.ext;
+      var imgRepoPath = 'assets/images/articles/' + naFeaturedImage.fileName;
+      // Same existence check run against the article HTML path above (a fresh
+      // slug should mean nothing is there yet) — the Git Data API blob write
+      // below would silently clobber it otherwise, so ask before overwriting.
+      var imgExistingSha = await getFileShaIfExists(imgRepoPath);
+      if (imgExistingSha) {
+        if (!confirm(
+          'A file already exists at ' + imgRepoPath + ' and would be overwritten by this publish.\n\n' +
+          'This is unexpected for a new article slug. Click OK to overwrite it anyway, or Cancel to stop and investigate.'
+        )) {
+          throw new Error('Publish cancelled — an unexpected file already exists at ' + imgRepoPath + '.');
+        }
+      }
       var imgBlobSha = await createBlob(naFeaturedImage.base64, 'base64');
-      treeEntries.push({ path: 'assets/images/articles/' + naFeaturedImage.fileName, mode: '100644', type: 'blob', sha: imgBlobSha });
+      treeEntries.push({ path: imgRepoPath, mode: '100644', type: 'blob', sha: imgBlobSha });
     }
 
     var articleHtml = buildArticleDocument(state);
@@ -2406,6 +3467,13 @@
 
     var sitemapBlobSha = await createBlob(updatedSitemapXml, 'utf-8');
     treeEntries.push({ path: 'sitemap.xml', mode: '100644', type: 'blob', sha: sitemapBlobSha });
+
+    // §2 Step 7 — one more step in this same atomic commit (see the section above this
+    // function). Best-effort: returns [] on any failure and never throws, so it can never
+    // fail the article's own publish.
+    updateNaStatus('🧠 Updating knowledge graph…', 'saving');
+    var graphTreeEntries = await buildKnowledgeGraphUpdateBlobs(state);
+    graphTreeEntries.forEach(function(entry) { treeEntries.push(entry); });
 
     updateNaStatus('🧩 Building commit…', 'saving');
     var treeRes = await fetch(

@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { buildRetrievalContext } from './retrieval-layer.js';
 import { slugifyTopic } from './generate-article.js';
+import { nextArg } from './cli-args.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -42,6 +43,12 @@ const REQUIRED_ARRAY_FIELDS = ['primaryKeywords', 'secondaryKeywords', 'longTail
 
 // ---------------------------------------------------------------------------
 // Prompt construction
+//
+// admin/index.html's New Article wizard ("Generate SEO Suggestions" button,
+// Step 3) carries a hand-kept mirror of this function as buildSeoPromptBrowser
+// — search admin/index.html for "mirrors scripts/seo-optimizer.js" to find
+// it, and keep the two in sync if either changes. validate-admin-mirror-
+// sync.js checks the two produce identical output automatically.
 // ---------------------------------------------------------------------------
 
 /**
@@ -195,7 +202,7 @@ export function fixtureSeoWriter(_promptObj, { fixtureDir, topic }) {
  * @param {object} [args.seoWriterOpts]
  */
 export async function generateSeoMetadata({ db, topic, title, bodyText, seoWriter = openAISeoWriter, seoWriterOpts = {} }) {
-  const retrievalContext = buildRetrievalContext(db, topic);
+  const retrievalContext = buildRetrievalContext(db, topic, { candidateTitle: title });
   const promptObj = buildSeoPrompt({ topic, title, bodyText, checklist: retrievalContext.checklist });
   const raw = await seoWriter(promptObj, { ...seoWriterOpts, topic });
   const metadata = parseSeoResponse(raw);
@@ -220,22 +227,22 @@ function parseArgs(argv) {
     const arg = argv[i];
     switch (arg) {
       case '--db':
-        opts.dbPath = path.resolve(argv[++i]);
+        opts.dbPath = path.resolve(nextArg(argv, ++i, '--db'));
         break;
       case '--topic':
-        opts.topic = argv[++i];
+        opts.topic = nextArg(argv, ++i, '--topic');
         break;
       case '--title':
-        opts.title = argv[++i];
+        opts.title = nextArg(argv, ++i, '--title');
         break;
       case '--body-file':
-        opts.bodyFilePath = path.resolve(argv[++i]);
+        opts.bodyFilePath = path.resolve(nextArg(argv, ++i, '--body-file'));
         break;
       case '--model':
-        opts.model = argv[++i];
+        opts.model = nextArg(argv, ++i, '--model');
         break;
       case '--seo-fixture-dir':
-        opts.seoFixtureDir = path.resolve(argv[++i]);
+        opts.seoFixtureDir = path.resolve(nextArg(argv, ++i, '--seo-fixture-dir'));
         break;
       case '--json':
         opts.json = true;

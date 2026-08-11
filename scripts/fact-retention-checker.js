@@ -29,12 +29,25 @@
  *
  * Exit code is non-zero if any item comes back "altered" or "dropped" — so
  * this can gate a batch/incremental run (§2 build order step 2) once wired in.
+ *
+ * KNOWN BLIND SPOT: this only compares the OLD/NEW state of the article that
+ * was just (re-)extracted — it never runs for any OTHER article. `edges` has
+ * no article_id (see admin/knowledge-graph.schema.sql's comment on that
+ * table and writeExtractionResult() in extract-entities.js), so re-extracting
+ * article X can delete an edge that also "belonged" to article Y, purely
+ * because X and Y share both of that edge's endpoint entities. Nothing here
+ * catches that: Y's own old/new state is never compared, since Y itself
+ * wasn't re-extracted. The edge just quietly disappears from Y's induced
+ * subgraph until something re-extracts Y too. This checker guards against
+ * regressions to the article you just wrote, not against side effects on
+ * OTHER articles from that same write.
  */
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { nextArg } from './cli-args.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -94,9 +107,20 @@ export function getArticleEntityEdgeState(dbPath, slug) {
 
 // ---------------------------------------------------------------------------
 // Prompt construction
+//
+// admin/index.html's incremental knowledge-graph extraction carries a
+// hand-kept mirror of formatState/buildJudgePrompt as kgFormatState/
+// kgBuildJudgePrompt — search admin/index.html for "mirrors
+// scripts/fact-retention-checker.js" to find it, and keep the two in sync if
+// either changes. validate-admin-mirror-sync.js checks the two produce
+// identical output automatically.
 // ---------------------------------------------------------------------------
 
-function formatState(state) {
+// Exported (in addition to being used internally by buildJudgePrompt below)
+// so validate-admin-mirror-sync.js can call it directly against
+// admin/index.html's kgFormatState() mirror without re-deriving it from
+// buildJudgePrompt's combined output.
+export function formatState(state) {
   const entityLines = state.entities.map((e) => `- entity: "${e.name}" (type: ${e.type})`);
   const edgeLines = state.edges.map(
     (e) => `- edge: "${e.source}" --[${e.relation}]--> "${e.target}"`
@@ -236,25 +260,25 @@ function parseArgs(argv) {
     const arg = argv[i];
     switch (arg) {
       case '--slug':
-        opts.slug = argv[++i];
+        opts.slug = nextArg(argv, ++i, '--slug');
         break;
       case '--old-slug':
-        opts.oldSlug = argv[++i];
+        opts.oldSlug = nextArg(argv, ++i, '--old-slug');
         break;
       case '--new-slug':
-        opts.newSlug = argv[++i];
+        opts.newSlug = nextArg(argv, ++i, '--new-slug');
         break;
       case '--old-db':
-        opts.oldDb = path.resolve(argv[++i]);
+        opts.oldDb = path.resolve(nextArg(argv, ++i, '--old-db'));
         break;
       case '--new-db':
-        opts.newDb = path.resolve(argv[++i]);
+        opts.newDb = path.resolve(nextArg(argv, ++i, '--new-db'));
         break;
       case '--model':
-        opts.model = argv[++i];
+        opts.model = nextArg(argv, ++i, '--model');
         break;
       case '--judge-fixture':
-        opts.judgeFixture = path.resolve(argv[++i]);
+        opts.judgeFixture = path.resolve(nextArg(argv, ++i, '--judge-fixture'));
         break;
       default:
         throw new Error(`Unknown flag: ${arg}`);

@@ -40,6 +40,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import * as cheerio from 'cheerio';
+import { nextArg } from './cli-args.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -71,16 +72,16 @@ function parseArgs(argv) {
         opts.dryRun = true;
         break;
       case '--json-out':
-        opts.jsonOut = argv[++i];
+        opts.jsonOut = nextArg(argv, ++i, '--json-out');
         break;
       case '--no-mirror':
         opts.mirror = false;
         break;
       case '--db':
-        opts.dbPath = path.resolve(argv[++i]);
+        opts.dbPath = path.resolve(nextArg(argv, ++i, '--db'));
         break;
       case '--articles-dir':
-        opts.articlesDir = path.resolve(argv[++i]);
+        opts.articlesDir = path.resolve(nextArg(argv, ++i, '--articles-dir'));
         break;
       default:
         throw new Error(`Unknown flag: ${arg}`);
@@ -363,7 +364,20 @@ function main() {
   const files = listArticleFiles(opts.articlesDir);
   console.log(`Found ${files.length} article file(s) in ${path.relative(REPO_ROOT, opts.articlesDir)}`);
 
-  const records = files.map((f) => extractArticle(f));
+  // Per-file isolation (same pattern as extract-entities.js/import-source-articles.js):
+  // one malformed article (e.g. drifted .article-body structure, see extractArticle's
+  // own error) shouldn't abort the whole run — collect the failure and keep going.
+  const records = [];
+  const failures = [];
+  for (const f of files) {
+    const slug = path.basename(f, '.html');
+    try {
+      records.push(extractArticle(f));
+    } catch (err) {
+      failures.push({ slug, error: err.message });
+      console.error(`  ! ${slug}: extraction failed — ${err.message}`);
+    }
+  }
 
   // Sanity check: flag internal links pointing at a slug with no article file.
   const knownSlugs = new Set(records.map((r) => r.slug));
@@ -381,6 +395,12 @@ function main() {
       `  - ${r.slug}  (${r.body_text.length} chars body, ${r.internal_links.length} internal links, ` +
         `published ${r.published_at ?? '?'}, updated ${r.last_updated ?? '?'})`
     );
+  }
+
+  if (failures.length) {
+    console.log(`\n${failures.length} file(s) failed extraction:`);
+    for (const f of failures) console.log(`  - ${f.slug}: ${f.error}`);
+    process.exitCode = 1; // set now so it survives the --dry-run early return below
   }
 
   if (opts.jsonOut) {
@@ -424,4 +444,11 @@ function main() {
   );
 }
 
-main();
+if (path.resolve(fileURLToPath(import.meta.url)) === path.resolve(process.argv[1] ?? '')) {
+  try {
+    main();
+  } catch (err) {
+    console.error(err.message);
+    process.exitCode = 1;
+  }
+}

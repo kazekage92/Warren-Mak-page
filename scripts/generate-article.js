@@ -54,6 +54,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { buildRetrievalContext } from './retrieval-layer.js';
 import { buildReviewPrompt, parseReviewResponse, summarizeReview, openAIReviewer, fixtureReviewer } from './coverage-reviewer.js';
+import { nextArg } from './cli-args.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -358,34 +359,34 @@ function parseArgs(argv) {
     const arg = argv[i];
     switch (arg) {
       case '--db':
-        opts.dbPath = path.resolve(argv[++i]);
+        opts.dbPath = path.resolve(nextArg(argv, ++i, '--db'));
         break;
       case '--topic':
-        opts.topic = argv[++i];
+        opts.topic = nextArg(argv, ++i, '--topic');
         break;
       case '--writer-model':
-        opts.writerModel = argv[++i];
+        opts.writerModel = nextArg(argv, ++i, '--writer-model');
         break;
       case '--reviewer-model':
-        opts.reviewerModel = argv[++i];
+        opts.reviewerModel = nextArg(argv, ++i, '--reviewer-model');
         break;
       case '--must-include-facts':
-        opts.mustIncludeFactsPath = path.resolve(argv[++i]);
+        opts.mustIncludeFactsPath = path.resolve(nextArg(argv, ++i, '--must-include-facts'));
         break;
       case '--source-file':
-        opts.sourceFilePath = path.resolve(argv[++i]);
+        opts.sourceFilePath = path.resolve(nextArg(argv, ++i, '--source-file'));
         break;
       case '--max-retries': {
-        const n = Number(argv[++i]);
+        const n = Number(nextArg(argv, ++i, '--max-retries'));
         if (!Number.isInteger(n) || n < 0) throw new Error('--max-retries must be a non-negative integer');
         opts.maxRetries = n;
         break;
       }
       case '--writer-fixture-dir':
-        opts.writerFixtureDir = path.resolve(argv[++i]);
+        opts.writerFixtureDir = path.resolve(nextArg(argv, ++i, '--writer-fixture-dir'));
         break;
       case '--reviewer-fixture-dir':
-        opts.reviewerFixtureDir = path.resolve(argv[++i]);
+        opts.reviewerFixtureDir = path.resolve(nextArg(argv, ++i, '--reviewer-fixture-dir'));
         break;
       case '--json':
         opts.json = true;
@@ -428,7 +429,15 @@ async function main() {
     ? (promptObj, rOpts) => fixtureReviewerByTopic(promptObj, { fixtureDir: opts.reviewerFixtureDir, topic: rOpts.topic, attempt: rOpts.attempt })
     : openAIReviewer;
 
-  const mustIncludeFacts = opts.mustIncludeFactsPath ? JSON.parse(readFileSync(opts.mustIncludeFactsPath, 'utf-8')) : [];
+  let mustIncludeFacts = [];
+  if (opts.mustIncludeFactsPath) {
+    mustIncludeFacts = JSON.parse(readFileSync(opts.mustIncludeFactsPath, 'utf-8'));
+    if (!Array.isArray(mustIncludeFacts) || !mustIncludeFacts.every((fact) => typeof fact === 'string' && fact.length > 0)) {
+      throw new Error(
+        `--must-include-facts must be a JSON array of non-empty strings (file: ${opts.mustIncludeFactsPath})`
+      );
+    }
+  }
   const sourceText = opts.sourceFilePath ? readFileSync(opts.sourceFilePath, 'utf-8') : null;
 
   const db = new DatabaseSync(opts.dbPath, { readOnly: true });

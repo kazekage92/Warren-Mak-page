@@ -50,6 +50,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { getArticleEntityEdgeState, checkFactRetention, openAIJudge, fixtureJudge } from './fact-retention-checker.js';
+import { nextArg } from './cli-args.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -82,16 +83,16 @@ function parseArgs(argv) {
     const arg = argv[i];
     switch (arg) {
       case '--db':
-        opts.dbPath = path.resolve(argv[++i]);
+        opts.dbPath = path.resolve(nextArg(argv, ++i, '--db'));
         break;
       case '--slug':
-        opts.slug = argv[++i];
+        opts.slug = nextArg(argv, ++i, '--slug');
         break;
       case '--model':
-        opts.model = argv[++i];
+        opts.model = nextArg(argv, ++i, '--model');
         break;
       case '--batch-size': {
-        const n = Number(argv[++i]);
+        const n = Number(nextArg(argv, ++i, '--batch-size'));
         if (!Number.isInteger(n) || n < 1) throw new Error('--batch-size must be a positive integer');
         opts.batchSize = n;
         break;
@@ -106,10 +107,10 @@ function parseArgs(argv) {
         opts.stopOnRegression = true;
         break;
       case '--extract-fixture-dir':
-        opts.extractFixtureDir = path.resolve(argv[++i]);
+        opts.extractFixtureDir = path.resolve(nextArg(argv, ++i, '--extract-fixture-dir'));
         break;
       case '--judge-fixture-dir':
-        opts.judgeFixtureDir = path.resolve(argv[++i]);
+        opts.judgeFixtureDir = path.resolve(nextArg(argv, ++i, '--judge-fixture-dir'));
         break;
       default:
         throw new Error(`Unknown flag: ${arg}`);
@@ -129,6 +130,15 @@ export function chunkArray(items, size) {
 
 // ---------------------------------------------------------------------------
 // Prompt construction
+//
+// admin/index.html's incremental knowledge-graph extraction (publish-time,
+// see its "INCREMENTAL KNOWLEDGE-GRAPH EXTRACTION" section) carries a
+// hand-kept mirror of this function as kgBuildExtractionPrompt — search
+// admin/index.html for "mirrors scripts/extract-entities.js" to find it, and
+// keep the two in sync if either changes (including KNOWN_ENTITY_TYPES/
+// KNOWN_RELATIONS above, mirrored there as KG_ENTITY_TYPES/KG_RELATIONS).
+// validate-admin-mirror-sync.js checks the two produce identical output
+// automatically.
 // ---------------------------------------------------------------------------
 
 export function buildExtractionPrompt({ article, existingEntities }) {
@@ -416,7 +426,18 @@ export function getExistingEntities(db) {
  *  script). Runs fully synchronously inside one transaction — no `await`
  *  between BEGIN and COMMIT — so this is safe to call from concurrently-
  *  scheduled article pipelines without corrupting interleaved writes, even
- *  though nothing in this script schedules concurrency today (see header). */
+ *  though nothing in this script schedules concurrency today (see header).
+ *
+ *  KNOWN LIMITATION (see admin/knowledge-graph.schema.sql's comment on
+ *  `edges` for the full writeup): the DELETE below removes every edge whose
+ *  source AND target are both in this article's OWN entity set — but `edges`
+ *  has no article_id, so if two of those entities are ALSO shared with a
+ *  different article that has an edge between them, that edge gets deleted
+ *  here too. It only comes back if this article's own extraction happens to
+ *  re-emit it; otherwise it silently vanishes from the graph even though
+ *  nothing about the OTHER article changed. Not fixed here — fixing it needs
+ *  a schema change (an `edges.article_id` column plus a display-time
+ *  dedup/merge pass), which is a bigger structural change than this pass. */
 export function writeExtractionResult(db, { articleId, extraction }) {
   db.exec('BEGIN');
   try {
@@ -427,6 +448,8 @@ export function writeExtractionResult(db, { articleId, extraction }) {
 
     if (oldEntityIds.length) {
       const placeholders = oldEntityIds.map(() => '?').join(',');
+      // See this function's doc comment: this can delete a DIFFERENT article's edge
+      // if it happens to connect two entities this article also uses.
       db.prepare(
         `DELETE FROM edges WHERE source_entity_id IN (${placeholders}) AND target_entity_id IN (${placeholders})`
       ).run(...oldEntityIds, ...oldEntityIds);
@@ -520,7 +543,7 @@ export async function processArticle(db, article, opts) {
   if (dropped.length || altered.length) {
     console.log(`    ! fact-retention regression(s) on ${article.slug}:`);
     for (const item of [...dropped, ...altered]) {
-      console.log(`      - [${item.status}] ${item.name}: ${item.note}`);
+      console.log(`      - [${item.status}] ${item.name}: ${item.note ?? ''}`);
     }
     return { slug: article.slug, status: 'regression', dropped, altered };
   }
@@ -613,7 +636,7 @@ export async function processArticleBatch(db, articles, opts) {
     if (dropped.length || altered.length) {
       console.log(`    ! fact-retention regression(s) on ${article.slug}:`);
       for (const item of [...dropped, ...altered]) {
-        console.log(`      - [${item.status}] ${item.name}: ${item.note}`);
+        console.log(`      - [${item.status}] ${item.name}: ${item.note ?? ''}`);
       }
       results.push({ slug: article.slug, status: 'regression', dropped, altered });
     } else {

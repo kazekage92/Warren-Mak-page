@@ -19,6 +19,7 @@
     "validate-seo-optimizer": "node --no-warnings validate-seo-optimizer.js",
     "import-source-articles": "node --no-warnings import-source-articles.js",
     "validate-import-source-articles": "node --no-warnings validate-import-source-articles.js",
+    "validate-admin-mirror-sync": "node --no-warnings validate-admin-mirror-sync.js",
     "encrypt-secret": "node --no-warnings encrypt-secret.js"
   },
   "dependencies": {

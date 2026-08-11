@@ -5,6 +5,37 @@ this — see root `CLAUDE.md`). Requires Node 22.5+ (uses the built-in
 `node:sqlite` module, still experimental as of Node 22 — hence `--no-warnings`
 in the npm script).
 
+## cli-args.js
+
+Shared one-function CLI-arg helper: `nextArg(argv, i, flagName)`. Every script below hand-rolls its
+own `parseArgs(argv)` loop reading a flag's value with the pre-increment idiom `argv[++i]`, which
+silently evaluates to `undefined` when the flag is the last argv element (e.g. a trailing `--slug`
+with nothing after it) — that `undefined` then flows into `path.resolve()`/`Number()`/`opts.*`
+uncaught until something far downstream breaks confusingly. `nextArg` wraps that same read with an
+immediate, clearly-worded error naming the offending flag. Used by every script here that has a CLI
+(`extract-entities.js`, `fact-retention-checker.js`, `generate-article.js`, `seo-optimizer.js`,
+`import-source-articles.js`, `encrypt-secret.js`; `coverage-reviewer.js` has no CLI of its own). No
+tests of its own — it's exercised indirectly by every `validate-*.js` harness that hits a script's CLI
+argument parsing.
+
+## openai-client.js
+
+Shared `callOpenAIChat()` — one implementation of the `chat/completions` fetch call every LLM-backed
+script below (`extract-entities.js`, `fact-retention-checker.js`, `generate-article.js`,
+`coverage-reviewer.js`, `seo-optimizer.js`) used to reimplement individually as a near-identical
+single-attempt `fetch()` block. Centralizes: retry-with-backoff (2-3 attempts by default) on network
+errors, HTTP 429 (honoring a numeric `Retry-After` header), and 5xx — never retrying other 4xx, since
+those fail the same way every time; a `finish_reason !== 'stop'` check that raises a clear "response
+truncated, consider raising max_tokens or reducing batch size" error instead of a bare `JSON.parse`
+failure three lines later; and a named error when `data.choices?.[0]?.message?.content` is missing,
+instead of a raw "Cannot read properties of undefined". Each caller still owns its own model choice,
+prompt, temperature, and `maxTokens` sizing (no baked-in default — the right size genuinely differs
+per use case, see each script's own `MAX_TOKENS` constant).
+
+**Not yet wired in** — this file exists and is complete, but no script above has been migrated to call
+it yet; every script still has its own inline `fetch()` block, unchanged. Migrating each one is the
+next step here, not done as of this note (2026-08-11).
+
 ## extract-articles.js
 
 The non-LLM half of the knowledge-graph extraction pipeline described in
@@ -187,15 +218,19 @@ It plants three cases at once on `structured-warrant-risks-time-decay-malaysia`:
 a harmless rename (`Time Decay (Theta)` → `Theta Decay`, must read as
 `retained`, not `dropped`), a fully-dropped entity + its edges (`Leverage`,
 must read as `dropped`), and one edge whose relation changes
-(`related_to` → `contradicts`, must read as `altered`). With no
-`OPENAI_API_KEY`/network available in this repo's dev sandbox, the recorded
-judge response used to validate this (`scripts/output/fact-retention-fixture.json`,
-gitignored) was produced by hand: run the script once to print the exact
-prompt it builds, answer it as the judge, save the JSON, then re-run — the
-script asserts the three planted cases land on the expected status and exits
-non-zero if any assertion fails. Swap in a real OpenAI call (drop
-`--judge-fixture`, set `OPENAI_API_KEY`) once the spend cap from §6/§8 is in
-place; the prompt and parsing logic don't change either way.
+(`related_to` → `contradicts`, must read as `altered`). Same fixture-injection
+approach as every other LLM-backed validator here: since the script itself is
+the one that planted the regression, it can compute the correct judge
+response for every OLD entity/edge in-process (`buildSyntheticFixture()`) and
+write it to `scripts/output/fact-retention-fixture.json` (gitignored, kept
+only for inspection) — no hand-authored file to produce first, and nothing to
+silently skip if one is missing. The script then runs the checker against
+that fixture via the same `--judge-fixture` code path the CLI uses
+(`fixtureJudge`), and asserts the three planted cases land on the expected
+status, exiting non-zero if any assertion fails or the checker throws. Swap
+in a real OpenAI call (drop `--judge-fixture`, set `OPENAI_API_KEY`) once the
+spend cap from §6/§8 is in place; the prompt and parsing logic don't change
+either way.
 
 ## retrieval-layer.js
 
@@ -231,7 +266,14 @@ Exported functions (`findSeedEntities`, `expandRelatedEntities`,
 exposing `.prepare(sql).all(...)/.get(...)` — that narrow surface is
 deliberate so §2's in-browser incremental path (option (b), via `sql.js`/
 WASM) can reuse this file unchanged behind a thin adapter, once that path is
-built.
+built. **Update 2026-08-11:** the `sql.js`/WASM path itself is now built (see
+`admin/index.html`'s "INCREMENTAL KNOWLEDGE-GRAPH EXTRACTION" section, §2 Step
+7) — but for the extraction/checker pipeline (`extract-entities.js`/
+`fact-retention-checker.js`), not this file. This file's own reuse via a thin
+adapter is still a future step, whenever the generation pipeline's retrieval
+step moves in-browser too; the Knowledge Coverage/SEO panels still run their
+own hand-kept JSON-mirror reimplementation of a slice of this file's logic,
+unchanged by this update.
 
 **Phase 6 (content hierarchy) / Phase 7 (duplicate prevention)**, completed
 per `extra-md-files/pipeline-phase-4-6-7-1-mvp.md` §1 — entity-overlap
@@ -526,3 +568,41 @@ on the OpenAI account (§6/§8's required precondition) — until that blob is
 set, `CONFIG.ENCRYPTED_OPENAI_KEY` stays `''` and the Knowledge Coverage
 panel just shows "OpenAI key not configured", exactly like every Node script
 above stayed fixture-only pending the same precondition.
+
+## validate-admin-mirror-sync.js
+
+Several files above document a "Keep in sync if either changes" contract
+with a hand-kept browser mirror in `admin/index.html` (since that page can't
+`import` from this dev-only directory — see `coverage-reviewer.js`'s file
+header for the fullest explanation of why). Nothing enforced that contract
+mechanically until now: it was easy to edit one side, forget the other, and
+not notice until the two silently produced different prompts.
+
+This script closes that gap for the **prompt-building** functions
+specifically — the ones that return a literal string or `{system, user}`
+object baked straight into an LLM call, plus the small formatting helpers
+spliced directly into those prompts. It imports the real functions from
+`coverage-reviewer.js`/`seo-optimizer.js`/`extract-entities.js`/
+`fact-retention-checker.js`, slices the matching mirror function's source text
+straight out of `admin/index.html` (brace-matched, comment/string-aware) and
+evals it in a `vm` sandbox, then calls both sides with identical fixtures and
+asserts the output strings are byte-for-byte equal:
+
+```bash
+cd scripts
+node validate-admin-mirror-sync.js
+```
+
+Deliberately out of scope: the response-PARSING mirrors
+(`parseReviewResponseBrowser`/`parseSeoResponseBrowser`/
+`kgParseExtractionResponse`/`kgParseJudgeResponse`) already diverge slightly
+by necessity from their originals (the browser versions also do the
+DOM-render-safe work their panels need), and the checklist-retrieval mirrors
+(`kcTokenize`/`kcFindSeedEntities`/`kcExpandRelatedEntities`/
+`kcBuildChecklist`) run against a materially different data source — the
+JSON graph mirror vs. a live SQLite `db` handle via `.prepare().all()`, per
+`retrieval-layer.js`'s own note above on that split — so a literal string
+diff isn't the right tool for either. Exits non-zero (with a first-diff
+excerpt for each failing pair) if any prompt-building function has drifted
+from its mirror; safe to run any time either side changes, and worth adding
+to a pre-push check alongside the other `validate-*.js` scripts above.
