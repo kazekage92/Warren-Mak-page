@@ -1,0 +1,9 @@
+{
+  "title": "认沽权证，以退为金 (Put Warrants Retreat To Advance)",
+  "originalUrl": "https://www.enanyang.my/news/20180711/Finance/198234",
+  "publishedAt": "2018-07-11",
+  "author": "Warren Mak (麦传球)",
+  "category": "Nanyang Siang Pau Column",
+  "originalContent": "认股权证，又名凭单（在香港俗称窝轮）是一种衍生产品。通过买入凭单，你可以获得一个在特定时段内，以预定价格购买或出售某种相关资产的权利。凭单的相关资产可以是股票、市场指数、货币、或商品等。\n\n自1995年首次上市以来，结构性权证在大马已经有23年的历史了。也逐渐见证了新结构性权证的推出，如一篮子认股权证，指数认股权证，交易所指数基金认股权证等等，来满足投资者对于新产品的需求。\n\n虽然这种衍生品在大马股市已经非常普及了，但是，一直等到2009年8月3日，有关当局才允许结构性认沽权证的发行和上市。\n\n（来源：南洋商报《投资把脉》专栏，2018年7月11日刊登。此为端到端测试所摘录的原文节选，用于验证 Import Source Article → import-source-articles.js → knowledge-graph.db 的完整流程。）",
+  "notes": "TEST STAGE: end-to-end validation of the Import Source Article -> import-source-articles.js -> knowledge-graph.db pipeline (2026-08-11), per extra-md-files/ai-article-pipeline.md's open item. Content is a real excerpt from Warren's 2018-07-11 Nanyang Siang Pau column, staged for pipeline testing."
+}
