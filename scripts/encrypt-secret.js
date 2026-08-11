@@ -4,9 +4,8 @@
  * format admin/index.html's decryptSecret() expects: base64(iv[12] + tag[16]
  * + ciphertext), keyed by SHA-256(password) — the same scheme already used
  * for CONFIG.ENCRYPTED_TOKEN (the GitHub PAT). Use this to produce
- * CONFIG.ENCRYPTED_OPENAI_KEY once a real OpenAI key exists AND a hard spend
- * cap is set on the account — extra-md-files/ai-article-pipeline.md §6/§8's
- * required precondition before wiring in any real call.
+ * CONFIG.ENCRYPTED_OPENAI_KEY once a real OpenAI key exists — see
+ * extra-md-files/ai-article-pipeline.md §6/§8 for background.
  *
  * The password is whatever the admin tool's login password already is — the
  * SAME password, not a new one. admin/index.html's decryptOpenAIKey() reuses

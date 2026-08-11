@@ -567,11 +567,9 @@ node encrypt-secret.js --secret-file path/to/key.txt --password "..."
 ```
 
 Paste the printed blob into `CONFIG.ENCRYPTED_OPENAI_KEY` in
-`admin/index.html`. Do this only after setting a hard spend cap/usage alert
-on the OpenAI account (§6/§8's required precondition) — until that blob is
-set, `CONFIG.ENCRYPTED_OPENAI_KEY` stays `''` and the Knowledge Coverage
-panel just shows "OpenAI key not configured", exactly like every Node script
-above stayed fixture-only pending the same precondition.
+`admin/index.html`. Until that blob is set, `CONFIG.ENCRYPTED_OPENAI_KEY`
+stays `''` and the Knowledge Coverage panel just shows "OpenAI key not
+configured" — it never blocks publishing either way.
 
 ## validate-admin-mirror-sync.js
 

@@ -705,14 +705,13 @@
     ENCRYPTED_TOKEN: 'S+SuQCZxwHhJCA54HqI5Av1rdDeA9a/gA98BsSFBru5znPmIsS4PORZHI9zpUKIeysSzG1sihJi2+IjIpkFcV3oQmRrcB5L7tiJXWFhdN84VG+gaS2vTj2qDOCq9JqKItjjNeDFA3w9qDcjgiSCn38mySGNihcvnFg==',
     // OpenAI key, encrypted the same way as ENCRYPTED_TOKEN above (AES-256-GCM,
     // SHA-256(password) as key, same base64(iv[12]+tag[16]+ciphertext) format) —
-    // see scripts/encrypt-secret.js to produce this blob. Empty until Warren sets a
-    // hard spend cap on the OpenAI account and runs that script (extra-md-files/
-    // ai-article-pipeline.md §6/§8's required precondition before any real call).
-    // Left empty, three things just stay disabled/no-op: the Knowledge Coverage
+    // produced via scripts/encrypt-secret.js. Decrypts iff the admin login password
+    // matches the one it was encrypted with; otherwise stays silently unconfigured.
+    // If empty, three things just stay disabled/no-op: the Knowledge Coverage
     // panel (§5), the SEO Suggestions panel (§4 Phase 4), and the incremental
     // knowledge-graph extraction step inside publishArticleAtomic() (§2 Step 7) —
     // none of them ever block publishing.
-    ENCRYPTED_OPENAI_KEY: '',
+    ENCRYPTED_OPENAI_KEY: 'hrBNSBVf08dFr/4vnWazliZW/FXjICutS56VSgR8xVvyBzSFmTcpEQsjZ57cwPbSZIMj6GvsdyA4CKu+Tf0OO6PwWxDiVHFjG/drlK7cCrYc6wd0rJ/mproj7BA9WBFeUSul9N0hFV9oMCF2QlXmNyZ/C8/GR/F66UvCN8tojF6u0SkiKqvcsj0KKWmlvgWu5iOSnouj+trjVi5R98bhJeLR7uvTiBLEx+Vppmi97AvB1FFKrkpD0ikKzC3iJ4me',
     REPO_OWNER: 'kazekage92',
     REPO_NAME: 'Warren-Mak-page',
     ARTICLES_PATH: 'articles'
