@@ -18,7 +18,12 @@
  * here and each caller reads the slice of the result it needs:
  *
  *   - Phase 2 / §2 Step 6.2      -> result.articleSummaries
- *   - Phase 5 / §2 Step 6.4      -> result.suggestedLinks
+ *   - Phase 5 / §2 Step 6.4      -> result.suggestedLinks (WHAT to link — this file's
+ *                                    insertSuggestedLinks(), below suggestInternalLinks,
+ *                                    is the separate step that actually links it: consumed
+ *                                    by generate-article.js as the final step of
+ *                                    generateArticleWithReview(), not part of this composed
+ *                                    query itself since it needs a draft body text to insert into)
  *   - Phase 6 (content hierarchy) -> result.nearDuplicates (medium/high — angle differently)
  *   - Phase 7 (duplicate prevention) -> result.nearDuplicates (high — reconsider generating at all)
  *   - §5 coverage-reviewer checklist / §2 Step 6.6 -> result.checklist
@@ -390,6 +395,94 @@ export function suggestInternalLinks(articleSummaries, seedEntities, opts = {}) 
     }
   }
   return suggestions;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 (continued) — AUTO-INSERTING suggested links into a draft, not just
+// suggesting them. `suggestInternalLinks` above answers "what should link to
+// what"; this answers "make it actually link" — the piece Phase 5's own
+// wording ("auto-recommend relevant internal links... e.g. mentions of Time
+// Decay -> link to the Time Decay article") asks for and generate-article.js
+// previously stopped short of, per that file's own header note ("nothing
+// here auto-inserts <a> tags"). Pure text transform, no LLM — consistent
+// with this file's own "no LLM call anywhere in this file" stance.
+// ---------------------------------------------------------------------------
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * For each `suggestedLinks` entry (best-scored first, per
+ * `suggestInternalLinks`'s own ordering), finds the FIRST verbatim mention of
+ * `entity` in `bodyText` (case-insensitive, boundary-checked on both sides
+ * via alphanumeric lookaround rather than `\b` — "Time Decay" matches "Time
+ * Decay" but not "Time Decayed"; deliberately NOT plain `\b`, which breaks on
+ * an entity ending in punctuation like "Time Decay (Theta)": `\b` needs a
+ * word/non-word transition, and a trailing `)` immediately followed by a
+ * space is non-word on both sides, so `\b` never matches there even though
+ * the mention is a perfectly good word boundary in the everyday sense) and
+ * wraps it in an ordinary
+ * `<a href="<targetSlug>.html">` anchor, same relative-link convention every
+ * hand-authored article's `.article-related` block already uses (root
+ * `CLAUDE.md`). Anchor text is the mention exactly as it appears in the
+ * draft, not the target article's title — this links the sentence the writer
+ * already wrote rather than injecting a new suggested-title phrase into the
+ * prose. `bodyText` is expected to be the plain-paragraph text
+ * `generate-article.js`'s writer produces (§4 Phase 3) — this only adds
+ * inline `<a>` markup at the matched span, it doesn't otherwise touch the
+ * surrounding plain text.
+ *
+ * An entity with no verbatim mention in the draft (the writer discussed the
+ * concept in different words, or skipped it) is reported in `skipped`, never
+ * force-inserted as an unrelated sentence — matching §5's own "never
+ * silently dropped or silently force-inserted" stance for coverage gaps.
+ * Also skips a match that would land inside an anchor an earlier suggestion
+ * in this same call already inserted (rare — only possible when two
+ * suggested entities' names overlap as substrings), rather than risk nested
+ * or broken markup.
+ *
+ * Returns `{bodyText, inserted, skipped}` — `bodyText` is the original string
+ * unchanged if `suggestedLinks` is empty or nothing matched.
+ */
+export function insertSuggestedLinks(bodyText, suggestedLinks) {
+  let result = bodyText;
+  const inserted = [];
+  const skipped = [];
+  const anchoredRanges = []; // [start, end) spans already wrapped in <a>, in `result`'s current coordinates
+
+  for (const link of suggestedLinks) {
+    const pattern = new RegExp(`(?<![a-z0-9])${escapeRegExp(link.entity)}(?![a-z0-9])`, 'i');
+    const match = pattern.exec(result);
+    if (!match) {
+      skipped.push({ entity: link.entity, targetSlug: link.targetSlug, reason: 'entity name not found verbatim in the draft body text' });
+      continue;
+    }
+    const matchStart = match.index;
+    const matchEnd = matchStart + match[0].length;
+    const overlapsExisting = anchoredRanges.some(([s, e]) => matchStart < e && matchEnd > s);
+    if (overlapsExisting) {
+      skipped.push({ entity: link.entity, targetSlug: link.targetSlug, reason: 'only verbatim mention found falls inside a link already inserted for another suggestion' });
+      continue;
+    }
+
+    const mentionText = match[0];
+    const anchor = `<a href="${link.targetSlug}.html">${mentionText}</a>`;
+    result = result.slice(0, matchStart) + anchor + result.slice(matchEnd);
+
+    const delta = anchor.length - mentionText.length;
+    for (const range of anchoredRanges) {
+      if (range[0] >= matchStart) {
+        range[0] += delta;
+        range[1] += delta;
+      }
+    }
+    anchoredRanges.push([matchStart, matchStart + anchor.length]);
+
+    inserted.push({ entity: link.entity, targetSlug: link.targetSlug, targetTitle: link.targetTitle, mentionText });
+  }
+
+  return { bodyText: result, inserted, skipped };
 }
 
 // ---------------------------------------------------------------------------

@@ -134,6 +134,17 @@ export async function callOpenAIChat({
     const finishReason = choice?.finish_reason;
     const content = choice?.message?.content;
 
+    // Logged (not returned — every caller here treats this as a bare content string,
+    // so changing the return shape would ripple through all five call sites) so real
+    // completion-token usage can be observed and each script's own MAX_TOKENS constant
+    // re-tuned from actual data instead of a guess.
+    if (Number.isFinite(data.usage?.completion_tokens)) {
+      console.log(
+        `${callerLabel}: completion_tokens=${data.usage.completion_tokens}` +
+          ` (prompt_tokens=${data.usage.prompt_tokens ?? '?'}, total_tokens=${data.usage.total_tokens ?? '?'})`
+      );
+    }
+
     if (finishReason !== 'stop') {
       throw new Error(
         `${callerLabel}: response truncated or incomplete (finish_reason="${finishReason ?? 'missing'}") — ` +

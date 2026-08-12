@@ -22,18 +22,34 @@
  *   6. (<=1 retry) feed missing/partial items back to the writer as a repair
  *      prompt, regenerate, re-review once. Whatever is still missing/partial
  *      afterward is handed to Phase 8 (the human) as-is — never silently
- *      dropped or force-inserted (§5's own explicit cap + rationale).
- *   7. Return the draft + coverage result together — Phase 8's job (the
- *      admin's Knowledge Coverage panel) picks this up from here; this script
- *      does not publish anything itself.
+ *      dropped or force-inserted (§5's own explicit cap + rationale). Steps
+ *      5-6 are wrapped so a reviewer/repair failure never discards the
+ *      writer's already-paid-for draft — see generateArticleWithReview()'s
+ *      own doc comment for the `reviewCoverageFailed` fallback this returns
+ *      instead of throwing (mirrors admin/index.html's browser counterpart).
+ *   7. §4 Phase 5 — auto-insert internal links: once the final draft is
+ *      settled (after any repair retry), wrap the first verbatim mention of
+ *      each `suggestedLinks` entity in an ordinary `<a>` tag pointing at that
+ *      article, via retrieval-layer.js's `insertSuggestedLinks()`. Runs once,
+ *      on the FINAL body text — not before review, so the reviewer always
+ *      judges the writer's own plain-text coverage, never text this pipeline
+ *      itself modified.
+ *   8. Return the linked draft + coverage result + link-insertion report
+ *      together — Phase 8's job (the admin's Knowledge Coverage panel) picks
+ *      this up from here; this script does not publish anything itself.
  *
- * Phase 3's fuller scope (SEO optimisation = §4 Phase 4, internal-link
- * insertion = Phase 5, content-hierarchy enforcement = Phase 6) is NOT built
- * here — those are later, separate build-order items that also consume
- * retrieval-layer.js's context (see that file's own phase-to-field mapping).
+ * Phase 3's fuller scope (SEO optimisation = §4 Phase 4, content-hierarchy
+ * enforcement = Phase 6) is NOT built here — those are separate, standalone
+ * build-order items that also consume retrieval-layer.js's context (see that
+ * file's own phase-to-field mapping). Phase 5 (internal-link insertion) IS
+ * built here, as step 7 above — the one piece of "Phase 3's fuller scope"
+ * that naturally belongs at the end of this pipeline rather than standing
+ * alone, since it needs the already-finished draft body text to insert into.
  * This script's writer call still receives `nearDuplicates`/`suggestedLinks`
  * so it can steer away from duplicate coverage and mention related articles
- * naturally, but it does not auto-insert `<a>` tags or generate meta tags.
+ * naturally in its own words; step 7 is what turns those natural mentions
+ * into real `<a>` links afterward. Meta-tag generation is still not this
+ * script's job — call `seo-optimizer.js` separately for that.
  *
  * Both the writer and the reviewer are dependency-injected (same pattern as
  * every other LLM-backed script in this directory) so this is testable
@@ -52,10 +68,11 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { buildRetrievalContext } from './retrieval-layer.js';
+import { buildRetrievalContext, insertSuggestedLinks } from './retrieval-layer.js';
 import { buildReviewPrompt, parseReviewResponse, summarizeReview, openAIReviewer, fixtureReviewer } from './coverage-reviewer.js';
 import { nextArg } from './cli-args.js';
 import { callOpenAIChat } from './openai-client.js';
+import { formatChecklistItems } from './checklist-format.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -63,28 +80,86 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_WRITER_MODEL = 'gpt-4o'; // generation task — worth the stronger tier (§6)
 const DEFAULT_REVIEWER_MODEL = 'gpt-4o-mini'; // judgment task — "can be the same or a cheaper model than the writer" (§5)
 const MAX_RETRIES_ALLOWED = 1; // §5: "Cap auto-repair at 1 retry" — not a tunable-up-forever knob
-const MAX_TOKENS = 4000; // a full article body (title+summary+body_text JSON) — the largest single-call budget in this directory
+const MAX_TOKENS = 6000; // a full article body (title+summary+body_text JSON) — the largest single-call budget in this directory; headroom over the site's real max article length (10,523 chars ≈ 2,630 tokens of body alone, per admin/knowledge-graph.json) — re-tune from real data.completion_tokens usage (see callOpenAIChat) rather than guessing further
 
 // ---------------------------------------------------------------------------
 // Checklist assembly — §5 "The checklist": entities + must-include facts
 // ---------------------------------------------------------------------------
 
+/** Lowercased, punctuation-stripped word list — the unit `factsNearDuplicate`
+ *  compares over. */
+function factTokens(s) {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/** Token-set Jaccard similarity (0..1) between two strings. */
+function jaccardSimilarity(a, b) {
+  const ta = new Set(factTokens(a));
+  const tb = new Set(factTokens(b));
+  if (!ta.size || !tb.size) return 0;
+  let intersection = 0;
+  for (const t of ta) if (tb.has(t)) intersection++;
+  const union = ta.size + tb.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+// A fact only collapses into an earlier fact when it's essentially the same
+// sentence reworded, not merely on-topic — 0.8 is deliberately high so that
+// e.g. "Warren Mak has 32 years of market experience" and "Warren spent 32
+// years at Bursa Malaysia" (different claims that share some words) both
+// survive as independent, independently-reviewable checklist rows.
+const FACT_NEAR_DUPLICATE_JACCARD_THRESHOLD = 0.8;
+
+/** True if `a` and `b` are a near-exact restatement of the same fact — exact
+ *  case-insensitive match, or high enough word-overlap (Jaccard) to be the
+ *  same claim reworded. This is deliberately NOT "one string contains the
+ *  other": a plain-containment check would also swallow facts that merely
+ *  mention a shared name inside an otherwise distinct sentence (see module
+ *  doc comment above buildFullChecklist). Empty strings never "match"
+ *  anything, so they can't blanket-dedupe the checklist. */
+function factsNearDuplicate(a, b) {
+  const na = a.trim().toLowerCase();
+  const nb = b.trim().toLowerCase();
+  if (!na || !nb) return false;
+  return na === nb || jaccardSimilarity(a, b) >= FACT_NEAR_DUPLICATE_JACCARD_THRESHOLD;
+}
+
 /** Merges retrieval-layer.js's entity checklist (§2 Step 6.6) with manually-
  *  curated must-include facts (§5's second checklist source, "specific
  *  claims/numbers/dates/credentials the admin marks non-negotiable") into one
- *  flat list both the writer and reviewer prompts consume unchanged. */
+ *  flat list both the writer and reviewer prompts consume unchanged.
+ *
+ *  A must-include fact is only skipped when it's a near-exact restatement
+ *  (see factsNearDuplicate above) of a fact ALREADY IN THE LIST — never
+ *  against a plain entity-name checklist item. "Bursa Malaysia" (an entity)
+ *  and "Warren spent 32 years at Bursa Malaysia" (a fact) are different
+ *  claims — one naming a thing, the other making a claim about it — and both
+ *  deserve independent reviewer verification, even though the fact's text
+ *  contains the entity's name. Only two facts that restate the same claim
+ *  collapse to one row. */
 export function buildFullChecklist(entityChecklist, mustIncludeFacts) {
-  const factItems = mustIncludeFacts.map((fact) => ({
-    name: fact,
-    type: 'fact',
-    why: 'marked as a must-include fact for this article — non-negotiable',
-  }));
-  return [...entityChecklist, ...factItems];
+  const merged = [...entityChecklist];
+  const addedFacts = [];
+  for (const fact of mustIncludeFacts) {
+    if (addedFacts.some((existingFact) => factsNearDuplicate(existingFact, fact))) continue;
+    addedFacts.push(fact);
+    merged.push({
+      name: fact,
+      type: 'fact',
+      why: 'marked as a must-include fact for this article — non-negotiable',
+    });
+  }
+  return merged;
 }
 
 function formatChecklistForWriter(checklist) {
   if (!checklist.length) return '(no specific checklist items — this topic did not match the existing graph; write from the topic alone)';
-  return checklist.map((c) => `- "${c.name}"${c.type ? ` (${c.type})` : ''}${c.why ? ` — ${c.why}` : ''}`).join('\n');
+  return formatChecklistItems(checklist);
 }
 
 // ---------------------------------------------------------------------------
@@ -281,6 +356,11 @@ export function fixtureReviewerByTopic(promptObj, { fixtureDir, topic, attempt }
  * @param {Function} args.reviewer - (promptObj, opts) => string|Promise<string>
  * @param {object} [args.reviewerOpts]
  * @param {number} [args.maxRetries=1] - capped at MAX_RETRIES_ALLOWED (§5)
+ * @returns {Promise<object>} On a reviewer/repair-stage failure, `review`/`summary` come back
+ *   `null` and `reviewCoverageFailed`/`reviewCoverageFailedMessage` are set instead of throwing —
+ *   the draft (and internal-link insertion against it) is still returned rather than discarded.
+ *   A failure on the initial writer call still throws uncaught (mirrors
+ *   admin/index.html's generateArticleWithReviewBrowser()).
  */
 export async function generateArticleWithReview({
   db,
@@ -312,26 +392,65 @@ export async function generateArticleWithReview({
   });
   let draft = parseWriterResponse(await writer(writerPrompt, { ...writerOpts, topic, attempt: 'initial' }));
 
-  // Step 5: reviewer call — a SEPARATE LLM call, never the writer self-checking.
-  let review = parseReviewResponse(
-    await reviewer(buildReviewPrompt({ checklist, draftText: draft.body_text }), { ...reviewerOpts, topic, attempt: 'initial' })
-  );
-  let summary = summarizeReview(review);
+  // Step 5-6: reviewer call (a SEPARATE LLM call, never the writer self-checking) plus the
+  // <=1 auto-repair retry. Wrapped in try/catch per admin/index.html's
+  // generateArticleWithReviewBrowser() (the browser mirror of this function) — a failure here
+  // no longer discards the writer's already-paid-for draft. Only the reviewer/repair calls are
+  // wrapped: an outright failure on the (initial) writer call above still propagates uncaught,
+  // since there's no draft yet at that point worth salvaging. On a caught failure, coverage
+  // review is abandoned for this run (review/summary come back null, reviewCoverageFailed:
+  // true) but link insertion below — which has no dependency on review succeeding — still runs
+  // against whatever draft was last produced.
+  let review = null;
+  let summary = null;
   let retryCount = 0;
+  let reviewCoverageFailed = false;
+  let reviewCoverageFailedMessage = null;
 
-  // Step 6: <=1 auto-repair retry, only if there's an actual checklist to have gaps against.
-  if (!summary.allCovered && checklist.length && retryCount < maxRetries) {
-    const repairPrompt = buildRepairPrompt({ topic, checklist, draft, missing: summary.missing, partial: summary.partial });
-    draft = parseWriterResponse(await writer(repairPrompt, { ...writerOpts, topic, attempt: 'repair' }));
+  try {
+    // Step 5: reviewer call — a SEPARATE LLM call, never the writer self-checking.
     review = parseReviewResponse(
-      await reviewer(buildReviewPrompt({ checklist, draftText: draft.body_text }), { ...reviewerOpts, topic, attempt: 'repair' })
+      await reviewer(buildReviewPrompt({ checklist, draftText: draft.body_text }), { ...reviewerOpts, topic, attempt: 'initial' })
     );
     summary = summarizeReview(review);
-    retryCount = 1;
+
+    // Step 6: <=1 auto-repair retry, only if there's an actual checklist to have gaps against.
+    if (!summary.allCovered && checklist.length && retryCount < maxRetries) {
+      const repairPrompt = buildRepairPrompt({ topic, checklist, draft, missing: summary.missing, partial: summary.partial });
+      draft = parseWriterResponse(await writer(repairPrompt, { ...writerOpts, topic, attempt: 'repair' }));
+      review = parseReviewResponse(
+        await reviewer(buildReviewPrompt({ checklist, draftText: draft.body_text }), { ...reviewerOpts, topic, attempt: 'repair' })
+      );
+      summary = summarizeReview(review);
+      retryCount = 1;
+    }
+  } catch (err) {
+    reviewCoverageFailed = true;
+    reviewCoverageFailedMessage = err && err.message ? err.message : String(err);
+    review = null;
+    summary = null;
   }
 
-  // Step 7: hand off to Phase 8 with the coverage result attached — this function does not publish.
-  return { topic, retrievalContext, checklist, draft, review, summary, retryCount };
+  // Step 7 (§4 Phase 5): auto-insert internal links into the FINAL draft body
+  // text, after review/repair is fully settled — the reviewer above always
+  // judged the writer's own plain-text output, never text this step adds.
+  const linkResult = insertSuggestedLinks(draft.body_text, retrievalContext.suggestedLinks);
+  draft = { ...draft, body_text: linkResult.bodyText };
+  const internalLinks = { inserted: linkResult.inserted, skipped: linkResult.skipped };
+
+  // Step 8: hand off to Phase 8 with the coverage result + link report attached — this function does not publish.
+  return {
+    topic,
+    retrievalContext,
+    checklist,
+    draft,
+    review,
+    summary,
+    retryCount,
+    internalLinks,
+    reviewCoverageFailed,
+    reviewCoverageFailedMessage,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -375,6 +494,9 @@ function parseArgs(argv) {
       case '--max-retries': {
         const n = Number(nextArg(argv, ++i, '--max-retries'));
         if (!Number.isInteger(n) || n < 0) throw new Error('--max-retries must be a non-negative integer');
+        if (n > MAX_RETRIES_ALLOWED) {
+          throw new Error(`maxRetries cannot exceed ${MAX_RETRIES_ALLOWED} — §5 explicitly caps auto-repair at 1 retry.`);
+        }
         opts.maxRetries = n;
         break;
       }
@@ -405,14 +527,25 @@ function printHuman(result) {
   console.log(`Summary: ${result.draft.summary}`);
   console.log(`Body (${result.draft.body_text.length} chars): ${result.draft.body_text.slice(0, 200)}${result.draft.body_text.length > 200 ? '…' : ''}\n`);
 
-  console.log(`--- Coverage (after ${result.retryCount} repair retr${result.retryCount === 1 ? 'y' : 'ies'}) ---`);
-  console.log(`covered: ${result.summary.covered.length}, partial: ${result.summary.partial.length}, missing: ${result.summary.missing.length}`);
-  for (const item of [...result.summary.partial, ...result.summary.missing]) {
-    console.log(`  - [${item.status}] ${item.name}${item.evidence ? ` — "${item.evidence}"` : ''}`);
+  if (result.reviewCoverageFailed) {
+    console.log(`--- Coverage ---`);
+    console.log(`! Coverage review failed and was abandoned for this run: ${result.reviewCoverageFailedMessage}`);
+    console.log(`  The draft above is still the writer's real output — review it manually before publishing.`);
+  } else {
+    console.log(`--- Coverage (after ${result.retryCount} repair retr${result.retryCount === 1 ? 'y' : 'ies'}) ---`);
+    console.log(`covered: ${result.summary.covered.length}, partial: ${result.summary.partial.length}, missing: ${result.summary.missing.length}`);
+    for (const item of [...result.summary.partial, ...result.summary.missing]) {
+      console.log(`  - [${item.status}] ${item.name}${item.evidence ? ` — "${item.evidence}"` : ''}`);
+    }
+    if (result.summary.missing.length || result.summary.partial.length) {
+      console.log(`\n! Gaps remain after the retry cap — handing off to Phase 8 (human review) as-is, nothing auto-inserted.`);
+    }
   }
-  if (result.summary.missing.length || result.summary.partial.length) {
-    console.log(`\n! Gaps remain after the retry cap — handing off to Phase 8 (human review) as-is, nothing auto-inserted.`);
-  }
+
+  console.log(`\n--- Internal links (Phase 5, auto-inserted into the final draft) ---`);
+  console.log(`inserted: ${result.internalLinks.inserted.length}, skipped: ${result.internalLinks.skipped.length}`);
+  for (const l of result.internalLinks.inserted) console.log(`  - "${l.mentionText}" -> ${l.targetSlug}.html`);
+  for (const s of result.internalLinks.skipped) console.log(`  - [skipped] "${s.entity}" -> ${s.targetSlug}.html (${s.reason})`);
 }
 
 async function main() {

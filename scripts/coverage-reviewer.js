@@ -39,6 +39,7 @@
 
 import { readFileSync } from 'node:fs';
 import { callOpenAIChat } from './openai-client.js';
+import { formatChecklistItems } from './checklist-format.js';
 
 export const VALID_REVIEW_STATUSES = new Set(['covered', 'partial', 'missing']);
 const DEFAULT_REVIEWER_MODEL = 'gpt-4o-mini'; // judgment task, not generation — cheapest tier is fine (§5)
@@ -54,9 +55,7 @@ const MAX_TOKENS = 1500; // one {status,evidence} judgment per checklist item �
 // buildReviewPrompt's combined output.
 export function formatChecklist(checklist) {
   if (!checklist.length) return '(empty — nothing was selected as required coverage for this article)';
-  return checklist
-    .map((c) => `- "${c.name}"${c.type ? ` (${c.type})` : ''}${c.why ? ` — ${c.why}` : ''}`)
-    .join('\n');
+  return formatChecklistItems(checklist);
 }
 
 /**

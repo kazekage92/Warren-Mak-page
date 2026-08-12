@@ -39,6 +39,8 @@
  *   - extract-entities.js:       buildExtractionPrompt <-> kgBuildExtractionPrompt
  *   - fact-retention-checker.js: formatState       <-> kgFormatState
  *   - fact-retention-checker.js: buildJudgePrompt  <-> kgBuildJudgePrompt
+ *   - generate-article.js:       buildWriterPrompt <-> buildWriterPromptBrowser
+ *   - generate-article.js:       buildRepairPrompt <-> buildRepairPromptBrowser
  *
  * Usage: node validate-admin-mirror-sync.js
  * Exits non-zero if any pair's output diverges.
@@ -53,6 +55,7 @@ import { buildReviewPrompt, formatChecklist } from './coverage-reviewer.js';
 import { buildSeoPrompt } from './seo-optimizer.js';
 import { buildExtractionPrompt } from './extract-entities.js';
 import { buildJudgePrompt, formatState } from './fact-retention-checker.js';
+import { buildWriterPrompt, buildRepairPrompt } from './generate-article.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -158,12 +161,25 @@ function loadAdminMirrors() {
   const moduleSrc = [
     extractVarDecl(html, 'KG_ENTITY_TYPES'),
     extractVarDecl(html, 'KG_RELATIONS'),
+    // formatChecklistItemsBrowser is a private helper both kcFormatChecklist and
+    // formatChecklistForWriterBrowser call (mirrors scripts/checklist-format.js's
+    // formatChecklistItems()) — not itself in this validator's target list (it's asserted
+    // transitively through those two), but it must still be in-scope for the sandbox eval below
+    // to resolve the call.
+    extractFunctionSource(html, 'formatChecklistItemsBrowser'),
     extractFunctionSource(html, 'kcFormatChecklist'),
     extractFunctionSource(html, 'buildReviewPromptBrowser'),
     extractFunctionSource(html, 'buildSeoPromptBrowser'),
     extractFunctionSource(html, 'kgFormatState'),
     extractFunctionSource(html, 'kgBuildJudgePrompt'),
     extractFunctionSource(html, 'kgBuildExtractionPrompt'),
+    // formatChecklistForWriterBrowser is a private helper buildWriterPromptBrowser/
+    // buildRepairPromptBrowser both call — not itself in this validator's target list (it's
+    // asserted transitively through those two), but it must still be in-scope for the sandbox
+    // eval below to resolve the call.
+    extractFunctionSource(html, 'formatChecklistForWriterBrowser'),
+    extractFunctionSource(html, 'buildWriterPromptBrowser'),
+    extractFunctionSource(html, 'buildRepairPromptBrowser'),
     // Expose everything to the sandbox's global scope so the harness can read it back.
     [
       'globalThis.__mirrors__ = {',
@@ -172,7 +188,9 @@ function loadAdminMirrors() {
       '  buildSeoPromptBrowser: buildSeoPromptBrowser,',
       '  kgFormatState: kgFormatState,',
       '  kgBuildJudgePrompt: kgBuildJudgePrompt,',
-      '  kgBuildExtractionPrompt: kgBuildExtractionPrompt',
+      '  kgBuildExtractionPrompt: kgBuildExtractionPrompt,',
+      '  buildWriterPromptBrowser: buildWriterPromptBrowser,',
+      '  buildRepairPromptBrowser: buildRepairPromptBrowser',
       '};',
     ].join('\n'),
   ].join('\n\n');
@@ -232,6 +250,54 @@ const KG_STATE_NEW = {
   ],
   edges: [],
 };
+
+const ARTICLE_SUMMARIES_EMPTY = [];
+const ARTICLE_SUMMARIES_SAMPLE = [
+  {
+    slug: 'time-decay-warrants',
+    title: 'Time Decay and Your Structured Warrants',
+    summary: 'Explains how theta erodes a warrant\'s "extrinsic" value & <intrinsic> value over time.',
+  },
+  {
+    slug: 'leverage-basics',
+    title: 'Leverage Basics for New Traders',
+    summary: 'Covers leverage and risk sizing for 中文测试 readers — an em dash too.',
+  },
+];
+
+const NEAR_DUPLICATES_EMPTY = [];
+const NEAR_DUPLICATES_SAMPLE = [
+  {
+    level: 'high',
+    title: 'Time Decay and Your Structured Warrants',
+    note: 'Same core concept -- angle this one differently, e.g. "risk sizing" not "definition".',
+  },
+];
+
+const MUST_INCLUDE_FACTS_EMPTY = [];
+const MUST_INCLUDE_FACTS_SAMPLE = [
+  'Warren Mak has 32 years of market experience',
+  'Former Head of 5 departments at Bursa Malaysia',
+];
+
+const SOURCE_TEXT_SAMPLE =
+  'A pasted reference column with "quotes", <b>markup</b>, an ampersand & an em dash — plus 中文测试字符.';
+
+const REPAIR_DRAFT_SAMPLE = {
+  title: 'Time Decay and Your Structured Warrants',
+  summary: 'A short summary with "quotes" & <html>.',
+  body_text: DRAFT_TEXT_SAMPLE,
+};
+const REPAIR_MISSING_EMPTY = [];
+const REPAIR_MISSING_SAMPLE = [
+  { name: 'Bursa Malaysia' },
+  { name: 'Warrant\'s "Extrinsic" Value & <Risk> Tags' },
+];
+const REPAIR_PARTIAL_EMPTY = [];
+const REPAIR_PARTIAL_SAMPLE = [
+  { name: 'Leverage', evidence: 'mentioned once but not explained' },
+  { name: 'Time Decay (Theta)' }, // no `evidence` field -- exercises the "(none)" fallback
+];
 
 // ---------------------------------------------------------------------------
 // Comparison harness
@@ -339,6 +405,56 @@ comparePromptObjects(
   'old vs new state',
   mirrors.kgBuildJudgePrompt('time-decay-warrants', KG_STATE_OLD, KG_STATE_NEW),
   buildJudgePrompt({ slug: 'time-decay-warrants', oldState: KG_STATE_OLD, newState: KG_STATE_NEW })
+);
+
+console.log('\ngenerate-article.js buildWriterPrompt <-> buildWriterPromptBrowser');
+comparePromptObjects(
+  'empty inputs, no source text',
+  mirrors.buildWriterPromptBrowser('Time Decay', CHECKLIST_EMPTY, MUST_INCLUDE_FACTS_EMPTY, ARTICLE_SUMMARIES_EMPTY, NEAR_DUPLICATES_EMPTY, null),
+  buildWriterPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_EMPTY,
+    mustIncludeFacts: MUST_INCLUDE_FACTS_EMPTY,
+    articleSummaries: ARTICLE_SUMMARIES_EMPTY,
+    nearDuplicates: NEAR_DUPLICATES_EMPTY,
+    sourceText: null,
+  })
+);
+comparePromptObjects(
+  'sample inputs, no source text',
+  mirrors.buildWriterPromptBrowser('Time Decay', CHECKLIST_SAMPLE, MUST_INCLUDE_FACTS_SAMPLE, ARTICLE_SUMMARIES_SAMPLE, NEAR_DUPLICATES_SAMPLE, null),
+  buildWriterPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_SAMPLE,
+    mustIncludeFacts: MUST_INCLUDE_FACTS_SAMPLE,
+    articleSummaries: ARTICLE_SUMMARIES_SAMPLE,
+    nearDuplicates: NEAR_DUPLICATES_SAMPLE,
+    sourceText: null,
+  })
+);
+comparePromptObjects(
+  'sample inputs, with source text',
+  mirrors.buildWriterPromptBrowser('Time Decay', CHECKLIST_SAMPLE, MUST_INCLUDE_FACTS_SAMPLE, ARTICLE_SUMMARIES_SAMPLE, NEAR_DUPLICATES_SAMPLE, SOURCE_TEXT_SAMPLE),
+  buildWriterPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_SAMPLE,
+    mustIncludeFacts: MUST_INCLUDE_FACTS_SAMPLE,
+    articleSummaries: ARTICLE_SUMMARIES_SAMPLE,
+    nearDuplicates: NEAR_DUPLICATES_SAMPLE,
+    sourceText: SOURCE_TEXT_SAMPLE,
+  })
+);
+
+console.log('\ngenerate-article.js buildRepairPrompt <-> buildRepairPromptBrowser');
+comparePromptObjects(
+  'empty checklist/missing/partial',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_EMPTY, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_EMPTY, REPAIR_PARTIAL_EMPTY),
+  buildRepairPrompt({ topic: 'Time Decay', checklist: CHECKLIST_EMPTY, draft: REPAIR_DRAFT_SAMPLE, missing: REPAIR_MISSING_EMPTY, partial: REPAIR_PARTIAL_EMPTY })
+);
+comparePromptObjects(
+  'sample checklist/missing/partial',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_SAMPLE, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_SAMPLE, REPAIR_PARTIAL_SAMPLE),
+  buildRepairPrompt({ topic: 'Time Decay', checklist: CHECKLIST_SAMPLE, draft: REPAIR_DRAFT_SAMPLE, missing: REPAIR_MISSING_SAMPLE, partial: REPAIR_PARTIAL_SAMPLE })
 );
 
 console.log(`\n${checks} check(s), ${failures} failure(s).`);

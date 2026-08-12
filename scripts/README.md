@@ -43,19 +43,28 @@ item — carry the smallest budgets.
 ## extract-articles.js
 
 The non-LLM half of the knowledge-graph extraction pipeline described in
-`extra-md-files/ai-article-pipeline.md` (§2 Steps 1-3). Parses every
-`articles/*.html`, strips boilerplate (nav/footer/CTA/JSON-LD) and the
-decorative `.graph-*` diagram blocks, and upserts the real title/summary/
-English body_text/dates into the `articles` table of
+`extra-md-files/ai-article-pipeline.md` (§2 Steps 1-3, plus the `links` half
+of Step 5). Parses every `articles/*.html`, strips boilerplate (nav/footer/
+CTA/JSON-LD) and the decorative `.graph-*` diagram blocks, and upserts the
+real title/summary/English body_text/dates into the `articles` table of
 `admin/knowledge-graph.db` (idempotent — safe to re-run after every article
 edit or publish). Also regenerates `admin/knowledge-graph.json`, the
 human/LLM-readable mirror of that db, per its own stated contract.
 
-It deliberately stops there: `entities`, `article_entities`, and `edges`
-(plus the `links` table, grouped with them as the doc's Step 5) are left
-untouched — that half needs an LLM call and isn't built yet. Internal links
-this script finds are still surfaced (console summary, `--json-out`) so that
-next pass doesn't have to re-parse the HTML.
+It deliberately stops short of `entities`, `article_entities`, and `edges` —
+that half needs an LLM call (`extract-entities.js`).
+
+It DOES backfill the `links` table — every successfully-parsed article's
+`.article-related` internal links (already found during parsing, previously
+only surfaced via console/`--json-out`) are now written: DELETE that
+article's existing outgoing `links` rows, then INSERT one fresh row per link
+whose target slug resolves to a known article, all inside the same
+transaction as the `articles` upsert. Link data needs no LLM, so despite §2
+Step 5 grouping "Populate article_entities / links" as one step downstream of
+Step 4's entity extraction, there was never a real dependency — this backfill
+runs every time, independent of whether `extract-entities.js` has ever run. A
+link whose target slug has no matching article is skipped (counted, warned
+about), never written as a dangling foreign key.
 
 ```bash
 cd scripts
@@ -69,7 +78,32 @@ node extract-articles.js --db ../admin/knowledge-graph.db        # (default show
 
 Run it again any time `articles/*.html` changes — re-running is safe (upsert
 keyed on `slug`, article ids stay stable so it never disturbs rows in
-`entities`/`article_entities`/`edges`/`links` that reference them).
+`entities`/`article_entities`/`edges` that reference them; `links` is fully
+re-derived from current HTML every run, so an edited `.article-related` block
+is reflected exactly, not merely appended to).
+
+### Validating without an API key
+
+`validate-extract-articles.js` — no LLM involved (matching
+`retrieval-layer.js`'s/`import-source-articles.js`'s own no-fixture-needed
+precedent for pure-data scripts), so this validates the `links` backfill
+against a temp copy of the schema under `scripts/output/` (gitignored),
+running the REAL parser over the real `articles/*.html` but never touching
+the real `admin/knowledge-graph.db`:
+
+```bash
+node validate-extract-articles.js
+```
+
+It asserts: real extraction finds a nonzero number of internal links per
+article; `backfillLinks()` writes exactly one row per resolvable link, with
+the right `target_article_id`/`link_text`; a link whose target slug has no
+matching article is skipped, not written; a synthetic source slug with no
+`articles` row is silently ignored; re-running with identical records leaves
+the row count unchanged (idempotent); re-running with a shrunk link set for
+one article actually removes the now-stale rows (re-derivation, not an
+append-only log); and at the CLI level, two consecutive real runs over
+`articles/` produce the same row count both times.
 
 ## extract-entities.js
 
@@ -263,10 +297,25 @@ Returns `{ seedEntities, relatedEntities, articleSummaries, nearDuplicates,
 suggestedLinks, checklist, contentHierarchy, duplicateRisk? }`. A topic that
 matches no entity at all comes back with everything empty plus a `note`
 explaining it's genuinely new — that's a normal result, not an error.
-Exported functions (`findSeedEntities`, `expandRelatedEntities`,
-`getArticleSummariesForEntities`, `flagNearDuplicateCoverage`,
-`suggestInternalLinks`, `buildChecklist`, `scoreTitleSlugSimilarity`,
-`assessContentHierarchy`, `buildRetrievalContext`) accept any `db` object
+
+This file also exports `insertSuggestedLinks(bodyText, suggestedLinks)` — §4
+Phase 5's auto-INSERT step, not just the suggest-what-to-link-to piece above.
+For each suggestion (best-scored first), wraps the first verbatim mention of
+its entity name in `bodyText` with an ordinary `<a href="<slug>.html">`
+anchor (relative link, same convention every article's `.article-related`
+block already uses); an entity with no verbatim mention is reported in
+`skipped`, never force-inserted. Pure text transform, no LLM, no db access —
+kept in this file next to `suggestInternalLinks` since it's the natural
+second half of the same phase, even though it operates on a draft body text
+rather than the graph. Consumed by `generate-article.js` as the final step of
+`generateArticleWithReview()` (see below) — not part of `buildRetrievalContext`
+itself, since it needs a draft to insert into.
+
+Exported functions that touch the graph (`findSeedEntities`,
+`expandRelatedEntities`, `getArticleSummariesForEntities`,
+`flagNearDuplicateCoverage`, `suggestInternalLinks`, `buildChecklist`,
+`scoreTitleSlugSimilarity`, `assessContentHierarchy`, `buildRetrievalContext`)
+accept any `db` object
 exposing `.prepare(sql).all(...)/.get(...)` — that narrow surface is
 deliberate so §2's in-browser incremental path (option (b), via `sql.js`/
 WASM) can reuse this file unchanged behind a thin adapter, once that path is
@@ -355,7 +404,11 @@ Phase 3 (AI Content Generation) and §5's coverage reviewer, "in the SAME pass
 4. Review the draft      -- reviewer LLM call (coverage-reviewer.js), a SEPARATE call
 5. <=1 repair retry      -- only if step 4 found a gap: feed missing/partial items
                               back to the writer (buildRepairPrompt), regenerate, re-review once
-6. Return                -- draft + coverage result together, for Phase 8 (the human) to act on
+6. Auto-insert internal   -- §4 Phase 5, on the FINAL draft body text (after any repair):
+   links                     retrieval-layer.js's insertSuggestedLinks() wraps the first
+                              verbatim mention of each suggestedLinks entity in a real <a> tag
+7. Return                -- linked draft + coverage result + link-insertion report together,
+                              for Phase 8 (the human) to act on
 ```
 
 The retry cap is enforced in code, not just documented: passing
@@ -377,14 +430,28 @@ manually-pasted Nanyang column — §4 Phase 1's fallback for paywalled content;
 Phase 1's own import pipeline is not built, this is just an ad hoc input).
 
 Phase 3's fuller scope — SEO optimisation (§4 Phase 4, now `seo-optimizer.js`
-above), auto-inserted internal links (Phase 5, still not built — out of scope
-per `extra-md-files/pipeline-phase-4-6-7-1-mvp.md`), content-hierarchy
-enforcement (Phase 6, now `retrieval-layer.js`'s `contentHierarchy` field) —
-is **not** built in THIS file; those are separate, standalone pieces that
-happen to consume the same retrieval context. The writer prompt still
+above), content-hierarchy enforcement (Phase 6, now `retrieval-layer.js`'s
+`contentHierarchy` field) — is **not** built in THIS file; those are separate,
+standalone pieces that happen to consume the same retrieval context. Phase 5
+(auto-inserted internal links) **is** built here, as the pipeline's own final
+step (step 6 above) — the one piece of "Phase 3's fuller scope" that needed
+the already-finished draft body text to insert into, so it fit naturally at
+the end of this file rather than standing alone. The writer prompt still
 receives `nearDuplicates`/`suggestedLinks` from the retrieval context so it
-can steer away from duplicate coverage, but nothing here auto-generates meta
-tags or inserts `<a>` tags — call `seo-optimizer.js` separately for metadata.
+can steer away from duplicate coverage and mention related articles naturally
+in its own words; the auto-insert step turns those mentions into real `<a>`
+links afterward, on the FINAL draft (after any repair retry) — the reviewer
+always judges the writer's own plain-text output, never text this step added.
+Nothing here auto-generates meta tags — call `seo-optimizer.js` separately
+for that.
+
+`result.internalLinks` (both at the function-call and `--json` CLI level) is
+`{inserted: [{entity, targetSlug, targetTitle, mentionText}], skipped:
+[{entity, targetSlug, reason}]}` — `skipped` covers an entity with no
+verbatim mention in the draft (the writer discussed it in different words) or
+whose only mention overlapped a link already inserted for an earlier
+suggestion; neither case force-inserts a link, matching §5's own "never
+silently dropped or silently force-inserted" stance for coverage gaps.
 
 ```bash
 cd scripts
@@ -434,10 +501,17 @@ retry cap really is 1 — even when the repaired draft still leaves an item
 the result rather than being dropped; a first draft that's already fully
 covered never retries at all (no wasted call); `maxRetries > 1` is rejected
 before any call is made; must-include facts actually reach the checklist and
-the reviewer prompt text; and at the CLI level, `--json` output round-trips
-the same shape and the process exits `0` even with a remaining gap (gaps are
-Phase 8's job, not a pipeline failure), while `--max-retries 2` exits
-non-zero. No `OPENAI_API_KEY`/network needed — same dependency-injection
+the reviewer prompt text; §4 Phase 5's `insertSuggestedLinks()` links a
+verbatim entity mention, leaves a second occurrence of the same entity
+untouched, and reports (never force-inserts) an entity with no verbatim
+mention — proven both as a standalone pure-function check and end-to-end
+against the real sample db's own `suggestedLinks` for a real topic, asserting
+the FINAL `result.draft.body_text` (not the reviewer's pre-link copy) carries
+the real `<a>` tags; and at the CLI level, `--json` output round-trips the
+same shape (including the new `internalLinks` field) and the process exits
+`0` even with a remaining coverage gap (gaps are Phase 8's job, not a
+pipeline failure), while `--max-retries 2` exits non-zero. No
+`OPENAI_API_KEY`/network needed — same dependency-injection
 pattern as every LLM-backed script above.
 
 ## seo-optimizer.js
@@ -570,6 +644,99 @@ Paste the printed blob into `CONFIG.ENCRYPTED_OPENAI_KEY` in
 `admin/index.html`. Until that blob is set, `CONFIG.ENCRYPTED_OPENAI_KEY`
 stays `''` and the Knowledge Coverage panel just shows "OpenAI key not
 configured" — it never blocks publishing either way.
+
+## scrape-tradewizard-index.js
+
+Script 1 of 2 from `extra-md-files/nanyang-scraper.md` ("Nanyang / TradeWizard
+Article Scraper — Build Plan") — builds the URL/metadata index of the
+~400+ TradeWizard/Warren Mak eNanyang columns, distinct from the 12
+hand-authored site articles `extract-articles.js` covers. No LLM, no db
+write — this only produces a JSON list; turning it into `source_articles`
+rows is `scrape-enanyang-articles.js`'s job (script 2, documented below).
+
+`https://www.thetradewizard.com/articles` renders in-browser as a Next.js
+client-side sortable grid, but a plain unauthenticated GET already returns
+the full dataset server-side, embedded in one `self.__next_f.push([1,
+"...escaped JSON..."])` React Server Component payload whose unescaped
+string contains `"data":[{"id":...,"date":...,"title":...,"category":...,
+"keywords":[...],"link":"https://www.enanyang.my/news/..."}, ...]`. This
+script finds that chunk, unescapes it, bracket-matches the `"data":[...]`
+array out of it, and `JSON.parse`s just that slice — verified against the
+live page to parse cleanly into exactly the site's own reported row count
+(432 as of 2026-08-12), so no Playwright/headless-browser render is needed.
+
+```bash
+cd scripts
+node scrape-tradewizard-index.js --dry-run                 # fetch + parse + print, no write
+npm run scrape-tradewizard-index                            # writes output/tradewizard-index.json
+node scrape-tradewizard-index.js --out output/custom.json  # override output path
+node scrape-tradewizard-index.js --html-file page.html     # parse a saved HTML file instead of fetching (offline testing)
+node scrape-tradewizard-index.js --source-url <url>        # override the fetch URL (default the live TradeWizard page)
+```
+
+Each written row is `{id, title, url, publishedAt, category, keywords}` —
+`id` is TradeWizard's own stable numeric id, kept for script 2's future
+dedupe/checkpointing even though the build plan's minimum contract doesn't
+require it. The extraction (`extractTradeWizardRows`) is a pure function
+over an HTML string, no network/fs involved, so it's directly testable
+against a saved fixture via `--html-file` — no `validate-*.js` harness
+exists for this script yet (the build plan's build order only calls one out
+for script 2); add one the same way if this script grows more parsing edge
+cases to guard.
+
+Throws a clear error (not a silent empty array) if the page's flight-payload
+shape ever changes and no chunk contains the expected `"data":[{"id"` marker.
+
+## scrape-enanyang-articles.js
+
+Script 2 of 2 — reads `output/tradewizard-index.json` (script 1's output),
+or a single `--url`, fetches each eNanyang article page, parses its
+`NewsArticle` `application/ld+json` block for the full `articleBody`, and
+upserts into `source_articles` via `import-source-articles.js`'s
+`upsertSourceArticle()` (imported, not reimplemented). No login/cookies/
+session needed — live-verified 2026-08-12 that the anonymous HTTP response
+already carries the full article text via that JSON-LD block, confirmed
+across both a 2026 article and two 2018 articles (not a recent-articles-only
+quirk). See this file's own header comment and
+`extra-md-files/nanyang-scraper.md`'s "Key discovery" for the fuller
+writeup, including the ToS/business-call flag around reading full content
+through the SEO channel rather than the reader-facing unlock flow.
+
+```bash
+cd scripts
+node scrape-enanyang-articles.js --url <enanyang-url> --dry-run   # parse + print one article, no db write
+node scrape-enanyang-articles.js --dry-run                       # parse + print every row in the index, no db write
+node scrape-enanyang-articles.js --limit 3                       # real run, first 3 index rows only
+node scrape-enanyang-articles.js --url <enanyang-url>             # real run, one article
+node scrape-enanyang-articles.js --slug <slug>                    # real run, one row matching a computed slug
+node scrape-enanyang-articles.js --start-after <slug>             # resume after a given slug (checkpointing)
+node scrape-enanyang-articles.js --delay-ms 1500                  # between-request delay (default 1200ms)
+npm run validate-scrape-enanyang-articles                         # offline fixture-based validation, no network
+```
+
+**Slug fix vs. the build plan's literal wording:** the plan said to reuse
+`generate-article.js`'s `slugifyTopic(title)` as-is, but that strips every
+non-`[a-z0-9]` character — and eNanyang titles are Chinese, so plain
+`slugifyTopic` collapses almost every title to the same `"topic"` fallback,
+which would silently overwrite one row per run given `source_articles.slug`'s
+UNIQUE index. `buildSourceSlug()` fixes this by suffixing eNanyang's own
+permanent numeric article id (the trailing path segment of every article
+URL) onto the slugified title.
+
+Per-article outcomes are logged as `ok` / `dry-run` / `no-articleBody-found`
+/ `fetch-error` / `parse-error` — one bad page never aborts the run. A
+429/403 response is the one exception: it throws `StopRunError` and stops
+the whole run instead of being logged and skipped, per
+`nanyang-scraper.md`'s open question 3 (treat that as a block/rate-limit
+signal, not an ordinary failure). `--start-after <slug>` lets a partial run
+resume without redoing already-processed rows.
+
+**Execution gate, unchanged from the plan:** do not run this against the
+full ~400+ row index until the user has looped in their supervisor — not a
+technical blocker, a business/ToS call. Testing with `--limit` or a single
+`--url` is fine at any time; that's exactly how this script was verified
+(see git history / this session for the specific URLs and outcomes checked
+before this note was written).
 
 ## validate-admin-mirror-sync.js
 

@@ -12,14 +12,25 @@
  *   4. Populates the `articles` table in admin/knowledge-graph.db via
  *      INSERT ... ON CONFLICT(slug) DO UPDATE — idempotent, safe to re-run.
  *
- * Deliberately STOPS THERE. It does not touch `entities`, `article_entities`,
- * or `edges` — those require the LLM call (§2 Step 4, blocked on nothing
- * anymore per §6, but not this script's job). It also does not write to the
- * `links` table: §2 groups "Populate article_entities / links" as Step 5,
- * downstream of Step 4's entity extraction, so link persistence is left for
- * that pass even though the link data itself needs no LLM. The internal
- * links this script finds are still surfaced — via --json-out and the
- * console summary — so Step 5 doesn't have to re-parse the HTML.
+ * Deliberately STOPS SHORT of `entities`, `article_entities`, and `edges` —
+ * those require the LLM call (§2 Step 4, blocked on nothing anymore per §6,
+ * but not this script's job).
+ *
+ * It DOES now backfill the `links` table (§2 Step 5's "Populate
+ * article_entities / links" — the `links` half only; `article_entities` is
+ * still extract-entities.js's job since it needs the LLM-scored relevance).
+ * Link data needs no LLM — it's read straight off each article's own
+ * `.article-related` markup — so there was never a real reason to gate it
+ * behind Step 4; §2 Step 5 only grouped it with `article_entities` because
+ * both said "Populate" in the same sentence, not because of a real
+ * dependency. Every run re-derives `links` from every successfully-parsed
+ * article's current `internal_links` (DELETE-then-INSERT per source article,
+ * inside the same transaction as the `articles` upsert) — idempotent and
+ * self-healing: edit an article's `.article-related` block, re-run, and the
+ * `links` table reflects the new HTML exactly, the same "safe to re-run"
+ * contract `articles` already has. A link whose target slug has no matching
+ * article (already warned about below, pre-existing behavior) is skipped,
+ * not written as a dangling foreign key.
  *
  * Usage (from scripts/):
  *   npm install
@@ -167,7 +178,7 @@ function extractInternalLinks($) {
   return links;
 }
 
-function extractArticle(filePath) {
+export function extractArticle(filePath) {
   const html = readFileSync(filePath, 'utf-8');
   const $ = cheerio.load(html);
   const slug = path.basename(filePath, '.html');
@@ -213,7 +224,7 @@ function extractArticle(filePath) {
   };
 }
 
-function listArticleFiles(articlesDir) {
+export function listArticleFiles(articlesDir) {
   return readdirSync(articlesDir)
     .filter((f) => f.endsWith('.html'))
     .sort()
@@ -224,7 +235,7 @@ function listArticleFiles(articlesDir) {
 // DB population (articles table only — see file header)
 // ---------------------------------------------------------------------------
 
-function upsertArticles(db, records) {
+export function upsertArticles(db, records) {
   const stmt = db.prepare(`
     INSERT INTO articles (slug, filepath, title, summary, body_text, published_at, last_updated, status)
     VALUES (@slug, @filepath, @title, @summary, @body_text, @published_at, @last_updated, @status)
@@ -249,6 +260,41 @@ function upsertArticles(db, records) {
       status: record.status,
     });
   }
+}
+
+/** Rewrites the `links` table's rows for every article in `records` (i.e.
+ *  every article that parsed successfully this run — a failed article's
+ *  previously-written links are left untouched, same isolation as
+ *  `upsertArticles`). For each source article: DELETE its existing outgoing
+ *  links, then INSERT one fresh row per `internal_links` entry whose
+ *  `target_slug` resolves to a real article. Requires `articles` to already
+ *  be upserted (called after `upsertArticles` in the same transaction) so
+ *  `idBySlug` reflects every id, including ones just inserted this run.
+ *  Returns `{inserted, skippedDangling}` for the console summary. */
+export function backfillLinks(db, records) {
+  const idBySlug = new Map(db.prepare('SELECT id, slug FROM articles').all().map((a) => [a.slug, a.id]));
+  const deleteStmt = db.prepare('DELETE FROM links WHERE source_article_id = ?');
+  const insertStmt = db.prepare(
+    'INSERT INTO links (source_article_id, target_article_id, link_text) VALUES (?, ?, ?)'
+  );
+
+  let inserted = 0;
+  let skippedDangling = 0;
+  for (const record of records) {
+    const sourceId = idBySlug.get(record.slug);
+    if (!sourceId) continue; // record was just upserted above — should always resolve
+    deleteStmt.run(sourceId);
+    for (const link of record.internal_links) {
+      const targetId = idBySlug.get(link.target_slug);
+      if (!targetId) {
+        skippedDangling++; // already warned about in main()'s sanity check
+        continue;
+      }
+      insertStmt.run(sourceId, targetId, link.link_text);
+      inserted++;
+    }
+  }
+  return { inserted, skippedDangling };
 }
 
 /** Upserts the db's own `_meta` table so it stops describing itself as
@@ -278,9 +324,10 @@ function upsertMeta(db, records) {
     {
       key: 'note_on_entities_edges',
       value:
-        'entities, article_entities, edges, and links are still hand-authored sample data -- ' +
-        'this script only populates the articles table (Steps 1-3). They stay stale until a ' +
-        'real extract-entities.js run (Step 4-5, LLM-backed) replaces them.',
+        'entities, article_entities, and edges are still populated by extract-entities.js ' +
+        '(the LLM half, Step 4-5) -- this script does not touch them. links IS now populated ' +
+        'by this script (backfilled from each article\'s .article-related markup, no LLM ' +
+        'needed) -- rewritten every run from current HTML, not hand-authored sample data.',
     },
   ];
   for (const row of rows) stmt.run(row);
@@ -289,10 +336,10 @@ function upsertMeta(db, records) {
 // ---------------------------------------------------------------------------
 // admin/knowledge-graph.json mirror — regenerated from current DB state, with
 // a fresh _meta block (description/schema_source/generated_at/generated_by/
-// article_count) written below. Entities/edges/links are read back verbatim
-// (this script never writes them), so the only thing that actually changes
-// here is real body_text/title/summary/dates replacing the hand-authored
-// sample values.
+// article_count) written below. entities/edges are read back verbatim (this
+// script never writes them); links is read back too, but it's no longer
+// someone else's data by the time this runs — backfillLinks() above just
+// rewrote it from the same articles being mirrored here.
 // ---------------------------------------------------------------------------
 
 function regenerateJsonMirror(db, mirrorPath) {
@@ -419,8 +466,10 @@ function main() {
   try {
     db.exec(SCHEMA_SQL);
     db.exec('BEGIN');
+    let linkStats;
     try {
       upsertArticles(db, records);
+      linkStats = backfillLinks(db, records);
       upsertMeta(db, records);
       db.exec('COMMIT');
     } catch (err) {
@@ -428,6 +477,11 @@ function main() {
       throw err;
     }
     console.log(`\nUpserted ${records.length} row(s) into ${path.relative(REPO_ROOT, opts.dbPath)} (articles + _meta).`);
+    console.log(
+      `Backfilled links: ${linkStats.inserted} row(s) written` +
+        (linkStats.skippedDangling ? `, ${linkStats.skippedDangling} skipped (dangling target slug, see warnings above)` : '') +
+        '.'
+    );
 
     if (opts.mirror) {
       const mirrorPath = path.join(REPO_ROOT, 'admin', 'knowledge-graph.json');
@@ -439,8 +493,9 @@ function main() {
   }
 
   console.log(
-    '\nStopping here by design: entities/article_entities/edges (and the links table, ' +
-      'grouped with them in §2 Step 5) are not touched — that half needs the LLM call.'
+    '\nStopping here by design: entities/article_entities/edges are not touched — that half ' +
+      'needs the LLM call (extract-entities.js). links, unlike those, needs no LLM and is ' +
+      'fully backfilled above.'
   );
 }
 
