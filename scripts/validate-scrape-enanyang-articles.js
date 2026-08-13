@@ -36,10 +36,13 @@ import {
   buildSourceSlug,
   extractArticleIdFromUrl,
   cleanHeadline,
+  canonicalizeUrl,
+  findExistingSlugByUrl,
   fetchEnanyangHtml,
   processRow,
   StopRunError,
 } from './scrape-enanyang-articles.js';
+import { dedupeRowsByUrl } from './scrape-tradewizard-index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -276,6 +279,98 @@ async function checks_processRow() {
 }
 
 // ---------------------------------------------------------------------------
+// Part 4 — duplicate-prevention: canonicalizeUrl() / findExistingSlugByUrl()
+// / dedupeRowsByUrl() / processRow() reusing an existing row by URL
+// ---------------------------------------------------------------------------
+
+function checks_canonicalizeUrl() {
+  console.log('\n=== Part 4: canonicalizeUrl() / findExistingSlugByUrl() / dedupeRowsByUrl() ===\n');
+  const checks = [];
+
+  checks.push(['strips query string and hash', canonicalizeUrl('https://www.enanyang.my/news/x/1?utm_source=fb#top') === 'https://www.enanyang.my/news/x/1']);
+  checks.push(['strips a trailing slash', canonicalizeUrl('https://www.enanyang.my/news/x/1/') === canonicalizeUrl('https://www.enanyang.my/news/x/1')]);
+  checks.push(['returns null for a non-URL string', canonicalizeUrl('not a url') === null]);
+  checks.push(['returns null for a non-string input', canonicalizeUrl(undefined) === null]);
+
+  const db = freshTempDb();
+  try {
+    db.prepare(
+      `INSERT INTO source_articles (title, slug, original_url, status) VALUES ('Old Title', 'old-title-slug', 'https://www.enanyang.my/news/x/999', 'imported')`
+    ).run();
+
+    checks.push(['finds the existing slug by exact original_url match', findExistingSlugByUrl(db, 'https://www.enanyang.my/news/x/999') === 'old-title-slug']);
+    checks.push(['finds it through a query-string/trailing-slash variant too', findExistingSlugByUrl(db, 'https://www.enanyang.my/news/x/999/?ref=share') === 'old-title-slug']);
+    checks.push(['returns null when no row matches', findExistingSlugByUrl(db, 'https://www.enanyang.my/news/x/000') === null]);
+    checks.push(['returns null when db is null (dry-run mode)', findExistingSlugByUrl(null, 'https://www.enanyang.my/news/x/999') === null]);
+  } finally {
+    db.close();
+  }
+
+  const rowsWithDup = [
+    { title: 'A', url: 'https://www.enanyang.my/news/x/1', id: 1 },
+    { title: 'B', url: 'https://www.enanyang.my/news/x/2', id: 2 },
+    { title: 'A (re-tagged)', url: 'https://www.enanyang.my/news/x/1', id: 3 }, // same URL, different id/title
+    { title: 'no-url row', url: null, id: 4 },
+  ];
+  const deduped = dedupeRowsByUrl(rowsWithDup);
+  checks.push(['dedupeRowsByUrl drops a later row that repeats an earlier url', deduped.length === 3]);
+  checks.push(['dedupeRowsByUrl keeps the FIRST occurrence of a repeated url', deduped.find((r) => r.url === 'https://www.enanyang.my/news/x/1')?.id === 1]);
+  checks.push(['dedupeRowsByUrl keeps a row with a falsy url', deduped.some((r) => r.id === 4)]);
+
+  return checks;
+}
+
+/** Proves processRow() reuses an existing row (by original_url) instead of
+ *  inserting a duplicate when the same eNanyang article is re-scraped under
+ *  a changed title — the scenario buildSourceSlug() alone can't catch,
+ *  since its slug is title-derived (see findExistingSlugByUrl's doc
+ *  comment). */
+async function checks_processRow_urlDedup() {
+  console.log('\n=== Part 5: processRow() reuses an existing row by original_url ===\n');
+  const checks = [];
+
+  const db = freshTempDb();
+  try {
+    const rowFirstTitle = { title: null, url: REAL_LD.url, publishedAt: null, category: null, keywords: [], id: 1 };
+    let firstSlug;
+    await withFetch(
+      async () => htmlResponse(REAL_PAGE_HTML),
+      async () => {
+        const outcome = await processRow(rowFirstTitle, { db, dryRun: false });
+        firstSlug = outcome.slug;
+        checks.push(['first scrape inserts ok', outcome.status === 'ok']);
+      }
+    );
+
+    // Simulate TradeWizard's index later carrying a changed title for the
+    // SAME article (same JSON-LD headline is what actually drives the
+    // title here, so change the fixture's headline/name to simulate that).
+    const RETITLED_LD = { ...REAL_LD, headline: '修改后的标题/麦传球 | e南洋', name: '修改后的标题/麦传球 | e南洋' };
+    const RETITLED_PAGE_HTML = pageWithLd([RETITLED_LD]);
+    const rowRetitled = { title: null, url: REAL_LD.url, publishedAt: null, category: null, keywords: [], id: 1 };
+
+    await withFetch(
+      async () => htmlResponse(RETITLED_PAGE_HTML),
+      async () => {
+        const outcome = await processRow(rowRetitled, { db, dryRun: false });
+        checks.push(['re-scrape under a changed title reuses the FIRST slug, not a new one', outcome.slug === firstSlug]);
+        checks.push(['outcome detail flags the dedup match', /matched existing row by original_url/.test(outcome.detail)]);
+      }
+    );
+
+    const rowCount = db.prepare('SELECT COUNT(*) AS n FROM source_articles WHERE original_url = ?').get(REAL_LD.url);
+    checks.push(['still exactly ONE row for this original_url after the retitle', rowCount.n === 1]);
+
+    const updated = db.prepare('SELECT title FROM source_articles WHERE slug = ?').get(firstSlug);
+    checks.push(['the existing row\'s title was updated to the new one', updated.title === '修改后的标题']);
+  } finally {
+    db.close();
+  }
+
+  return checks;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -283,7 +378,13 @@ async function main() {
   mkdirSync(OUTPUT_DIR, { recursive: true });
   if (!existsSync(SCHEMA_SQL_PATH)) throw new Error(`Missing ${path.relative(REPO_ROOT, SCHEMA_SQL_PATH)}`);
 
-  const checks = [...checks_extractNewsArticleLd(), ...checks_slugAndHeadline(), ...(await checks_processRow())];
+  const checks = [
+    ...checks_extractNewsArticleLd(),
+    ...checks_slugAndHeadline(),
+    ...(await checks_processRow()),
+    ...checks_canonicalizeUrl(),
+    ...(await checks_processRow_urlDedup()),
+  ];
 
   console.log('\n=== Results ===');
   let allPassed = true;

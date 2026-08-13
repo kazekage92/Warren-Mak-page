@@ -339,10 +339,21 @@ function upsertMeta(db, records) {
 // article_count) written below. entities/edges are read back verbatim (this
 // script never writes them); links is read back too, but it's no longer
 // someone else's data by the time this runs — backfillLinks() above just
-// rewrote it from the same articles being mirrored here.
+// rewrote it from the same articles being mirrored here. source_articles is
+// also read back verbatim — this script never writes it either, but it's
+// mirrored for the same reason articles/entities/edges are: the .db is
+// opaque in git diffs (schema.sql's own header comment) and isn't openable
+// without a sqlite client, so this JSON export is the only practical way to
+// manually eyeball what scrape-enanyang-articles.js/import-source-articles.js
+// actually wrote — e.g. spot-checking a scraped Chinese article's title/
+// original_content against its original_url. Exported (not just called
+// locally) so those two scripts can call it themselves right after their own
+// db writes, keeping the .json mirror from silently going stale relative to
+// the .db between extract-articles.js runs — see this repo's CLAUDE.md rule
+// that "no build step" means nothing else regenerates this file for you.
 // ---------------------------------------------------------------------------
 
-function regenerateJsonMirror(db, mirrorPath) {
+export function regenerateJsonMirror(db, mirrorPath) {
   const articles = db.prepare('SELECT * FROM articles ORDER BY id').all();
   const entities = db.prepare('SELECT * FROM entities ORDER BY id').all();
   const edgesRaw = db.prepare('SELECT * FROM edges').all();
@@ -351,6 +362,7 @@ function regenerateJsonMirror(db, mirrorPath) {
 
   const articleEntities = db.prepare('SELECT * FROM article_entities').all();
   const linksRaw = db.prepare('SELECT * FROM links').all();
+  const sourceArticles = db.prepare('SELECT * FROM source_articles ORDER BY id').all();
 
   const out = {
     _meta: {
@@ -363,6 +375,7 @@ function regenerateJsonMirror(db, mirrorPath) {
       generated_at: new Date().toISOString().slice(0, 10),
       generated_by: 'scripts/extract-articles.js',
       article_count: String(articles.length),
+      source_article_count: String(sourceArticles.length),
     },
     articles: articles.map((a) => ({
       slug: a.slug,
@@ -395,6 +408,24 @@ function regenerateJsonMirror(db, mirrorPath) {
       source: entityById.get(edge.source_entity_id)?.name,
       relation: edge.relation,
       target: entityById.get(edge.target_entity_id)?.name,
+    })),
+    // Phase 1 scrape/import staging area — see schema.sql's own comment on
+    // this table. Full original_content is included (not just a length),
+    // same "read-only export is worth more than a summary" precedent as
+    // articles[].body_text above — the whole point is being able to read a
+    // scraped article's actual text without opening the .db.
+    source_articles: sourceArticles.map((s) => ({
+      slug: s.slug,
+      title: s.title,
+      original_url: s.original_url,
+      published_at: s.published_at,
+      author: s.author,
+      category: s.category,
+      original_content: s.original_content,
+      featured_image: s.featured_image,
+      import_date: s.import_date,
+      status: s.status,
+      notes: s.notes,
     })),
   };
 

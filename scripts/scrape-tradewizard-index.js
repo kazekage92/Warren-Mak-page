@@ -192,6 +192,30 @@ export function extractTradeWizardRows(html) {
   );
 }
 
+/** Drops rows that repeat an already-seen `url`, keeping the first occurrence
+ *  of each. TradeWizard's own index has been observed to list the same
+ *  `enanyang.my` URL more than once (e.g. a re-categorized/re-tagged repost
+ *  of the same column) — left un-deduped here, script 2
+ *  (`scrape-enanyang-articles.js`) would fetch and upsert the same article
+ *  twice per run under two different `id`/`title` pairs, and since its slug
+ *  is derived from the title, a title difference between those two rows
+ *  would produce two DIFFERENT slugs for the same underlying article —
+ *  i.e. an actual duplicate `source_articles` row, not just a wasted fetch.
+ *  Rows with a falsy `url` are kept as-is (never deduped against each
+ *  other) since there's no dedup key for them. */
+export function dedupeRowsByUrl(rows) {
+  const seen = new Set();
+  const deduped = [];
+  for (const row of rows) {
+    if (row.url) {
+      if (seen.has(row.url)) continue;
+      seen.add(row.url);
+    }
+    deduped.push(row);
+  }
+  return deduped;
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -201,15 +225,13 @@ async function main() {
 
   const html = opts.htmlFile ? readFileSync(opts.htmlFile, 'utf-8') : await fetchTradeWizardIndexHtml(opts.sourceUrl);
 
-  const rows = extractTradeWizardRows(html);
+  const parsedRows = extractTradeWizardRows(html);
+  const rows = dedupeRowsByUrl(parsedRows);
+  const duplicateUrlCount = parsedRows.length - rows.length;
 
-  const urlCounts = new Map();
-  for (const row of rows) urlCounts.set(row.url, (urlCounts.get(row.url) ?? 0) + 1);
-  const duplicateUrlCount = [...urlCounts.values()].filter((n) => n > 1).length;
-
-  console.log(`Parsed ${rows.length} row(s) from ${opts.htmlFile ?? opts.sourceUrl}`);
+  console.log(`Parsed ${parsedRows.length} row(s) from ${opts.htmlFile ?? opts.sourceUrl}`);
   if (duplicateUrlCount) {
-    console.log(`Note: ${duplicateUrlCount} URL(s) appear more than once in the index (not deduped here — that's a downstream concern).`);
+    console.log(`Dropped ${duplicateUrlCount} duplicate-URL row(s), keeping the first occurrence of each — ${rows.length} unique row(s) remain.`);
   }
 
   if (opts.dryRun) {

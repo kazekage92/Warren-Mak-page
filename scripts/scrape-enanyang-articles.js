@@ -48,6 +48,13 @@
  *   node scrape-enanyang-articles.js --delay-ms 1500                  # override the between-request delay (default 1200ms)
  *   node scrape-enanyang-articles.js --index-file output/custom.json  # override the index input path
  *   node scrape-enanyang-articles.js --db ../admin/knowledge-graph.db # (default shown)
+ *   node scrape-enanyang-articles.js --no-mirror                      # skip regenerating admin/knowledge-graph.json after the db write
+ *
+ * A real (non-dry-run) run also regenerates admin/knowledge-graph.json
+ * (extract-articles.js's regenerateJsonMirror(), reused not reimplemented) so the
+ * newly-scraped source_articles rows — including full original_content — are
+ * viewable without a sqlite client, e.g. to manually spot-check a scrape
+ * against its original_url. See that function's own comment for why.
  *
  * EXECUTION GATE — per nanyang-scraper.md: do not run this against the full
  * ~400+ row index until the user has looped in their supervisor. Testing
@@ -63,6 +70,8 @@ import * as cheerio from 'cheerio';
 import { slugifyTopic } from './generate-article.js';
 import { upsertSourceArticle } from './import-source-articles.js';
 import { nextArg } from './cli-args.js';
+import { dedupeRowsByUrl } from './scrape-tradewizard-index.js';
+import { regenerateJsonMirror } from './extract-articles.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -97,6 +106,7 @@ function sleep(ms) {
 function parseArgs(argv) {
   const opts = {
     dryRun: false,
+    mirror: true,
     indexFile: DEFAULT_INDEX_FILE,
     dbPath: DEFAULT_DB,
     url: null,
@@ -110,6 +120,9 @@ function parseArgs(argv) {
     switch (arg) {
       case '--dry-run':
         opts.dryRun = true;
+        break;
+      case '--no-mirror':
+        opts.mirror = false;
         break;
       case '--index-file':
         opts.indexFile = path.resolve(nextArg(argv, ++i, '--index-file'));
@@ -180,6 +193,50 @@ export function buildSourceSlug(title, url) {
   if (articleId) return `${base}-${articleId}`;
   const hash = createHash('sha1').update(url || String(Math.random())).digest('hex').slice(0, 8);
   return `${base}-${hash}`;
+}
+
+/** Normalizes a URL for duplicate comparison: drops query string/hash and a
+ *  trailing slash. eNanyang URLs observed in the wild don't carry tracking
+ *  params, but this costs nothing and avoids a false "not a duplicate" if
+ *  one ever does. Returns null for anything that doesn't parse as a URL
+ *  (never throws — this only feeds a best-effort lookup). */
+export function canonicalizeUrl(url) {
+  if (typeof url !== 'string' || !url.trim()) return null;
+  try {
+    const u = new URL(url.trim());
+    return `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/, '')}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Looks up a `source_articles` row already carrying this `original_url`
+ *  (after canonicalization) and returns its slug, or null if none matches.
+ *
+ * Why this exists on top of the UNIQUE slug index / ON CONFLICT(slug)
+ * upsert: slug is derived from the TITLE, not the URL, so it is NOT a
+ * stable identity for "is this the same article" across two situations
+ * `buildSourceSlug` alone can't catch:
+ *   1. Re-scraping the same eNanyang URL after TradeWizard's own index has
+ *      changed the row's title text (typo fix, re-categorization) between
+ *      two scraper runs — same article, different slug, would otherwise
+ *      insert a second row instead of updating the first.
+ *   2. The same URL already imported one-at-a-time via the admin "Import
+ *      Source Article" form, whose slug is plain `slugifyTopic(title)` with
+ *      no eNanyang article-id suffix — the bulk scraper's own slug for that
+ *      same URL is a different string by construction.
+ * processRow() calls this before deciding what slug to upsert under, and
+ * reuses the existing slug (updating that row) instead of minting a fresh
+ * one, whenever it finds a match. */
+export function findExistingSlugByUrl(db, url) {
+  if (!db) return null;
+  const canonical = canonicalizeUrl(url);
+  if (!canonical) return null;
+  const rows = db.prepare('SELECT slug, original_url FROM source_articles WHERE original_url IS NOT NULL').all();
+  for (const row of rows) {
+    if (canonicalizeUrl(row.original_url) === canonical) return row.slug;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -306,11 +363,18 @@ export async function processRow(row, { db, dryRun }) {
   }
 
   const title = (row.title && row.title.trim()) || cleanHeadline(ld.headline || ld.name) || 'Untitled';
-  const slug = buildSourceSlug(title, row.url);
+  const originalUrl = ld.url || row.url;
+  // A prior row (this run or an earlier one, or a manual admin-form import)
+  // may already carry this original_url under a different slug — reuse it
+  // so the upsert below updates that row instead of inserting a duplicate.
+  // See findExistingSlugByUrl()'s doc comment for why slug alone can't
+  // catch this.
+  const existingSlug = findExistingSlugByUrl(db, originalUrl);
+  const slug = existingSlug || buildSourceSlug(title, row.url);
   const record = {
     title,
     slug,
-    original_url: ld.url || row.url,
+    original_url: originalUrl,
     published_at: ld.datePublished || row.publishedAt || null,
     author: AUTHOR,
     category: row.category ?? null,
@@ -321,13 +385,15 @@ export async function processRow(row, { db, dryRun }) {
       (row.id != null ? ` (TradeWizard index id ${row.id})` : ''),
   };
 
+  const dedupNote = existingSlug ? ' [matched existing row by original_url — reused its slug instead of inserting a duplicate]' : '';
+
   if (dryRun) {
-    return { status: 'dry-run', slug, detail: `title="${record.title}" bodyLength=${record.original_content.length}` };
+    return { status: 'dry-run', slug, detail: `title="${record.title}" bodyLength=${record.original_content.length}${dedupNote}` };
   }
 
   try {
     upsertSourceArticle(db, record);
-    return { status: 'ok', slug, detail: `title="${record.title}" bodyLength=${record.original_content.length}` };
+    return { status: 'ok', slug, detail: `title="${record.title}" bodyLength=${record.original_content.length}${dedupNote}` };
   } catch (err) {
     return { status: 'error', slug, detail: err.message };
   }
@@ -351,6 +417,17 @@ async function main() {
     }
     rows = JSON.parse(readFileSync(opts.indexFile, 'utf-8'));
     if (!Array.isArray(rows)) throw new Error(`${opts.indexFile} did not contain a JSON array.`);
+
+    // Belt-and-suspenders: scrape-tradewizard-index.js already dedupes by
+    // URL before writing the index, but an older cached index file (written
+    // before that fix) or a hand-edited --index-file could still carry
+    // repeats — drop them here too rather than fetching + upserting the
+    // same article twice in one run.
+    const beforeDedup = rows.length;
+    rows = dedupeRowsByUrl(rows);
+    if (rows.length !== beforeDedup) {
+      console.log(`Dropped ${beforeDedup - rows.length} duplicate-URL row(s) from the index before processing.`);
+    }
   }
 
   rows = rows.map((row) => ({ ...row, slug: buildSourceSlug(row.title, row.url) }));
@@ -410,7 +487,14 @@ async function main() {
     if (!stopped && i < rows.length - 1) await sleep(opts.delayMs);
   }
 
-  if (db) db.close();
+  if (db) {
+    if (opts.mirror) {
+      const mirrorPath = path.join(REPO_ROOT, 'admin', 'knowledge-graph.json');
+      regenerateJsonMirror(db, mirrorPath);
+      console.log(`Regenerated ${path.relative(REPO_ROOT, mirrorPath)}.`);
+    }
+    db.close();
+  }
 
   const okCount = outcomes.filter((o) => o.status === 'ok' || o.status === 'dry-run').length;
   const badCount = outcomes.length - okCount;

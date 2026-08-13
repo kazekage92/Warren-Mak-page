@@ -136,9 +136,14 @@ function checks_upsertIdempotency() {
 
 function runCli(extraArgs) {
   try {
+    // --no-mirror: a real run would otherwise regenerate the real
+    // admin/knowledge-graph.json from THIS TEST_DB_PATH (the mirror path is
+    // not derived from --db — see import-source-articles.js's own comment),
+    // clobbering it with this validator's fixture data. Same isolation
+    // precedent as validate-extract-articles.js's own CLI invocation.
     const stdout = execFileSync(
       'node',
-      ['--no-warnings', 'import-source-articles.js', '--db', TEST_DB_PATH, '--pending-dir', PENDING_DIR, ...extraArgs],
+      ['--no-warnings', 'import-source-articles.js', '--db', TEST_DB_PATH, '--pending-dir', PENDING_DIR, '--no-mirror', ...extraArgs],
       { cwd: __dirname, encoding: 'utf-8' }
     );
     return { exitCode: 0, stdout };

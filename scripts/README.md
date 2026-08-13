@@ -51,6 +51,16 @@ real title/summary/English body_text/dates into the `articles` table of
 edit or publish). Also regenerates `admin/knowledge-graph.json`, the
 human/LLM-readable mirror of that db, per its own stated contract.
 
+`regenerateJsonMirror(db, mirrorPath)` (exported) mirrors every table in the
+db, not just `articles`/`entities`/`edges`/`links` — including
+`source_articles`, with its full `original_content` — since the `.db` is
+opaque in git diffs and isn't openable without a sqlite client. That's the
+practical way to manually verify a scraper run (see
+`scrape-enanyang-articles.js`/`import-source-articles.js` below, both of
+which call this same function after their own db writes): open
+`admin/knowledge-graph.json`, find the row by slug/title, and read its
+`original_content` against the source URL.
+
 It deliberately stops short of `entities`, `article_entities`, and `edges` —
 that half needs an LLM call (`extract-entities.js`).
 
@@ -595,6 +605,7 @@ cd scripts
 node import-source-articles.js                                   # sync every pending file
 node import-source-articles.js --dry-run                         # parse + print only, no db write
 node import-source-articles.js --slug <slug>                     # sync one staged file only
+node import-source-articles.js --no-mirror                       # skip regenerating admin/knowledge-graph.json after the db write
 node import-source-articles.js --pending-dir ../admin/source-articles-pending  # (default shown)
 node import-source-articles.js --db ../admin/knowledge-graph.db  # (default shown)
 ```
@@ -604,6 +615,13 @@ per-file `error` and skipped rather than aborting the whole run (matches
 `extract-entities.js`'s per-item outcome pattern); the script exits non-zero
 if any file errored. Re-running over the same pending files is safe and a
 no-op re-upsert — never a duplicate row.
+
+A real (non-`--dry-run`) run also regenerates `admin/knowledge-graph.json` —
+reuses `extract-articles.js`'s `regenerateJsonMirror()`, not reimplemented —
+so the synced `source_articles` rows are readable (title, `original_url`,
+full `original_content`, `status`, ...) without a sqlite client. That's how
+to manually verify this script (or `scrape-enanyang-articles.js` below)
+actually wrote what you expect: open the `.json`, not the `.db`.
 
 ### Validating without an API key
 
@@ -684,6 +702,15 @@ exists for this script yet (the build plan's build order only calls one out
 for script 2); add one the same way if this script grows more parsing edge
 cases to guard.
 
+**Dedup:** TradeWizard's own index has been observed to list the same
+`enanyang.my` URL more than once (e.g. a re-tagged repost of the same
+column under a different `id`/title). `dedupeRowsByUrl()` (exported, also
+reused by `scrape-enanyang-articles.js` — see below) drops every row after
+the first occurrence of a given `url` before the index is written, so a
+duplicate URL never reaches script 2 in the first place. A row with a
+falsy `url` is never deduped against another. The console log reports how
+many duplicate rows were dropped when this runs.
+
 Throws a clear error (not a silent empty array) if the page's flight-payload
 shape ever changes and no chunk contains the expected `"data":[{"id"` marker.
 
@@ -711,8 +738,24 @@ node scrape-enanyang-articles.js --url <enanyang-url>             # real run, on
 node scrape-enanyang-articles.js --slug <slug>                    # real run, one row matching a computed slug
 node scrape-enanyang-articles.js --start-after <slug>             # resume after a given slug (checkpointing)
 node scrape-enanyang-articles.js --delay-ms 1500                  # between-request delay (default 1200ms)
+node scrape-enanyang-articles.js --no-mirror                      # skip regenerating admin/knowledge-graph.json after the db write
 npm run validate-scrape-enanyang-articles                         # offline fixture-based validation, no network
 ```
+
+**Manually verifying a run:** a real (non-`--dry-run`) run regenerates
+`admin/knowledge-graph.json` after its db writes (same
+`regenerateJsonMirror()` `import-source-articles.js` calls — see that
+script's section above), so the way to check what actually got scraped is
+to open `admin/knowledge-graph.json` and read its `source_articles` array —
+not the `.db`, which is a binary sqlite file with no viewer in this repo.
+Each entry carries the full `original_content` next to `title`/
+`original_url`/`published_at`, so a spot-check is: pick a row, open its
+`original_url` in a browser, and confirm the title and body text actually
+match (Chinese encoding intact, no leftover HTML/boilerplate, body isn't
+truncated). The console output from the run itself (`[ok] <slug> —
+title="..." bodyLength=N`) is a faster first pass — a `bodyLength` far
+shorter than the other rows, or a `no-articleBody-found`/`fetch-error`
+outcome, is worth checking in the `.json` first.
 
 **Slug fix vs. the build plan's literal wording:** the plan said to reuse
 `generate-article.js`'s `slugifyTopic(title)` as-is, but that strips every
@@ -723,6 +766,30 @@ UNIQUE index. `buildSourceSlug()` fixes this by suffixing eNanyang's own
 permanent numeric article id (the trailing path segment of every article
 URL) onto the slugified title.
 
+**Duplicate prevention:** the `source_articles.slug` UNIQUE index alone
+isn't enough to guarantee no duplicate rows, because `buildSourceSlug()` is
+derived from the article's TITLE, not its URL — two rows can legitimately
+carry the same underlying `enanyang.my` article under different slugs (a
+title edited between two scraper runs, or a URL already imported one-off
+via the admin "Import Source Article" form, whose slug never carries
+eNanyang's article-id suffix). Three layers guard against this:
+
+1. `scrape-tradewizard-index.js`'s own `dedupeRowsByUrl()` drops repeated
+   URLs before its index file is even written (see that script's section
+   above).
+2. This script's `main()` calls the same `dedupeRowsByUrl()` again on
+   whatever index it reads, as a belt-and-suspenders pass for an older
+   cached index file or a hand-edited `--index-file`.
+3. `processRow()` calls `findExistingSlugByUrl(db, originalUrl)` before
+   deciding what slug to upsert under — if a `source_articles` row already
+   carries this `original_url` (URL-canonicalized: query string/hash/
+   trailing slash ignored) under a *different* slug, that existing slug is
+   reused so the upsert updates the same row instead of inserting a new
+   one. The outcome's `detail` string flags when this happened. This layer
+   is the one that actually closes the title-changed-between-runs and
+   manual-import-overlap cases — 1 and 2 only catch literal duplicate URLs
+   within a single index.
+
 Per-article outcomes are logged as `ok` / `dry-run` / `no-articleBody-found`
 / `fetch-error` / `parse-error` — one bad page never aborts the run. A
 429/403 response is the one exception: it throws `StopRunError` and stops
@@ -731,12 +798,15 @@ the whole run instead of being logged and skipped, per
 signal, not an ordinary failure). `--start-after <slug>` lets a partial run
 resume without redoing already-processed rows.
 
-**Execution gate, unchanged from the plan:** do not run this against the
-full ~400+ row index until the user has looped in their supervisor — not a
-technical blocker, a business/ToS call. Testing with `--limit` or a single
-`--url` is fine at any time; that's exactly how this script was verified
-(see git history / this session for the specific URLs and outcomes checked
-before this note was written).
+**Execution gate, updated 2026-08-13:** the supervisor has signed off on this
+extraction approach (it was their own suggestion) — the business/ToS
+question is resolved, and there is no technical/auth blocker either. The
+full ~400+ row run is no longer blocked on permission, only on the user
+actually requesting it. Before that, the user wants one small real test
+batch first — either the ~10 most recent articles or an IPO-related subset
+— see `extra-md-files/nanyang-scraper.md`'s "Execution gate" section for the
+two small gaps (confirmed date-sort, category/keyword filtering) that still
+need closing to make either of those trivial to run.
 
 ## validate-admin-mirror-sync.js
 

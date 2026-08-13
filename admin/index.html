@@ -184,6 +184,9 @@
     .new-article-btn { background: #16a34a; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
     .new-article-btn:hover { background: #15803d; }
     .new-article-btn:disabled { background: #86efac; cursor: not-allowed; }
+    .new-article-btn--search { background: var(--na2); }
+    .new-article-btn--search:hover { background: #1d4ed8; }
+    .new-article-btn--search:disabled { background: #93c5fd; }
 
     /* Method tabs (New Article source selector) */
     .method-tabs { display: flex; gap: 12px; padding: 16px 20px 4px; flex-wrap: wrap; }
@@ -299,6 +302,46 @@
     .graph-block-chip__id { color: #888; font-weight: 400; }
     .graph-block-warning { background: #fffbeb; border: 1px solid #fed7aa; color: #9a3412; border-radius: 8px; padding: 12px 16px; font-size: 0.85rem; line-height: 1.5; margin-bottom: 16px; }
 
+    /* Knowledge Search screen (admin/knowledge-graph.json research/QA tool) */
+    .ks-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 20px 0; }
+    .ks-stat-tile { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); padding: 16px 18px; border-left: 5px solid var(--na2); }
+    .ks-stat-tile:nth-of-type(1) { border-left-color: var(--na1); }
+    .ks-stat-tile:nth-of-type(2) { border-left-color: var(--na3); }
+    .ks-stat-tile:nth-of-type(3) { border-left-color: var(--na5); }
+    .ks-stat-tile:nth-of-type(4) { border-left-color: var(--na4); }
+    .ks-stat-tile__num { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; line-height: 1.1; }
+    .ks-stat-tile__label { font-size: 0.78rem; color: #777; margin-top: 4px; }
+    .ks-stat-tile__meta { font-size: 0.72rem; color: #aaa; margin-top: 6px; }
+
+    .ks-section { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 16px; overflow: hidden; }
+    .ks-section__title { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; font-size: 0.88rem; font-weight: 700; color: #1a1a2e; border-bottom: 1px solid #f0f0f0; }
+    .ks-section__title .count { font-size: 0.72rem; font-weight: 700; color: #fff; background: var(--na2); padding: 2px 9px; border-radius: 999px; }
+    .ks-section--entities .ks-section__title .count { background: var(--na1); }
+    .ks-section--relations .ks-section__title .count { background: var(--na3); }
+    .ks-section--articles .ks-section__title .count { background: var(--na5); }
+    .ks-section--source .ks-section__title .count { background: var(--na4); }
+
+    .ks-result-item { padding: 12px 18px; border-bottom: 1px solid #f5f5f5; font-size: 0.85rem; }
+    .ks-result-item:last-child { border-bottom: none; }
+    .ks-result-item__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+    .ks-result-item__title { font-weight: 700; color: #1a1a2e; }
+    .ks-result-item__title a { color: inherit; text-decoration: none; }
+    .ks-result-item__title a:hover { text-decoration: underline; }
+    .ks-result-item__snippet { color: #555; line-height: 1.5; }
+    .ks-result-item__snippet mark { background: #fef08a; color: #1a1a2e; border-radius: 2px; padding: 0 1px; }
+    .ks-result-item__meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.75rem; color: #888; margin-top: 6px; }
+    .ks-result-item__meta a { color: var(--na2); }
+    .ks-type-badge { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 2px 8px; border-radius: 999px; color: #fff; flex-shrink: 0; background: #6b7280; }
+    .ks-type-badge--topic { background: var(--na1); }
+    .ks-type-badge--product { background: var(--na2); }
+    .ks-type-badge--organization { background: var(--na3); }
+    .ks-type-badge--concept { background: var(--na4); }
+    .ks-type-badge--strategy { background: #db2777; }
+    .ks-type-badge--person { background: var(--na5); }
+    .ks-type-badge--imported, .ks-type-badge--pending { background: #d97706; }
+    .ks-more-note { padding: 10px 18px; font-size: 0.78rem; color: #888; font-style: italic; }
+    .ks-empty { text-align: center; padding: 40px 20px; color: #888; font-size: 0.9rem; }
+
     /* Success panel */
     .publish-success { text-align: center; padding: 60px 20px; max-width: 560px; margin: 40px auto; background: linear-gradient(180deg, #f0fdf4, #ffffff); border: 1px solid #bbf7d0; border-radius: 16px; }
     .publish-success .icon { font-size: 3rem; margin-bottom: 16px; }
@@ -325,6 +368,7 @@
       .admin-header h1 { font-size: 1rem; }
       .admin-header .header-actions { width: 100%; }
       .admin-header .back-btn, .admin-header .logout-btn, .new-article-btn { padding: 7px 12px; font-size: 0.8rem; }
+      .ks-stats-grid { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -349,6 +393,7 @@
   <div class="admin-header">
     <h1><span aria-hidden="true">&#128218;</span> Article Editor</h1>
     <div class="header-actions">
+      <button id="knowledgeSearchBtn" class="new-article-btn new-article-btn--search" onclick="openKnowledgeSearch()" disabled>&#128269; Search Knowledge</button>
       <button id="importSourceBtn" class="new-article-btn" onclick="openImportSource()" disabled>&#128229; Import Source Article</button>
       <button id="newArticleBtn" class="new-article-btn" onclick="openNewArticle()" disabled>&#10024; New Article</button>
       <button class="logout-btn" onclick="logout()">Log Out</button>
@@ -787,6 +832,36 @@
   </div>
 </div>
 
+<!-- ==================== KNOWLEDGE SEARCH SCREEN ==================== -->
+<div id="knowledgeSearchScreen" class="hidden">
+  <div class="admin-header">
+    <button class="back-btn" onclick="closeKnowledgeSearch()">&larr; Back to Articles</button>
+    <h1><span aria-hidden="true">&#128269;</span> Search Knowledge Base</h1>
+    <button class="logout-btn" onclick="logout()">Log Out</button>
+  </div>
+
+  <p class="na-intro">Search everything the knowledge pipeline has extracted and stored in
+    <code>admin/knowledge-graph.db</code> (read here via its JSON mirror,
+    <code>admin/knowledge-graph.json</code>) &mdash; entities, relations, published articles, and
+    staged/scraped source articles. Use it for research while writing, or simply to confirm a fact
+    or article has actually been scraped and saved.</p>
+
+  <div class="editor-wrap">
+    <div class="editor-section na-card-2">
+      <div class="editor-section-title editor-section-title--na"><span class="step-num">&#128269;</span>Search</div>
+      <div class="form-grid single" style="padding-top:0;">
+        <div class="form-field">
+          <input type="search" id="ksSearchInput" class="article-search-input" style="max-width:none;" placeholder="Search entities, relations, articles, and source articles&hellip;" oninput="onKnowledgeSearchInput()" disabled>
+          <span class="field-hint" id="ksLoadStatus">Loading knowledge graph&hellip;</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="ksStats" class="ks-stats-grid"></div>
+    <div id="ksResults"></div>
+  </div>
+</div>
+
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -1030,7 +1105,9 @@
     $('editorScreen').classList.add('hidden');
     $('newArticleScreen').classList.add('hidden');
     $('importSourceScreen').classList.add('hidden');
+    $('knowledgeSearchScreen').classList.add('hidden');
     $('listScreen').classList.remove('hidden');
+    $('knowledgeSearchBtn').disabled = false;
     await loadArticleList();
   }
 
@@ -3103,6 +3180,193 @@
     });
   }
 
+  // ===================== KNOWLEDGE SEARCH (admin research/QA tool) =====================
+  // A plain full-text search over admin/knowledge-graph.json's entities/edges/articles/
+  // source_articles, reusing loadKnowledgeGraphJson() above. Purely read-only — lets an admin
+  // check what the extraction/scraping pipeline has actually stored, either for research while
+  // writing a new article, or just to confirm a given fact/article made it into the db, without
+  // opening the raw JSON/.db by hand.
+  var ksSearchDebounce = null;
+
+  window.openKnowledgeSearch = function() {
+    $('listScreen').classList.add('hidden');
+    $('knowledgeSearchScreen').classList.remove('hidden');
+    $('ksSearchInput').value = '';
+    $('ksSearchInput').disabled = true;
+    $('ksResults').innerHTML = '';
+    $('ksStats').innerHTML = '';
+    $('ksLoadStatus').textContent = 'Loading knowledge graph…';
+    loadKnowledgeGraphJson().then(function(graph) {
+      $('ksLoadStatus').textContent = 'Type to search, or browse the totals below.';
+      $('ksSearchInput').disabled = false;
+      $('ksSearchInput').focus();
+      ksRenderStats(graph);
+    }).catch(function(err) {
+      $('ksLoadStatus').textContent = 'Failed to load knowledge graph: ' + err.message;
+    });
+  };
+
+  window.closeKnowledgeSearch = function() {
+    $('knowledgeSearchScreen').classList.add('hidden');
+    showListScreen();
+  };
+
+  // Wrapper so the result list's inline onclick doesn't need openArticle() itself exposed
+  // globally — this runs inside the admin script's own closure, where openArticle is a normal
+  // in-scope function call, then hands off to the existing editor screen.
+  window.ksOpenArticle = function(filename) {
+    closeKnowledgeSearch();
+    openArticle(filename);
+  };
+
+  function ksRenderStats(graph) {
+    var meta = graph._meta || {};
+    $('ksStats').innerHTML =
+      '<div class="ks-stat-tile"><div class="ks-stat-tile__num">' + graph.entities.length + '</div><div class="ks-stat-tile__label">Entities</div></div>' +
+      '<div class="ks-stat-tile"><div class="ks-stat-tile__num">' + graph.edges.length + '</div><div class="ks-stat-tile__label">Relations</div></div>' +
+      '<div class="ks-stat-tile"><div class="ks-stat-tile__num">' + graph.articles.length + '</div><div class="ks-stat-tile__label">Published Articles</div></div>' +
+      '<div class="ks-stat-tile"><div class="ks-stat-tile__num">' + (graph.source_articles || []).length + '</div><div class="ks-stat-tile__label">Source Articles (staged)</div>' +
+        (meta.generated_at ? '<div class="ks-stat-tile__meta">as of ' + escapeHtml(meta.generated_at) + '</div>' : '') +
+      '</div>';
+  }
+
+  window.onKnowledgeSearchInput = function() {
+    if (ksSearchDebounce) clearTimeout(ksSearchDebounce);
+    ksSearchDebounce = setTimeout(ksRunSearch, 150);
+  };
+
+  function ksMatch(value, queryLower) {
+    return !!value && String(value).toLowerCase().indexOf(queryLower) !== -1;
+  }
+
+  function ksEscapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  // Escapes the text first, then wraps the (also-escaped) query — so a query containing HTML
+  // metacharacters can never reopen a tag inside the highlighted result.
+  function ksHighlight(text, query) {
+    var escaped = escapeHtml(text || '');
+    var escapedQuery = escapeHtml(query || '');
+    if (!escapedQuery) return escaped;
+    var re = new RegExp('(' + ksEscapeRegExp(escapedQuery) + ')', 'ig');
+    return escaped.replace(re, '<mark>$1</mark>');
+  }
+
+  function ksSnippet(text, query, radius) {
+    text = text || '';
+    radius = radius || 90;
+    var idx = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1;
+    if (idx === -1) return text.length > radius * 2 ? text.slice(0, radius * 2) + '…' : text;
+    var start = Math.max(0, idx - radius);
+    var end = Math.min(text.length, idx + query.length + radius);
+    return (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+  }
+
+  function ksTypeBadge(type) {
+    return '<span class="ks-type-badge ks-type-badge--' + escapeAttr((type || 'other').toLowerCase()) + '">' + escapeHtml(type || 'other') + '</span>';
+  }
+
+  var KS_RESULT_LIMIT = 25;
+
+  function ksRunSearch() {
+    var graph = knowledgeGraphJson;
+    if (!graph) return;
+    var query = $('ksSearchInput').value.trim();
+    if (!query) {
+      $('ksResults').innerHTML = '';
+      ksRenderStats(graph);
+      return;
+    }
+    var queryLower = query.toLowerCase();
+
+    var entityMatches = graph.entities.filter(function(e) { return ksMatch(e.name, queryLower) || ksMatch(e.type, queryLower); });
+    var edgeMatches = graph.edges.filter(function(e) { return ksMatch(e.source, queryLower) || ksMatch(e.relation, queryLower) || ksMatch(e.target, queryLower); });
+    var articleMatches = graph.articles.filter(function(a) {
+      return ksMatch(a.title, queryLower) || ksMatch(a.summary, queryLower) || ksMatch(a.body_text, queryLower) || ksMatch(a.slug, queryLower);
+    });
+    var sourceMatches = (graph.source_articles || []).filter(function(s) {
+      return ksMatch(s.title, queryLower) || ksMatch(s.original_content, queryLower) || ksMatch(s.author, queryLower) || ksMatch(s.category, queryLower) || ksMatch(s.slug, queryLower);
+    });
+
+    if (!entityMatches.length && !edgeMatches.length && !articleMatches.length && !sourceMatches.length) {
+      $('ksResults').innerHTML = '<div class="ks-empty">No matches for &ldquo;' + escapeHtml(query) + '&rdquo; in entities, relations, articles, or source articles.</div>';
+      return;
+    }
+
+    $('ksResults').innerHTML =
+      ksRenderEntitySection(graph, entityMatches, query) +
+      ksRenderRelationSection(edgeMatches, query) +
+      ksRenderArticleSection(articleMatches, query) +
+      ksRenderSourceSection(sourceMatches, query);
+  }
+
+  function ksMoreNote(total, shown) {
+    return total > shown ? '<div class="ks-more-note">+' + (total - shown) + ' more not shown — refine your search</div>' : '';
+  }
+
+  function ksRenderEntitySection(graph, matches, query) {
+    if (!matches.length) return '';
+    var shown = matches.slice(0, KS_RESULT_LIMIT);
+    var rows = shown.map(function(e) {
+      var related = graph.edges.filter(function(edge) { return edge.source === e.name || edge.target === e.name; }).slice(0, 4);
+      var relatedHtml = related.length
+        ? '<div class="ks-result-item__meta">' + related.map(function(edge) {
+            return escapeHtml(edge.source) + ' &rarr; <em>' + escapeHtml(edge.relation) + '</em> &rarr; ' + escapeHtml(edge.target);
+          }).join(' &nbsp;|&nbsp; ') + '</div>'
+        : '';
+      return '<div class="ks-result-item"><div class="ks-result-item__head">' + ksTypeBadge(e.type) +
+        '<span class="ks-result-item__title">' + ksHighlight(e.name, query) + '</span></div>' + relatedHtml + '</div>';
+    }).join('');
+    return '<div class="ks-section ks-section--entities"><div class="ks-section__title"><span>&#129504; Entities</span><span class="count">' + matches.length + '</span></div>' +
+      rows + ksMoreNote(matches.length, shown.length) + '</div>';
+  }
+
+  function ksRenderRelationSection(matches, query) {
+    if (!matches.length) return '';
+    var shown = matches.slice(0, KS_RESULT_LIMIT);
+    var rows = shown.map(function(edge) {
+      return '<div class="ks-result-item"><div class="ks-result-item__snippet">' + ksHighlight(edge.source, query) +
+        ' &rarr; <em>' + ksHighlight(edge.relation, query) + '</em> &rarr; ' + ksHighlight(edge.target, query) + '</div></div>';
+    }).join('');
+    return '<div class="ks-section ks-section--relations"><div class="ks-section__title"><span>&#128279; Relations</span><span class="count">' + matches.length + '</span></div>' +
+      rows + ksMoreNote(matches.length, shown.length) + '</div>';
+  }
+
+  function ksRenderArticleSection(matches, query) {
+    if (!matches.length) return '';
+    var shown = matches.slice(0, KS_RESULT_LIMIT);
+    var rows = shown.map(function(a) {
+      var filename = a.filepath ? a.filepath.split('/').pop() : (a.slug + '.html');
+      var snippet = ksSnippet(a.body_text || a.summary || '', query);
+      return '<div class="ks-result-item">' +
+        '<div class="ks-result-item__head"><span class="ks-result-item__title"><a href="#" onclick="ksOpenArticle(\'' + escapeAttr(filename) + '\'); return false;">' + ksHighlight(a.title, query) + '</a></span></div>' +
+        '<div class="ks-result-item__snippet">' + ksHighlight(snippet, query) + '</div>' +
+        '</div>';
+    }).join('');
+    return '<div class="ks-section ks-section--articles"><div class="ks-section__title"><span>&#128218; Published Articles</span><span class="count">' + matches.length + '</span></div>' +
+      rows + ksMoreNote(matches.length, shown.length) + '</div>';
+  }
+
+  function ksRenderSourceSection(matches, query) {
+    if (!matches.length) return '';
+    var shown = matches.slice(0, KS_RESULT_LIMIT);
+    var rows = shown.map(function(s) {
+      var snippet = ksSnippet(s.original_content || '', query);
+      var meta = [];
+      if (s.author) meta.push(escapeHtml(s.author));
+      if (s.category) meta.push(escapeHtml(s.category));
+      if (s.published_at) meta.push(escapeHtml(String(s.published_at).slice(0, 10)));
+      if (s.original_url) meta.push('<a href="' + escapeAttr(s.original_url) + '" target="_blank" rel="noopener">source link</a>');
+      return '<div class="ks-result-item">' +
+        '<div class="ks-result-item__head">' + (s.status ? ksTypeBadge(s.status) : '') +
+        '<span class="ks-result-item__title">' + ksHighlight(s.title, query) + '</span></div>' +
+        '<div class="ks-result-item__snippet">' + ksHighlight(snippet, query) + '</div>' +
+        (meta.length ? '<div class="ks-result-item__meta">' + meta.join(' &nbsp;&middot;&nbsp; ') + '</div>' : '') +
+        '</div>';
+    }).join('');
+    return '<div class="ks-section ks-section--source"><div class="ks-section__title"><span>&#128196; Source Articles (staged/scraped)</span><span class="count">' + matches.length + '</span></div>' +
+      rows + ksMoreNote(matches.length, shown.length) + '</div>';
+  }
+
   var KC_STOPWORDS = ['the', 'and', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'are', 'how', 'what', 'into', 'about', 'when', 'why', 'can', 'a', 'an', 'to', 'of', 'in', 'on', 'is', 'it', 'as', 'or', 'be', 'by', 'not'];
 
   // mirrors scripts/retrieval-layer.js's tokenize()
@@ -4709,12 +4973,19 @@
 
   // mirrors scripts/extract-articles.js's regenerateJsonMirror() (returns the object
   // instead of writing it to disk — the caller blobs it for the atomic commit)
+  // mirrors scripts/extract-articles.js's regenerateJsonMirror() — keep in sync if either
+  // changes (out of scope for validate-admin-mirror-sync.js, which only covers prompt-building
+  // functions, so this note is the only thing enforcing it). Includes source_articles for the
+  // same reason that script's version does: without it, an admin publish/edit would regenerate
+  // admin/knowledge-graph.json from scratch and silently drop whatever
+  // scrape-enanyang-articles.js/import-source-articles.js had written there.
   function kgRegenerateJsonMirror(db) {
     var articles = kgAll(db, 'SELECT * FROM articles ORDER BY id');
     var entities = kgAll(db, 'SELECT * FROM entities ORDER BY id');
     var edgesRaw = kgAll(db, 'SELECT * FROM edges');
     var articleEntities = kgAll(db, 'SELECT * FROM article_entities');
     var linksRaw = kgAll(db, 'SELECT * FROM links');
+    var sourceArticles = kgAll(db, 'SELECT * FROM source_articles ORDER BY id');
 
     var entityById = {};
     entities.forEach(function(e) { entityById[e.id] = e; });
@@ -4731,7 +5002,8 @@
         schema_source: 'extra-md-files/ai-article-pipeline.md#2-knowledge-graph-store',
         generated_at: new Date().toISOString().slice(0, 10),
         generated_by: 'admin/index.html (publishArticleAtomic, incremental extraction)',
-        article_count: String(articles.length)
+        article_count: String(articles.length),
+        source_article_count: String(sourceArticles.length)
       },
       articles: articles.map(function(a) {
         return {
@@ -4759,6 +5031,21 @@
           source: entityById[edge.source_entity_id] ? entityById[edge.source_entity_id].name : null,
           relation: edge.relation,
           target: entityById[edge.target_entity_id] ? entityById[edge.target_entity_id].name : null
+        };
+      }),
+      source_articles: sourceArticles.map(function(s) {
+        return {
+          slug: s.slug,
+          title: s.title,
+          original_url: s.original_url,
+          published_at: s.published_at,
+          author: s.author,
+          category: s.category,
+          original_content: s.original_content,
+          featured_image: s.featured_image,
+          import_date: s.import_date,
+          status: s.status,
+          notes: s.notes
         };
       })
     };

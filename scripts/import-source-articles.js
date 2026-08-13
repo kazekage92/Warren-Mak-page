@@ -24,8 +24,14 @@
  *   node import-source-articles.js                                    # sync every pending file
  *   node import-source-articles.js --dry-run                          # parse + print only, no db write
  *   node import-source-articles.js --slug <slug>                      # sync one file only (by its computed slug)
+ *   node import-source-articles.js --no-mirror                        # skip regenerating admin/knowledge-graph.json after the db write
  *   node import-source-articles.js --pending-dir ../admin/source-articles-pending  # (default shown)
  *   node import-source-articles.js --db ../admin/knowledge-graph.db   # (default shown)
+ *
+ * A real (non-dry-run) run also regenerates admin/knowledge-graph.json
+ * (extract-articles.js's regenerateJsonMirror(), reused not reimplemented) so
+ * the newly-synced source_articles rows are viewable without a sqlite client
+ * — see that function's own comment in extract-articles.js.
  */
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -34,6 +40,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { slugifyTopic } from './generate-article.js';
 import { nextArg } from './cli-args.js';
+import { regenerateJsonMirror } from './extract-articles.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -47,6 +54,7 @@ const SCHEMA_SQL = readFileSync(path.join(REPO_ROOT, 'admin', 'knowledge-graph.s
 function parseArgs(argv) {
   const opts = {
     dryRun: false,
+    mirror: true,
     dbPath: path.join(REPO_ROOT, 'admin', 'knowledge-graph.db'),
     pendingDir: path.join(REPO_ROOT, 'admin', 'source-articles-pending'),
     onlySlug: null,
@@ -56,6 +64,9 @@ function parseArgs(argv) {
     switch (arg) {
       case '--dry-run':
         opts.dryRun = true;
+        break;
+      case '--no-mirror':
+        opts.mirror = false;
         break;
       case '--db':
         opts.dbPath = path.resolve(nextArg(argv, ++i, '--db'));
@@ -193,7 +204,14 @@ function main() {
     }
   }
 
-  if (db) db.close();
+  if (db) {
+    if (opts.mirror) {
+      const mirrorPath = path.join(REPO_ROOT, 'admin', 'knowledge-graph.json');
+      regenerateJsonMirror(db, mirrorPath);
+      console.log(`\nRegenerated ${path.relative(REPO_ROOT, mirrorPath)}.`);
+    }
+    db.close();
+  }
 
   console.log('\nResults:');
   for (const o of outcomes) {
