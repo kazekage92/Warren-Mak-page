@@ -2868,8 +2868,10 @@
       ]
     });
 
-    var bylineEn = '<div class="article-meta"><span>By <strong><a href="../about.html">' + escapeHtml(state.authorEn) + '</a></strong></span><span>' + escapeHtml(state.readingTimeText) + '</span><span>Published: ' + formatMonthYear(state.publishDate) + '</span></div>';
-    var bylineZh = '<div class="article-meta"><span>作者：<strong><a href="../about.html">' + escapeHtml(state.authorZh) + '</a></strong></span><span>' + readingTimeTextZh(state.readingTimeText) + '</span><span>发布：' + formatMonthYearZh(state.publishDate) + '</span></div>';
+    var viewsSpanEn = '<span class="article-views" hidden>👁 <span class="article-views__count">0</span> views</span>';
+    var viewsSpanZh = '<span class="article-views" hidden>👁 <span class="article-views__count">0</span> 次浏览</span>';
+    var bylineEn = '<div class="article-meta"><span>By <strong><a href="../about.html">' + escapeHtml(state.authorEn) + '</a></strong></span><span>' + escapeHtml(state.readingTimeText) + '</span><span>Published: ' + formatMonthYear(state.publishDate) + '</span>' + viewsSpanEn + '</div>';
+    var bylineZh = '<div class="article-meta"><span>作者：<strong><a href="../about.html">' + escapeHtml(state.authorZh) + '</a></strong></span><span>' + readingTimeTextZh(state.readingTimeText) + '</span><span>发布：' + formatMonthYearZh(state.publishDate) + '</span>' + viewsSpanZh + '</div>';
 
     return [
       '<!DOCTYPE html>',

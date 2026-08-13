@@ -1755,6 +1755,13 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   border-bottom: 1px solid var(--light-gray);
 }
 
+.article-views {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
 .article-body .faq-item {
   margin-bottom: 24px;
   padding: 20px 24px;

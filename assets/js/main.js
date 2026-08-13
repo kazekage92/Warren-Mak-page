@@ -102,6 +102,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // Language Toggle (EN / 中文)
   // ============================================
   initLanguageToggle();
+
+  // ============================================
+  // Article View Counter
+  // ============================================
+  initArticleViewCounter();
 });
 
 function closeAllDropdowns() {
@@ -159,4 +164,54 @@ function applyLanguage(lang) {
     var hideStyle = document.getElementById('wm-lang-hide');
     if (hideStyle) hideStyle.remove();
   }
+}
+
+// ============================================
+// Article View Counter
+// ============================================
+// Public, per-article hit counter — no backend of our own. Uses CountAPI
+// (countapi.mileshilliard.com), a free, keyless, no-signup counting service:
+// GET /api/v1/hit/<key> increments and returns {value}, /get/<key> just reads it.
+// The key is derived from the article's own filename, so no per-page setup is
+// needed and every article (existing or new, via admin's buildArticleDocument)
+// automatically gets a working counter. If the service is slow/unreachable, the
+// .article-views element is simply left hidden — this must never block or
+// visibly break the page (same "never blocks" rule as the AI admin features).
+function initArticleViewCounter() {
+  var counters = document.querySelectorAll('.article-views__count');
+  if (counters.length === 0) return;
+
+  var slug = (location.pathname.split('/').pop() || '').replace(/\.html?$/i, '');
+  if (!slug) return;
+
+  var key = 'warrenmak-asia-article-' + slug;
+  var sessionKey = 'wm_viewed_' + slug;
+  var alreadyViewed = false;
+  try { alreadyViewed = sessionStorage.getItem(sessionKey) === '1'; } catch (e) {}
+
+  var endpoint = 'https://countapi.mileshilliard.com/api/v1/' +
+    (alreadyViewed ? 'get' : 'hit') + '/' + encodeURIComponent(key);
+
+  fetch(endpoint)
+    .then(function(res) {
+      if (!res.ok) throw new Error('view counter request failed');
+      return res.json();
+    })
+    .then(function(data) {
+      var value = parseInt(data && data.value, 10);
+      if (!isFinite(value)) return;
+
+      if (!alreadyViewed) {
+        try { sessionStorage.setItem(sessionKey, '1'); } catch (e) {}
+      }
+
+      var formatted = value.toLocaleString();
+      counters.forEach(function(el) { el.textContent = formatted; });
+      document.querySelectorAll('.article-views').forEach(function(el) {
+        el.hidden = false;
+      });
+    })
+    .catch(function() {
+      // Free counter service unreachable/down — fail silently, leave hidden.
+    });
 }
