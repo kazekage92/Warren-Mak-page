@@ -2124,6 +2124,8 @@
     });
   };
 
+  // mirrors scripts/graph-blocks.js's buildFlowGraphHtml() — keep in sync if either changes;
+  // validate-admin-mirror-sync.js checks the two produce identical output.
   function buildFlowGraphHtml(title, steps) {
     var stepsHtml = steps.map(function(s) { return '<li class="graph-flow__step">' + escapeHtml(s) + '</li>'; }).join('');
     return '<!-- graph block: hand-authored, do not edit via admin WYSIWYG -->' +
@@ -2920,6 +2922,12 @@
   }
 
   // ===================== NEW ARTICLE: DOCUMENT BUILDER =====================
+  // mirrors scripts/build-article-document.js's buildArticleDocument() — keep in sync if either
+  // changes; validate-admin-mirror-sync.js checks the two produce identical output. One
+  // deliberate difference: this browser version's state.bodyEnHtml/bodyZhHtml may still carry
+  // [[GRAPH:id]] placeholders (substituted just below via substituteGraphPlaceholders()), since
+  // that's what a live Quill instance hands off here — the Node script has no such placeholder
+  // step and expects already-final body HTML instead.
   function buildArticleDocument(state) {
     var bodyEnHtml = substituteGraphPlaceholders(state.bodyEnHtml, 'en');
     var bodyZhHtml = substituteGraphPlaceholders(state.bodyZhHtml, 'zh');
@@ -3812,13 +3820,23 @@
       'somewhere in the article, substantively (not just a passing mention); a separate reviewer will ' +
       'check this afterward, so do not skip any. Must-include facts are non-negotiable and must appear ' +
       'accurately, exactly as given -- never alter a number, date, or credential.\n\n' +
+      'Structure body_text into logical sections: on its own line immediately before each section\'s ' +
+      'first paragraph, write a short heading prefixed with "## " (two hash characters, one space, ' +
+      'then the heading text -- e.g. "## Understanding Time Decay"). Include at least 2 such section ' +
+      'headings for a normal-length article. Only real section-heading lines get the "## " prefix -- ' +
+      'never an ordinary paragraph. Also identify SUGGESTED GRAPH STEPS: 2-5 short imperative-style ' +
+      'labels (e.g. "Identify the setup", "Confirm the signal", "Manage the position") summarizing ' +
+      'this article\'s own core process or sequence -- ground every label strictly in what your draft ' +
+      'itself already says, never inventing a claim the article does not cover; these labels feed an ' +
+      'auto-generated flow diagram, so keep each one short (a few words).\n\n' +
       (sourceText
         ? 'You are also given ONE specific source text to draw ideas from -- extract ideas, reorganise ' +
           'concepts, explain differently; do not reproduce its wording or structure.\n\n'
         : '') +
       'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
       '{"title":"...","summary":"<1-2 sentence summary>","body_text":"<the full article body as plain ' +
-      'paragraphs separated by blank lines -- no HTML>"}';
+      'paragraphs separated by blank lines, with \\"## \\"-prefixed section-heading lines -- no other ' +
+      'HTML/markdown>","suggestedGraphSteps":["<2-5 short imperative-style labels>"]}';
 
     var userParts = ['Topic: ' + topic];
     userParts.push('\nChecklist (' + checklist.length + ' item(s)) -- cover every one substantively:\n' + formatChecklistForWriterBrowser(checklist));
@@ -3851,8 +3869,14 @@
       'Keep everything that already works in the draft -- do not rewrite the whole article from ' +
       'scratch, only extend or adjust it so every listed gap is substantively covered. Do not remove ' +
       'or contradict anything already correct in the draft.\n\n' +
+      'The draft\'s "## "-prefixed section-heading lines and its suggestedGraphSteps (shown below) ' +
+      'should be kept as-is unless the fix genuinely requires changing them -- re-emit the full body ' +
+      'text (with its "## " headings preserved) and a suggestedGraphSteps array (still 2-5 short ' +
+      'imperative-style labels, still grounded only in what the revised draft itself says) either way.\n\n' +
       'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
-      '{"title":"...","summary":"...","body_text":"<the full REVISED article body, plain paragraphs, no HTML>"}';
+      '{"title":"...","summary":"...","body_text":"<the full REVISED article body, plain paragraphs ' +
+      'with "## "-prefixed section-heading lines, no other HTML/markdown>","suggestedGraphSteps":' +
+      '["<2-5 short imperative-style labels>"]}';
 
     var gapLines = missing.map(function(i) { return '- MISSING entirely: "' + i.name + '"'; })
       .concat(partial.map(function(i) { return '- Only PARTIALLY covered: "' + i.name + '" (current evidence: "' + (i.evidence || '(none)') + '")'; }));
@@ -3861,6 +3885,7 @@
       'Topic: ' + topic + '\n\n' +
       'Current draft title: ' + draft.title + '\n' +
       'Current draft body text:\n' + draft.body_text + '\n\n' +
+      'Current draft\'s suggested graph steps: ' + JSON.stringify(draft.suggestedGraphSteps || []) + '\n\n' +
       'Coverage gaps to fix (from a separate reviewer pass):\n' + gapLines.join('\n') + '\n\n' +
       'Full checklist for reference (' + checklist.length + ' item(s)):\n' + formatChecklistForWriterBrowser(checklist);
 

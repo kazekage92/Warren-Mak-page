@@ -63,6 +63,8 @@ import { buildReviewPrompt } from './coverage-reviewer.js';
 import {
   buildFullChecklist,
   buildWriterPrompt,
+  buildRepairPrompt,
+  parseWriterResponse,
   generateArticleWithReview,
   fixtureWriter,
   fixtureReviewerByTopic,
@@ -89,8 +91,19 @@ function countCalls(fn) {
   return wrapped;
 }
 
-function draftJson(title, bodyText) {
-  return JSON.stringify({ title, summary: `Summary of ${title}`, body_text: bodyText });
+// Default suggestedGraphSteps used by every scenario fixture below unless a
+// test specifically needs to vary it (e.g. the parseWriterResponse() shape
+// checks in Part 0.25) — 3 labels, within the 2-5 range parseWriterResponse()
+// requires.
+const DEFAULT_GRAPH_STEPS = ['Identify the setup', 'Confirm the signal', 'Manage the position'];
+
+// Every real writer/repair response must now carry at least one "## "
+// section-heading line (parseWriterResponse()'s SECTION_BREAK_PATTERN) —
+// prefixing the fixture body with one heading keeps every scenario fixture
+// below shaped like a real writer response, not a special case.
+function draftJson(title, bodyText, graphSteps = DEFAULT_GRAPH_STEPS) {
+  const bodyWithHeading = `## ${title} Overview\n\n${bodyText}`;
+  return JSON.stringify({ title, summary: `Summary of ${title}`, body_text: bodyWithHeading, suggestedGraphSteps: graphSteps });
 }
 
 function reviewJson(items) {
@@ -194,6 +207,84 @@ function runChecklistCheck() {
 }
 
 // ---------------------------------------------------------------------------
+// Part 0.25 — parseWriterResponse(): suggestedGraphSteps + "## " section-break
+// validation (extra-md-files/automated-article-scheduler.md component 2).
+// Pure function, no db/fixtures needed.
+// ---------------------------------------------------------------------------
+
+function runWriterResponseShapeCheck() {
+  console.log('\n=== Part 0.25: parseWriterResponse() suggestedGraphSteps / section breaks ===\n');
+  const checks = [];
+
+  const valid = parseWriterResponse(draftJson('Time Decay', 'Some content about time decay.'));
+  checks.push(['a well-formed response is accepted', valid.title === 'Time Decay']);
+  checks.push(['suggestedGraphSteps round-trips (3 labels, within 2-5)', Array.isArray(valid.suggestedGraphSteps) && valid.suggestedGraphSteps.length === 3]);
+  checks.push(['suggestedGraphSteps entries are trimmed', valid.suggestedGraphSteps.every((s) => s === s.trim())]);
+  checks.push(['body_text carries the "## " section-heading line', /^## .+$/m.test(valid.body_text)]);
+
+  const missingGraphSteps = JSON.stringify({ title: 'X', summary: 'Y', body_text: '## Heading\n\nBody.' });
+  let threwMissingGraphSteps = false;
+  try {
+    parseWriterResponse(missingGraphSteps);
+  } catch {
+    threwMissingGraphSteps = true;
+  }
+  checks.push(['rejects a response with no suggestedGraphSteps field at all', threwMissingGraphSteps]);
+
+  const tooFewGraphSteps = JSON.stringify({ title: 'X', summary: 'Y', body_text: '## Heading\n\nBody.', suggestedGraphSteps: ['Only one'] });
+  let threwTooFew = false;
+  try {
+    parseWriterResponse(tooFewGraphSteps);
+  } catch {
+    threwTooFew = true;
+  }
+  checks.push(['rejects fewer than 2 graph steps', threwTooFew]);
+
+  const tooManyGraphSteps = JSON.stringify({
+    title: 'X',
+    summary: 'Y',
+    body_text: '## Heading\n\nBody.',
+    suggestedGraphSteps: ['One', 'Two', 'Three', 'Four', 'Five', 'Six'],
+  });
+  let threwTooMany = false;
+  try {
+    parseWriterResponse(tooManyGraphSteps);
+  } catch {
+    threwTooMany = true;
+  }
+  checks.push(['rejects more than 5 graph steps', threwTooMany]);
+
+  const emptyGraphStep = JSON.stringify({ title: 'X', summary: 'Y', body_text: '## Heading\n\nBody.', suggestedGraphSteps: ['Real step', '   '] });
+  let threwEmptyStep = false;
+  try {
+    parseWriterResponse(emptyGraphStep);
+  } catch {
+    threwEmptyStep = true;
+  }
+  checks.push(['rejects an empty/whitespace-only graph step entry', threwEmptyStep]);
+
+  const noSectionBreak = JSON.stringify({ title: 'X', summary: 'Y', body_text: 'Just plain paragraphs, no heading anywhere.', suggestedGraphSteps: DEFAULT_GRAPH_STEPS });
+  let threwNoSectionBreak = false;
+  try {
+    parseWriterResponse(noSectionBreak);
+  } catch {
+    threwNoSectionBreak = true;
+  }
+  checks.push(['rejects body_text with no "## " section-heading line at all', threwNoSectionBreak]);
+
+  const midParagraphHash = JSON.stringify({ title: 'X', summary: 'Y', body_text: 'A paragraph that mentions ## in passing, not as a real heading line prefix.', suggestedGraphSteps: DEFAULT_GRAPH_STEPS });
+  let threwMidParagraph = false;
+  try {
+    parseWriterResponse(midParagraphHash);
+  } catch {
+    threwMidParagraph = true;
+  }
+  checks.push(['a "##" that is not a real line-start heading prefix still counts as missing a section break', threwMidParagraph]);
+
+  return checks;
+}
+
+// ---------------------------------------------------------------------------
 // Part 0.5 — insertSuggestedLinks() itself, pure function, no db/fixtures
 // ---------------------------------------------------------------------------
 
@@ -217,6 +308,57 @@ function runLinkInsertionCheck() {
   checks.push(['skipped entries never appear as an <a> tag', !result.bodyText.includes('nowhere.html')]);
 
   checks.push(['empty suggestedLinks list returns the body text unchanged', insertSuggestedLinks(body, []).bodyText === body]);
+
+  return checks;
+}
+
+// ---------------------------------------------------------------------------
+// Part 0.6 — buildWriterPrompt() / buildRepairPrompt() actually instruct for
+// "## " section breaks + suggestedGraphSteps (extra-md-files/automated-
+// article-scheduler.md component 2). Pure function, no db/fixtures needed.
+// ---------------------------------------------------------------------------
+
+function runGraphStepsPromptCheck() {
+  console.log('\n=== Part 0.6: buildWriterPrompt() / buildRepairPrompt() section-break + suggestedGraphSteps instructions ===\n');
+  const checks = [];
+
+  const writerPrompt = buildWriterPrompt({
+    topic: 'Time Decay',
+    checklist: [],
+    mustIncludeFacts: [],
+    articleSummaries: [],
+    nearDuplicates: [],
+    sourceText: null,
+  });
+  checks.push(['writer system prompt instructs "## " section headings', writerPrompt.system.includes('"## "')]);
+  checks.push(['writer system prompt asks for suggestedGraphSteps', writerPrompt.system.includes('SUGGESTED GRAPH STEPS')]);
+  checks.push(['writer system prompt\'s JSON response shape includes suggestedGraphSteps', writerPrompt.system.trim().endsWith('"suggestedGraphSteps":["<2-5 short imperative-style labels>"]}')]);
+
+  const draftWithGraphSteps = { title: 'Time Decay', body_text: '## Overview\n\nSome content.', suggestedGraphSteps: ['Step one', 'Step two'] };
+  const repairPrompt = buildRepairPrompt({
+    topic: 'Time Decay',
+    checklist: [{ name: 'Time Decay (Theta)', type: 'concept', why: 'x' }],
+    draft: draftWithGraphSteps,
+    missing: [{ name: 'Time Decay (Theta)' }],
+    partial: [],
+  });
+  checks.push(['repair system prompt instructs keeping "## " headings', repairPrompt.system.includes('"## "')]);
+  checks.push(['repair system prompt asks for a (re-emitted) suggestedGraphSteps array', repairPrompt.system.includes('suggestedGraphSteps')]);
+  checks.push(['repair user prompt shows the CURRENT draft\'s suggested graph steps', repairPrompt.user.includes('Step one') && repairPrompt.user.includes('Step two')]);
+
+  // A draft with no suggestedGraphSteps yet (shouldn't happen in practice
+  // post-parseWriterResponse, but buildRepairPrompt itself must not throw)
+  // renders an empty array rather than crashing on `undefined`.
+  const draftWithoutGraphSteps = { title: 'Time Decay', body_text: '## Overview\n\nSome content.' };
+  let repairPromptWithoutSteps;
+  let threwOnMissingSteps = false;
+  try {
+    repairPromptWithoutSteps = buildRepairPrompt({ topic: 'Time Decay', checklist: [], draft: draftWithoutGraphSteps, missing: [], partial: [] });
+  } catch {
+    threwOnMissingSteps = true;
+  }
+  checks.push(['buildRepairPrompt() does not throw when the draft carries no suggestedGraphSteps yet', !threwOnMissingSteps]);
+  checks.push(['...and renders an empty array rather than the literal word "undefined"', Boolean(repairPromptWithoutSteps) && repairPromptWithoutSteps.user.includes('[]') && !repairPromptWithoutSteps.user.includes('undefined')]);
 
   return checks;
 }
@@ -250,7 +392,7 @@ function runCandidateSourceArticlesPromptCheck() {
   checks.push(['candidateSourceArticles present -> system prompt flags them as background-only', withCandidates.system.includes('unpublished')]);
   checks.push(['candidateSourceArticles present -> user prompt lists the candidate title', withCandidates.user.includes('如何投资非上市公司?')]);
   checks.push(['candidateSourceArticles present -> user prompt includes its category', withCandidates.user.includes('advanced trading and investing knowledge')]);
-  checks.push(['candidateSourceArticles never leak into the JSON response-shape instruction', withCandidates.system.trim().endsWith('"body_text":"<the full article body as plain paragraphs separated by blank lines -- no HTML>"}')]);
+  checks.push(['candidateSourceArticles never leak into the JSON response-shape instruction', withCandidates.system.trim().endsWith('"suggestedGraphSteps":["<2-5 short imperative-style labels>"]}')]);
 
   return checks;
 }
@@ -284,6 +426,13 @@ async function runPart1() {
     checks.push(['scenario A: retryCount === 1', resultA.retryCount === 1]);
     checks.push(['scenario A: final coverage is fully covered (repair fixed the gap)', resultA.summary.allCovered === true]);
     checks.push(['scenario A: final missing count is 0', resultA.summary.missing.length === 0]);
+
+    // Component 2 (extra-md-files/automated-article-scheduler.md): the
+    // FINAL draft (post-repair) still carries a valid suggestedGraphSteps
+    // array and a "## " section-break line — parseWriterResponse() ran on
+    // the repair response too, not just the initial one.
+    checks.push(['scenario A: final draft carries suggestedGraphSteps (2-5 labels)', Array.isArray(resultA.draft.suggestedGraphSteps) && resultA.draft.suggestedGraphSteps.length >= 2 && resultA.draft.suggestedGraphSteps.length <= 5]);
+    checks.push(['scenario A: final draft body_text carries a "## " section-heading line', /^## .+$/m.test(resultA.draft.body_text)]);
 
     // §4 Phase 5: the topic's real suggestedLinks (from the real sample db)
     // must have been auto-linked into the FINAL draft body — the scenario's
@@ -429,6 +578,8 @@ function runPart2(db) {
   checks.push(['CLI: --json output still reports the remaining partial item', parsed?.summary?.partial?.length === 1]);
   checks.push(['CLI: --json output checklist includes the must-include fact', parsed?.checklist?.some((c) => c.name === MUST_INCLUDE_FACTS[0])]);
   checks.push(['CLI: --json output carries an internalLinks report (§4 Phase 5)', Array.isArray(parsed?.internalLinks?.inserted) && Array.isArray(parsed?.internalLinks?.skipped)]);
+  checks.push(['CLI: --json output draft carries suggestedGraphSteps (2-5 labels)', Array.isArray(parsed?.draft?.suggestedGraphSteps) && parsed.draft.suggestedGraphSteps.length >= 2 && parsed.draft.suggestedGraphSteps.length <= 5]);
+  checks.push(['CLI: --json output draft body_text carries a "## " section-heading line', /^## .+$/m.test(parsed?.draft?.body_text ?? '')]);
 
   // --max-retries above the §5 cap must fail loudly at the CLI too.
   const capRun = runCli(['--topic', TOPIC_CLEAN, '--max-retries', '2']);
@@ -474,6 +625,7 @@ function runPart2(db) {
   console.log('--- CLI stdout (reviewer-failure, human-readable) ---\n' + failRunHuman.stdout);
   checks.push(['CLI (reviewer fails): exits 0 in human-readable mode too', failRunHuman.exitCode === 0]);
   checks.push(['CLI (reviewer fails): printHuman() reports the coverage failure instead of a summary crash', failRunHuman.stdout.includes('Coverage review failed and was abandoned for this run')]);
+  checks.push(['CLI (human-readable): printHuman() reports the suggested graph steps', failRunHuman.stdout.includes('Suggested graph steps')]);
 
   return checks;
 }
@@ -489,7 +641,14 @@ async function main() {
     throw new Error(`Missing ${path.relative(REPO_ROOT, ORIGINAL_DB)} — run \`npm run extract\` first.`);
   }
 
-  const checks = [...runChecklistCheck(), ...runLinkInsertionCheck(), ...runCandidateSourceArticlesPromptCheck(), ...(await runPart1())];
+  const checks = [
+    ...runChecklistCheck(),
+    ...runWriterResponseShapeCheck(),
+    ...runLinkInsertionCheck(),
+    ...runGraphStepsPromptCheck(),
+    ...runCandidateSourceArticlesPromptCheck(),
+    ...(await runPart1()),
+  ];
 
   const db = new DatabaseSync(ORIGINAL_DB, { readOnly: true });
   try {

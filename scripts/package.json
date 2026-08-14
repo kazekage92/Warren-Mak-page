@@ -24,7 +24,17 @@
     "encrypt-secret": "node --no-warnings encrypt-secret.js",
     "scrape-tradewizard-index": "node --no-warnings scrape-tradewizard-index.js",
     "scrape-enanyang-articles": "node --no-warnings scrape-enanyang-articles.js",
-    "validate-scrape-enanyang-articles": "node --no-warnings validate-scrape-enanyang-articles.js"
+    "validate-scrape-enanyang-articles": "node --no-warnings validate-scrape-enanyang-articles.js",
+    "select-topic": "node --no-warnings select-topic.js",
+    "validate-select-topic": "node --no-warnings validate-select-topic.js",
+    "graph-blocks": "node --no-warnings graph-blocks.js",
+    "validate-graph-blocks": "node --no-warnings validate-graph-blocks.js",
+    "build-article-document": "node --no-warnings build-article-document.js",
+    "validate-build-article-document": "node --no-warnings validate-build-article-document.js",
+    "translate-article": "node --no-warnings translate-article.js",
+    "validate-translate-article": "node --no-warnings validate-translate-article.js",
+    "auto-publish-article": "node --no-warnings auto-publish-article.js",
+    "validate-auto-publish-article": "node --no-warnings validate-auto-publish-article.js"
   },
   "dependencies": {
     "cheerio": "^1.2.0"

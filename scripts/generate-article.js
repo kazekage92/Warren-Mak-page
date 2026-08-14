@@ -38,6 +38,19 @@
  *      together — Phase 8's job (the admin's Knowledge Coverage panel) picks
  *      this up from here; this script does not publish anything itself.
  *
+ * The writer's (and repair's) response also carries two fields beyond
+ * title/summary/body_text, added for extra-md-files/automated-article-
+ * scheduler.md component 2 ("Chart auto-generation") even though that
+ * component's own consumer (graph-blocks.js) is NOT built in this pass —
+ * these are additive to what this file already produces, not a new phase:
+ *   - `suggestedGraphSteps`: 2-5 short imperative-style labels summarizing
+ *     the article's own core process/sequence, grounded in the draft's own
+ *     already-reviewed body text (never inventing a new claim).
+ *   - `body_text` section breaks: real section-heading paragraphs are
+ *     prefixed with "## " on their own line, so a future HTML assembler has
+ *     real heading structure to build on instead of one undifferentiated
+ *     block of paragraphs. See parseWriterResponse()'s validation of both.
+ *
  * Phase 3's fuller scope (SEO optimisation = §4 Phase 4, content-hierarchy
  * enforcement = Phase 6) is NOT built here — those are separate, standalone
  * build-order items that also consume retrieval-layer.js's context (see that
@@ -83,6 +96,18 @@ const DEFAULT_WRITER_MODEL = 'gpt-4o'; // generation task — worth the stronger
 const DEFAULT_REVIEWER_MODEL = 'gpt-4o-mini'; // judgment task — "can be the same or a cheaper model than the writer" (§5)
 const MAX_RETRIES_ALLOWED = 1; // §5: "Cap auto-repair at 1 retry" — not a tunable-up-forever knob
 const MAX_TOKENS = 6000; // a full article body (title+summary+body_text JSON) — the largest single-call budget in this directory; headroom over the site's real max article length (10,523 chars ≈ 2,630 tokens of body alone, per admin/knowledge-graph.json) — re-tune from real data.completion_tokens usage (see callOpenAIChat) rather than guessing further
+
+// extra-md-files/automated-article-scheduler.md component 2 ("Chart auto-generation"):
+// the writer must also return 2-5 short imperative-style labels summarizing the
+// article's own core process/sequence, grounded in the draft's own already-reviewed
+// body text — this is the input graph-blocks.js (not built in this pass) will turn into
+// a `.graph-block--flow` diagram, and body_text must carry at least one "## " section-
+// break line so an HTML assembler downstream has real heading structure to work with
+// instead of one undifferentiated block of paragraphs. Both are validated in
+// parseWriterResponse() below, same strictness as every other required field here.
+const MIN_GRAPH_STEPS = 2;
+const MAX_GRAPH_STEPS = 5;
+const SECTION_BREAK_PATTERN = /^##\s+\S.*$/m; // a line starting "## " — the assembler's future <h2> marker
 
 // ---------------------------------------------------------------------------
 // Checklist assembly — §5 "The checklist": entities + must-include facts
@@ -207,6 +232,15 @@ export function buildWriterPrompt({ topic, checklist, mustIncludeFacts, articleS
     'somewhere in the article, substantively (not just a passing mention); a separate reviewer will ' +
     'check this afterward, so do not skip any. Must-include facts are non-negotiable and must appear ' +
     'accurately, exactly as given -- never alter a number, date, or credential.\n\n' +
+    'Structure body_text into logical sections: on its own line immediately before each section\'s ' +
+    'first paragraph, write a short heading prefixed with "## " (two hash characters, one space, ' +
+    'then the heading text -- e.g. "## Understanding Time Decay"). Include at least 2 such section ' +
+    'headings for a normal-length article. Only real section-heading lines get the "## " prefix -- ' +
+    'never an ordinary paragraph. Also identify SUGGESTED GRAPH STEPS: 2-5 short imperative-style ' +
+    'labels (e.g. "Identify the setup", "Confirm the signal", "Manage the position") summarizing ' +
+    'this article\'s own core process or sequence -- ground every label strictly in what your draft ' +
+    'itself already says, never inventing a claim the article does not cover; these labels feed an ' +
+    'auto-generated flow diagram, so keep each one short (a few words).\n\n' +
     (candidateSourceArticles.length
       ? 'You may be given TITLES of related, unpublished Nanyang Siang Pau columns by Warren Mak that ' +
         'have not yet become a site article. Treat them the same as the published-article summaries ' +
@@ -218,7 +252,8 @@ export function buildWriterPrompt({ topic, checklist, mustIncludeFacts, articleS
       : '') +
     'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
     '{"title":"...","summary":"<1-2 sentence summary>","body_text":"<the full article body as plain ' +
-    'paragraphs separated by blank lines -- no HTML>"}';
+    'paragraphs separated by blank lines, with \\"## \\"-prefixed section-heading lines -- no other ' +
+    'HTML/markdown>","suggestedGraphSteps":["<2-5 short imperative-style labels>"]}';
 
   const userParts = [`Topic: ${topic}`];
   userParts.push(`\nChecklist (${checklist.length} item(s)) -- cover every one substantively:\n${formatChecklistForWriter(checklist)}`);
@@ -267,8 +302,14 @@ export function buildRepairPrompt({ topic, checklist, draft, missing, partial })
     'Keep everything that already works in the draft -- do not rewrite the whole article from ' +
     'scratch, only extend or adjust it so every listed gap is substantively covered. Do not remove ' +
     'or contradict anything already correct in the draft.\n\n' +
+    'The draft\'s "## "-prefixed section-heading lines and its suggestedGraphSteps (shown below) ' +
+    'should be kept as-is unless the fix genuinely requires changing them -- re-emit the full body ' +
+    'text (with its "## " headings preserved) and a suggestedGraphSteps array (still 2-5 short ' +
+    'imperative-style labels, still grounded only in what the revised draft itself says) either way.\n\n' +
     'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
-    '{"title":"...","summary":"...","body_text":"<the full REVISED article body, plain paragraphs, no HTML>"}';
+    '{"title":"...","summary":"...","body_text":"<the full REVISED article body, plain paragraphs ' +
+    'with "## "-prefixed section-heading lines, no other HTML/markdown>","suggestedGraphSteps":' +
+    '["<2-5 short imperative-style labels>"]}';
 
   const gapLines = [
     ...missing.map((i) => `- MISSING entirely: "${i.name}"`),
@@ -279,6 +320,7 @@ export function buildRepairPrompt({ topic, checklist, draft, missing, partial })
     `Topic: ${topic}\n\n` +
     `Current draft title: ${draft.title}\n` +
     `Current draft body text:\n${draft.body_text}\n\n` +
+    `Current draft's suggested graph steps: ${JSON.stringify(draft.suggestedGraphSteps ?? [])}\n\n` +
     `Coverage gaps to fix (from a separate reviewer pass):\n${gapLines.join('\n')}\n\n` +
     `Full checklist for reference (${checklist.length} item(s)):\n${formatChecklistForWriter(checklist)}`;
 
@@ -304,7 +346,33 @@ export function parseWriterResponse(rawText) {
   ) {
     throw new Error(`Writer response missing non-empty "title"/"summary"/"body_text": ${JSON.stringify(parsed)}`);
   }
-  return { title: parsed.title.trim(), summary: parsed.summary.trim(), body_text: parsed.body_text.trim() };
+
+  const bodyText = parsed.body_text.trim();
+  if (!SECTION_BREAK_PATTERN.test(bodyText)) {
+    throw new Error(
+      `Writer response body_text has no "## "-prefixed section-heading line -- the (future) HTML ` +
+        `assembler needs at least one to build real heading structure: ${JSON.stringify(parsed.body_text)}`
+    );
+  }
+
+  if (
+    !Array.isArray(parsed.suggestedGraphSteps) ||
+    parsed.suggestedGraphSteps.length < MIN_GRAPH_STEPS ||
+    parsed.suggestedGraphSteps.length > MAX_GRAPH_STEPS ||
+    !parsed.suggestedGraphSteps.every((s) => typeof s === 'string' && s.trim())
+  ) {
+    throw new Error(
+      `Writer response missing a valid "suggestedGraphSteps" array (${MIN_GRAPH_STEPS}-${MAX_GRAPH_STEPS} ` +
+        `non-empty strings): ${JSON.stringify(parsed.suggestedGraphSteps)}`
+    );
+  }
+
+  return {
+    title: parsed.title.trim(),
+    summary: parsed.summary.trim(),
+    body_text: bodyText,
+    suggestedGraphSteps: parsed.suggestedGraphSteps.map((s) => s.trim()),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -567,7 +635,8 @@ function printHuman(result) {
   console.log(`--- Draft ---`);
   console.log(`Title: ${result.draft.title}`);
   console.log(`Summary: ${result.draft.summary}`);
-  console.log(`Body (${result.draft.body_text.length} chars): ${result.draft.body_text.slice(0, 200)}${result.draft.body_text.length > 200 ? '…' : ''}\n`);
+  console.log(`Body (${result.draft.body_text.length} chars): ${result.draft.body_text.slice(0, 200)}${result.draft.body_text.length > 200 ? '…' : ''}`);
+  console.log(`Suggested graph steps (${result.draft.suggestedGraphSteps.length}): ${result.draft.suggestedGraphSteps.join(' -> ')}\n`);
 
   if (result.reviewCoverageFailed) {
     console.log(`--- Coverage ---`);

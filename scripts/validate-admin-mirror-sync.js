@@ -20,8 +20,11 @@
  *
  * Scope is deliberately the PROMPT-BUILDING functions (the ones that return a
  * literal string or {system,user} object baked directly into an LLM call) plus
- * the small formatting helpers spliced directly into those prompts — not every
- * mirrored function in admin/index.html. Response-PARSING mirrors
+ * the small formatting helpers spliced directly into those prompts, PLUS the
+ * two deterministic HTML-assembly functions extra-md-files/automated-article-
+ * scheduler.md explicitly calls out as carrying the same sync obligation
+ * (buildFlowGraphHtml, buildArticleDocument) — not every mirrored function in
+ * admin/index.html. Response-PARSING mirrors
  * (parseReviewResponseBrowser, parseSeoResponseBrowser, kgParseExtractionResponse,
  * kgParseJudgeResponse) and the checklist-retrieval mirrors (kcTokenize/
  * kcFindSeedEntities/kcExpandRelatedEntities/kcBuildChecklist) are out of scope:
@@ -41,6 +44,8 @@
  *   - fact-retention-checker.js: buildJudgePrompt  <-> kgBuildJudgePrompt
  *   - generate-article.js:       buildWriterPrompt <-> buildWriterPromptBrowser
  *   - generate-article.js:       buildRepairPrompt <-> buildRepairPromptBrowser
+ *   - graph-blocks.js:           buildFlowGraphHtml <-> buildFlowGraphHtml (same name both sides)
+ *   - build-article-document.js: buildArticleDocument <-> buildArticleDocument (same name both sides)
  *
  * Usage: node validate-admin-mirror-sync.js
  * Exits non-zero if any pair's output diverges.
@@ -56,6 +61,8 @@ import { buildSeoPrompt } from './seo-optimizer.js';
 import { buildExtractionPrompt } from './extract-entities.js';
 import { buildJudgePrompt, formatState } from './fact-retention-checker.js';
 import { buildWriterPrompt, buildRepairPrompt } from './generate-article.js';
+import { buildFlowGraphHtml } from './graph-blocks.js';
+import { buildArticleDocument } from './build-article-document.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -155,6 +162,45 @@ function extractVarDecl(html, name) {
   return m[0];
 }
 
+/** General-purpose sibling of extractVarDecl above, for `var <name> = <expr>;`
+ *  declarations extractVarDecl's single-line-array-literal regex can't handle:
+ *  NAV_HTML/FOOTER_HTML (an array literal followed by `.join('\n')`) and
+ *  CTA_PRESETS (a multi-line object literal whose own values are themselves
+ *  `.join('\n')`-ed array literals). Scans from just after `=`, bracket/brace/
+ *  paren-depth- and string-aware (same spirit as extractBalancedBlock above,
+ *  generalized to all three opener characters since `.join(...)` calls appear
+ *  inside these expressions), stopping at the first top-level `;`. */
+function extractVarStatementSource(html, name) {
+  const re = new RegExp(`var\\s+${name}\\s*=\\s*`);
+  const m = re.exec(html);
+  if (!m) throw new Error(`Could not find "var ${name} = ..." in admin/index.html`);
+  const exprStart = m.index + m[0].length;
+
+  let depth = 0;
+  let inString = null;
+  let i = exprStart;
+  for (; i < html.length; i++) {
+    const c = html[i];
+    if (inString) {
+      if (c === '\\') {
+        i++;
+      } else if (c === inString) {
+        inString = null;
+      }
+      continue;
+    }
+    if (c === "'" || c === '"') {
+      inString = c;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') depth++;
+    else if (c === ')' || c === ']' || c === '}') depth--;
+    else if (c === ';' && depth === 0) break;
+  }
+  if (i >= html.length) throw new Error(`extractVarStatementSource: ran off the end of the file looking for "${name}"'s closing ";"`);
+  return html.slice(m.index, i + 1);
+}
+
 function loadAdminMirrors() {
   const html = readFileSync(ADMIN_HTML_PATH, 'utf-8');
 
@@ -180,6 +226,47 @@ function loadAdminMirrors() {
     extractFunctionSource(html, 'formatChecklistForWriterBrowser'),
     extractFunctionSource(html, 'buildWriterPromptBrowser'),
     extractFunctionSource(html, 'buildRepairPromptBrowser'),
+    // escapeHtml is a dependency of buildFlowGraphHtml below (the 5th pair) --
+    // not itself a validated pair, same "in-scope for the sandbox eval, not
+    // separately asserted" treatment as formatChecklistItemsBrowser above.
+    extractFunctionSource(html, 'escapeHtml'),
+    extractFunctionSource(html, 'buildFlowGraphHtml'),
+    // buildArticleDocument's own dependencies (6th pair) -- escapeAttr/
+    // jsonLdScript/truncateWords/truncateChars/formatMonthYear/
+    // formatMonthYearZh/readingTimeTextZh plus the three static-chrome
+    // constants and substituteGraphPlaceholders. naGraphBlocks is NOT
+    // extracted from admin's source (it's mutated all over that file as the
+    // wizard's live graph-panel state) -- it's synthesized below as an empty
+    // array instead, which is exactly the state buildArticleDocument sees for
+    // a document with no graph blocks inserted, the only case this validator
+    // needs (see build-article-document.js's own header comment on why its
+    // Node buildArticleDocument() expects already-final body HTML instead).
+    // escapeAttr is NOT run through extractFunctionSource: its body is
+    // `escapeHtml(str).replace(/"/g, '&quot;')` — that regex literal contains
+    // a bare `"`, which extractBalancedBlock's string/comment-aware scanner
+    // (deliberately regex-literal-blind per its own doc comment — "none of
+    // the target functions use ... regex literals", true until this one)
+    // misreads as the START of a string literal, then runs away consuming
+    // admin/index.html far past escapeAttr's real closing brace looking for a
+    // matching quote. escapeAttr is a two-line, effectively-frozen dependency
+    // (not itself a validated pair, same treatment as naGraphBlocks below),
+    // so it's simplest to inline its known-correct source verbatim here
+    // rather than teach the scanner to distinguish regex literals from
+    // division — re-copy this line if admin/index.html's escapeAttr ever
+    // changes.
+    "function escapeAttr(str) { return escapeHtml(str).replace(/\"/g, '&quot;'); }",
+    extractFunctionSource(html, 'jsonLdScript'),
+    extractFunctionSource(html, 'truncateWords'),
+    extractFunctionSource(html, 'truncateChars'),
+    extractFunctionSource(html, 'formatMonthYear'),
+    extractFunctionSource(html, 'formatMonthYearZh'),
+    extractFunctionSource(html, 'readingTimeTextZh'),
+    extractVarStatementSource(html, 'NAV_HTML'),
+    extractVarStatementSource(html, 'FOOTER_HTML'),
+    extractVarStatementSource(html, 'CTA_PRESETS'),
+    'var naGraphBlocks = [];',
+    extractFunctionSource(html, 'substituteGraphPlaceholders'),
+    extractFunctionSource(html, 'buildArticleDocument'),
     // Expose everything to the sandbox's global scope so the harness can read it back.
     [
       'globalThis.__mirrors__ = {',
@@ -190,7 +277,9 @@ function loadAdminMirrors() {
       '  kgBuildJudgePrompt: kgBuildJudgePrompt,',
       '  kgBuildExtractionPrompt: kgBuildExtractionPrompt,',
       '  buildWriterPromptBrowser: buildWriterPromptBrowser,',
-      '  buildRepairPromptBrowser: buildRepairPromptBrowser',
+      '  buildRepairPromptBrowser: buildRepairPromptBrowser,',
+      '  buildFlowGraphHtml: buildFlowGraphHtml,',
+      '  buildArticleDocument: buildArticleDocument',
       '};',
     ].join('\n'),
   ].join('\n\n');
@@ -457,13 +546,62 @@ comparePromptObjects(
   buildRepairPrompt({ topic: 'Time Decay', checklist: CHECKLIST_SAMPLE, draft: REPAIR_DRAFT_SAMPLE, missing: REPAIR_MISSING_SAMPLE, partial: REPAIR_PARTIAL_SAMPLE })
 );
 
+console.log('\ngraph-blocks.js buildFlowGraphHtml <-> admin buildFlowGraphHtml');
+const GRAPH_TITLE_SAMPLE = 'Warrant\'s "Extrinsic" Value & <Risk> Tags — A Quick Primer';
+const GRAPH_STEPS_SAMPLE = [
+  'Identify the "setup" & confirm the signal',
+  'Size the position — never risk more than 5%',
+  'Manage <stop-loss> levels as time decay accelerates',
+  '中文测试步骤标签',
+];
+assertEqual('empty steps', mirrors.buildFlowGraphHtml(GRAPH_TITLE_SAMPLE, []), buildFlowGraphHtml(GRAPH_TITLE_SAMPLE, []));
+assertEqual('sample steps', mirrors.buildFlowGraphHtml(GRAPH_TITLE_SAMPLE, GRAPH_STEPS_SAMPLE), buildFlowGraphHtml(GRAPH_TITLE_SAMPLE, GRAPH_STEPS_SAMPLE));
+
+console.log('\nbuild-article-document.js buildArticleDocument <-> admin buildArticleDocument');
+const ARTICLE_STATE_SAMPLE = {
+  titleEn: 'Time Decay and Your Structured Warrants',
+  titleZh: '时间损耗与您的结构性凭单',
+  subtitleEn: 'Why theta erodes a warrant\'s "extrinsic" value & <intrinsic> value every day',
+  subtitleZh: '为什么theta每天都在侵蚀凭单的"外在"与<内在>价值',
+  categoryEn: 'Structured Warrants',
+  categoryZh: '结构性凭单',
+  authorEn: 'Warren Mak',
+  authorZh: '麦传球 Warren Mak',
+  publishDate: '2026-08-14',
+  tags: 'time decay, theta, structured warrants, 中文测试',
+  ctaPreset: 'warrants',
+  slug: 'time-decay-structured-warrants',
+  metaTitle: '',
+  metaDescription: 'A guide to time decay in structured warrants on Bursa Malaysia — quotes "included" & <tested>.',
+  canonicalUrl: 'https://www.warrenmak.asia/articles/time-decay-structured-warrants.html',
+  bodyEnHtml: '<h2>What Is Time Decay?</h2><p>Time decay erodes value daily — even if the stock stays "flat".</p>',
+  bodyZhHtml: '<h2>什么是时间损耗？</h2><p>时间损耗每天侵蚀价值——即使股价"不动"。</p>',
+  readingTimeText: '5 min read',
+  ogImageUrl: 'https://www.warrenmak.asia/assets/images/og-image.jpg',
+};
+assertEqual(
+  'sample state, "warrants" CTA preset',
+  mirrors.buildArticleDocument(ARTICLE_STATE_SAMPLE),
+  buildArticleDocument(ARTICLE_STATE_SAMPLE)
+);
+assertEqual(
+  'sample state, "shortterm" CTA preset',
+  mirrors.buildArticleDocument({ ...ARTICLE_STATE_SAMPLE, ctaPreset: 'shortterm' }),
+  buildArticleDocument({ ...ARTICLE_STATE_SAMPLE, ctaPreset: 'shortterm' })
+);
+assertEqual(
+  'sample state, explicit metaTitle (overrides the titleEn fallback)',
+  mirrors.buildArticleDocument({ ...ARTICLE_STATE_SAMPLE, metaTitle: 'A Different SEO Title' }),
+  buildArticleDocument({ ...ARTICLE_STATE_SAMPLE, metaTitle: 'A Different SEO Title' })
+);
+
 console.log(`\n${checks} check(s), ${failures} failure(s).`);
 if (failures > 0) {
   console.error(
-    '\nOne or more scripts/*.js prompt-building functions have drifted from their ' +
-      'admin/index.html mirror. Update whichever side is stale (search admin/index.html ' +
-      'for "mirrors scripts/" to find its copy) and re-run this script.'
+    '\nOne or more scripts/*.js functions have drifted from their admin/index.html mirror. ' +
+      'Update whichever side is stale (search admin/index.html for "mirrors scripts/" to find ' +
+      'its copy) and re-run this script.'
   );
   process.exit(1);
 }
-console.log('\nAll admin/index.html prompt-building mirrors match their scripts/*.js originals.');
+console.log('\nAll admin/index.html mirrors match their scripts/*.js originals.');

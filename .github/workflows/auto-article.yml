@@ -1,0 +1,100 @@
+name: Auto-publish article
+
+# Build-order step 6 / component 5's other half of
+# extra-md-files/automated-article-scheduler.md — wires scripts/auto-publish-article.js
+# (build-order step 5, already built) to an actual schedule. See that doc for the full
+# design and scripts/README.md's "auto-publish-article.js" section for the CLI itself.
+#
+# Weekly cron is just a check-in, not a guaranteed publish: auto-publish-article.js's own
+# cadence gate (admin/auto-article-history.json's last publishedAt + a randomized 14-21 day
+# target) decides whether this cycle actually runs the pipeline or no-ops. workflow_dispatch
+# exists for manual testing/reruns and can bypass that gate via the "force" input.
+#
+# Per the doc's 2026-08-14 addendum (decision 1, amended): this never commits straight to
+# the default branch. A successful run pushes a new branch and opens a DRAFT PR that still
+# needs one human merge before anything goes live.
+
+on:
+  schedule:
+    - cron: '0 2 * * 1' # every Monday 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Skip the 14-21 day cadence gate'
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Real LLM calls, but no disk/git writes (--dry-run)'
+        type: boolean
+        default: false
+      no_push:
+        description: 'Commit locally only, skip push + draft PR (ignored if dry_run is set)'
+        type: boolean
+        default: false
+      topic:
+        description: 'Override topic selection (skips select-topic.js scoring)'
+        type: string
+        default: ''
+
+# contents: write  -> auto-publish-article.js pushes the new auto-article/<slug> branch
+# pull-requests: write -> auto-publish-article.js runs `gh pr create --draft`
+# Both per the doc's "Secrets needed" section — the workflow's own GITHUB_TOKEN covers
+# this; no separate PAT is needed (unlike admin/index.html, which has no other credential
+# available from a browser).
+permissions:
+  contents: write
+  pull-requests: write
+
+# Only one cycle at a time; a manual test run shouldn't race a concurrent scheduled one.
+concurrency:
+  group: auto-article
+  cancel-in-progress: false
+
+jobs:
+  auto-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: Install script dependencies
+        working-directory: scripts
+        run: npm ci
+
+      - name: Run auto-publish-article.js
+        working-directory: scripts
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          IN_FORCE: ${{ inputs.force }}
+          IN_DRY_RUN: ${{ inputs.dry_run }}
+          IN_NO_PUSH: ${{ inputs.no_push }}
+          IN_TOPIC: ${{ inputs.topic }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -e
+          args=(--base-branch "$DEFAULT_BRANCH")
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            [ "$IN_FORCE" = "true" ] && args+=(--force)
+            [ "$IN_DRY_RUN" = "true" ] && args+=(--dry-run)
+            [ "$IN_NO_PUSH" = "true" ] && args+=(--no-push)
+            if [ -n "$IN_TOPIC" ]; then
+              args+=(--topic "$IN_TOPIC")
+            fi
+          fi
+          echo "Running: node auto-publish-article.js ${args[*]}"
+          node --no-warnings auto-publish-article.js "${args[@]}"
