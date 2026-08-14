@@ -116,13 +116,17 @@ function checks_upsertIdempotency() {
     const afterFirst = db.prepare('SELECT COUNT(*) AS n FROM source_articles WHERE slug = ?').get(base.slug);
     checks.push(['first upsert inserts exactly one row', afterFirst.n === 1]);
 
-    upsertSourceArticle(db, { ...base, title: 'Updated Title', original_content: 'Second version of the content.' });
+    const rowNoKeywords = db.prepare('SELECT keywords FROM source_articles WHERE slug = ?').get(base.slug);
+    checks.push(['a record with no keywords field defaults to null (loadPendingFile has no equivalent field)', rowNoKeywords.keywords === null]);
+
+    upsertSourceArticle(db, { ...base, title: 'Updated Title', original_content: 'Second version of the content.', keywords: JSON.stringify(['warrants', 'ipo']) });
     const afterSecond = db.prepare('SELECT COUNT(*) AS n FROM source_articles WHERE slug = ?').get(base.slug);
     checks.push(['second upsert (same slug) still exactly one row — no duplicate', afterSecond.n === 1]);
 
-    const row = db.prepare('SELECT title, original_content, status FROM source_articles WHERE slug = ?').get(base.slug);
+    const row = db.prepare('SELECT title, original_content, status, keywords FROM source_articles WHERE slug = ?').get(base.slug);
     checks.push(['second upsert overwrote the title with the new value', row.title === 'Updated Title']);
     checks.push(['second upsert overwrote original_content with the new value', row.original_content === 'Second version of the content.']);
+    checks.push(['second upsert overwrote keywords with the new value', row.keywords === JSON.stringify(['warrants', 'ipo'])]);
     checks.push(['status is "imported" after upsert', row.status === 'imported']);
   } finally {
     db.close();

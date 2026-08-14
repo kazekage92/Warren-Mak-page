@@ -138,26 +138,33 @@ export function loadPendingFile(filePath) {
 /** Idempotent upsert keyed on slug — same ON CONFLICT DO UPDATE shape as
  *  extract-articles.js's upsertArticles(). Always sets status='imported' and
  *  a fresh import_date; the rest of the lifecycle (reviewed/ready/generated/
- *  published/ignored) is out of this script's scope (see schema comment). */
+ *  published/ignored) is out of this script's scope (see schema comment).
+ *
+ * `record.keywords` (a JSON-encoded array of TradeWizard's own filter tags —
+ * see schema.sql's own comment on the column) is optional and defaults to
+ * null: only scrape-enanyang-articles.js's processRow() currently populates
+ * it (from the TradeWizard index row), while loadPendingFile()'s manual-
+ * paste pending files below have no equivalent field to carry. */
 export function upsertSourceArticle(db, record) {
   const stmt = db.prepare(`
     INSERT INTO source_articles
-      (title, slug, original_url, published_at, author, category, original_content, featured_image, import_date, status, notes)
+      (title, slug, original_url, published_at, author, category, keywords, original_content, featured_image, import_date, status, notes)
     VALUES
-      (@title, @slug, @original_url, @published_at, @author, @category, @original_content, @featured_image, @import_date, 'imported', @notes)
+      (@title, @slug, @original_url, @published_at, @author, @category, @keywords, @original_content, @featured_image, @import_date, 'imported', @notes)
     ON CONFLICT(slug) DO UPDATE SET
       title             = excluded.title,
       original_url      = excluded.original_url,
       published_at      = excluded.published_at,
       author            = excluded.author,
       category          = excluded.category,
+      keywords          = excluded.keywords,
       original_content  = excluded.original_content,
       featured_image    = excluded.featured_image,
       import_date       = excluded.import_date,
       status            = 'imported',
       notes             = excluded.notes
   `);
-  stmt.run({ ...record, import_date: new Date().toISOString().slice(0, 10) });
+  stmt.run({ ...record, keywords: record.keywords ?? null, import_date: new Date().toISOString().slice(0, 10) });
 }
 
 // ---------------------------------------------------------------------------

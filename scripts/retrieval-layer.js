@@ -17,7 +17,13 @@
  * prevention) all consume the SAME underlying lookup — so it's built once
  * here and each caller reads the slice of the result it needs:
  *
- *   - Phase 2 / §2 Step 6.2      -> result.articleSummaries
+ *   - Phase 2 / §2 Step 6.2      -> result.articleSummaries (published `articles`, via the entity
+ *                                    graph) AND result.candidateSourceArticles (unpublished
+ *                                    `source_articles` rows, via findCandidateSourceArticles() —
+ *                                    the "search by keyword/topic/category" half of Phase 2's own
+ *                                    wording that stayed unbuilt until scrape-enanyang-articles.js
+ *                                    actually populated source_articles.keywords at scale; queried
+ *                                    directly since those rows carry no entities/edges of their own)
  *   - Phase 5 / §2 Step 6.4      -> result.suggestedLinks (WHAT to link — this file's
  *                                    insertSuggestedLinks(), below suggestInternalLinks,
  *                                    is the separate step that actually links it: consumed
@@ -56,6 +62,9 @@
  *   node retrieval-layer.js --topic "Time Decay"
  *   node retrieval-layer.js --topic "Leverage and Risk Management" --max-hops 2 --json
  *   node retrieval-layer.js --topic "..." --db ../admin/knowledge-graph.db   # (default shown)
+ *   node retrieval-layer.js --topic "IPO" --source-keyword ipo               # Phase 2: narrow candidateSourceArticles to a keyword facet
+ *   node retrieval-layer.js --source-category "fundamental analysis"         # Phase 2: browse a facet with no free-text topic at all
+ *   node retrieval-layer.js --topic "..." --max-source-candidates 10
  */
 
 import path from 'node:path';
@@ -398,6 +407,126 @@ export function suggestInternalLinks(articleSummaries, seedEntities, opts = {}) 
 }
 
 // ---------------------------------------------------------------------------
+// Phase 2 — candidate source-article selection ("Never rely on a single
+// article — before generating, search for related source articles by
+// keyword/topic similarity/category/tag" — extra-md-files/ai-article-
+// pipeline.md's Phase 2). Distinct from getArticleSummariesForEntities()
+// above, which covers already-PUBLISHED `articles` via the entity graph:
+// this searches `source_articles` (imported-but-not-yet-turned-into-an-
+// article eNanyang columns) directly, since those rows carry no
+// entities/edges of their own. This is the piece of Phase 2 that stayed
+// unbuilt until scrape-enanyang-articles.js actually populated
+// source_articles.keywords at scale (see that column's own schema.sql
+// comment — TradeWizard's own filter tags, distinct from `category`).
+// ---------------------------------------------------------------------------
+
+/**
+ * Finds `source_articles` rows relevant to `topic`, scored cheapest-signal-
+ * first (same "no NLP stack" stance as findSeedEntities above):
+ *  1.0 — topic appears verbatim in the title (case-insensitive)
+ *  0.8 — topic shares a keyword (this file's own tokenize(), >=4 chars,
+ *        non-stopword) with one of the row's `keywords` tags
+ *  0.6 — topic shares a keyword with the row's `category`
+ *  0.4 — topic shares a keyword with `original_content` (body text — the
+ *        weakest signal, only checked when nothing stronger matched, so a
+ *        topic word's incidental mention deep in a column's body doesn't
+ *        drown out real title/tag/category matches)
+ *
+ * `opts.keyword` and `opts.category` are FACETS, not just scoring inputs:
+ * substring, case-insensitive (matching filterRowsByCategoryAndKeyword()'s
+ * own semantics in scrape-enanyang-articles.js, so a value copied from one
+ * flag to the other behaves the same way) — a row failing either given facet
+ * is dropped entirely before scoring, never merely down-ranked. Any row that
+ * PASSES a given facet is guaranteed a floor score of 0.5 (reason names
+ * which facet matched) even when `topic` itself adds no extra text-match
+ * signal on top of that — this is what makes the facet an actual filter, not
+ * just a tie-breaker: "browse everything tagged IPO" (no topic at all) and
+ * "articles about Warren's IPO topic, but only ones tagged IPO" (topic +
+ * facet, topic text not necessarily present anywhere in the row) both return
+ * every facet-matching row, the same "keyword facet" admin/index.html's
+ * Knowledge Search screen exposes over the same column.
+ *
+ * Rows with `status = 'ignored'` are excluded — that status means an admin
+ * already reviewed and deliberately excluded this source article from future
+ * generation (schema.sql's status enum), so it should never resurface here
+ * even if it'd otherwise score well.
+ *
+ * Returns `{id, title, slug, category, keywords, originalUrl, score, reason}`
+ * sorted best-first, capped at `opts.limit` (default 5).
+ */
+export function findCandidateSourceArticles(db, topic, opts = {}) {
+  const { limit = 5, keyword = null, category = null } = opts;
+  const topicLower = (topic ?? '').trim().toLowerCase();
+  const topicWords = tokenize(topicLower);
+  const keywordLower = keyword ? keyword.trim().toLowerCase() : null;
+  const categoryLower = category ? category.trim().toLowerCase() : null;
+
+  const rows = db
+    .prepare(
+      `SELECT id, title, slug, category, keywords, original_content, original_url
+       FROM source_articles WHERE status IS NULL OR status != 'ignored'`
+    )
+    .all();
+
+  const scored = [];
+  for (const row of rows) {
+    let rowKeywords = [];
+    try {
+      const parsed = row.keywords ? JSON.parse(row.keywords) : [];
+      if (Array.isArray(parsed)) rowKeywords = parsed.filter((k) => typeof k === 'string');
+    } catch {
+      // malformed keywords JSON on an older/hand-edited row — treat as no keywords rather than throw
+    }
+    const rowKeywordsLower = rowKeywords.map((k) => k.toLowerCase());
+    const rowCategoryLower = (row.category ?? '').toLowerCase();
+
+    if (keywordLower && !rowKeywordsLower.some((k) => k.includes(keywordLower))) continue;
+    if (categoryLower && !rowCategoryLower.includes(categoryLower)) continue;
+
+    let score = 0;
+    let reason = null;
+    const titleLower = (row.title ?? '').toLowerCase();
+    if (topicLower && titleLower.includes(topicLower)) {
+      score = 1;
+      reason = 'topic appears in the title';
+    } else if (topicWords.length && rowKeywordsLower.some((k) => topicWords.some((w) => k.includes(w)))) {
+      score = 0.8;
+      reason = 'shares a keyword tag with the topic';
+    } else if (topicWords.length && rowCategoryLower && topicWords.some((w) => rowCategoryLower.includes(w))) {
+      score = 0.6;
+      reason = 'shares a keyword with the category';
+    } else if (topicWords.length && topicWords.some((w) => (row.original_content ?? '').toLowerCase().includes(w))) {
+      score = 0.4;
+      reason = 'topic keyword appears in the body text';
+    }
+    // Facet floor: this row already passed the --keyword/--category filter above (or there was
+    // no topic at all to score against) — surface it at a baseline score rather than dropping it,
+    // even when the topic text itself adds no EXTRA relevance signal on top of the facet match.
+    // Without this, a facet + an unrelated topic string would silently produce zero candidates,
+    // which defeats the point of "browse/narrow by this keyword" as a real filter.
+    if (score === 0 && (keywordLower || categoryLower)) {
+      score = 0.5;
+      reason = keywordLower ? `tagged with keyword "${keyword}"` : `in category "${category}"`;
+    }
+    if (score > 0) {
+      scored.push({
+        id: row.id,
+        title: row.title,
+        slug: row.slug,
+        category: row.category,
+        keywords: rowKeywords,
+        originalUrl: row.original_url,
+        score,
+        reason,
+      });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
 // Phase 5 (continued) — AUTO-INSERTING suggested links into a draft, not just
 // suggesting them. `suggestInternalLinks` above answers "what should link to
 // what"; this answers "make it actually link" — the piece Phase 5's own
@@ -532,10 +661,36 @@ function assessDuplicateRisk(titleSlugMatches, nearDuplicates) {
  * @param {string} [opts.candidateTitle] / {string} [opts.candidateSlug] - Phase 7: when either is given,
  *   the result gains a `duplicateRisk` field (title/slug similarity across ALL articles, combined with
  *   the entity-based nearDuplicates flags into one verdict) — see scoreTitleSlugSimilarity/assessDuplicateRisk.
+ * @param {number} [opts.maxSourceCandidates=5] - cap on candidateSourceArticles (Phase 2, below)
+ * @param {string} [opts.sourceKeyword] / {string} [opts.sourceCategory] - Phase 2: optional facet filters
+ *   narrowing `candidateSourceArticles` to `source_articles` rows matching this keyword tag / category
+ *   bucket (substring, case-insensitive — see findCandidateSourceArticles' own doc comment). Either can
+ *   be given with no `topic` at all, to just browse a facet.
  */
 export function buildRetrievalContext(db, topic, opts = {}) {
-  const { seedLimit = 8, maxHops = 1, maxSuggestedLinks = 3, highThreshold, mediumThreshold, candidateTitle, candidateSlug } = opts;
+  const {
+    seedLimit = 8,
+    maxHops = 1,
+    maxSuggestedLinks = 3,
+    highThreshold,
+    mediumThreshold,
+    candidateTitle,
+    candidateSlug,
+    maxSourceCandidates = 5,
+    sourceKeyword,
+    sourceCategory,
+  } = opts;
   const hasCandidate = Boolean((candidateTitle ?? '').trim() || (candidateSlug ?? '').trim());
+
+  // Phase 2 — independent of the entity graph (source_articles rows carry no
+  // entities/edges of their own), so this runs regardless of whether any
+  // seed entity matched below, and is attached to both early-return and
+  // full result shapes.
+  const candidateSourceArticles = findCandidateSourceArticles(db, topic, {
+    limit: maxSourceCandidates,
+    keyword: sourceKeyword,
+    category: sourceCategory,
+  });
 
   const seedEntities = findSeedEntities(db, topic, { limit: seedLimit });
   if (!seedEntities.length) {
@@ -548,6 +703,7 @@ export function buildRetrievalContext(db, topic, opts = {}) {
       suggestedLinks: [],
       checklist: [],
       contentHierarchy: assessContentHierarchy([], []),
+      candidateSourceArticles,
       note: 'No entity in the graph matched this topic — treat it as a genuinely new subject; nothing to flag or link yet.',
     };
     if (hasCandidate) {
@@ -563,7 +719,17 @@ export function buildRetrievalContext(db, topic, opts = {}) {
   const checklist = buildChecklist(relatedEntities);
   const contentHierarchy = assessContentHierarchy(articleSummaries, nearDuplicates);
 
-  const result = { topic, seedEntities, relatedEntities, articleSummaries, nearDuplicates, suggestedLinks, checklist, contentHierarchy };
+  const result = {
+    topic,
+    seedEntities,
+    relatedEntities,
+    articleSummaries,
+    nearDuplicates,
+    suggestedLinks,
+    checklist,
+    contentHierarchy,
+    candidateSourceArticles,
+  };
   if (hasCandidate) {
     result.duplicateRisk = assessDuplicateRisk(scoreTitleSlugSimilarity(db, { candidateTitle, candidateSlug }), nearDuplicates);
   }
@@ -582,6 +748,9 @@ function parseArgs(argv) {
     maxLinks: 3,
     candidateTitle: null,
     candidateSlug: null,
+    sourceKeyword: null,
+    sourceCategory: null,
+    maxSourceCandidates: 5,
     json: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -611,6 +780,18 @@ function parseArgs(argv) {
       case '--candidate-slug':
         opts.candidateSlug = nextArg(argv, ++i, '--candidate-slug');
         break;
+      case '--source-keyword':
+        opts.sourceKeyword = nextArg(argv, ++i, '--source-keyword');
+        break;
+      case '--source-category':
+        opts.sourceCategory = nextArg(argv, ++i, '--source-category');
+        break;
+      case '--max-source-candidates': {
+        const n = Number(nextArg(argv, ++i, '--max-source-candidates'));
+        if (!Number.isInteger(n) || n < 0) throw new Error('--max-source-candidates must be a non-negative integer');
+        opts.maxSourceCandidates = n;
+        break;
+      }
       case '--json':
         opts.json = true;
         break;
@@ -618,14 +799,27 @@ function parseArgs(argv) {
         throw new Error(`Unknown flag: ${arg}`);
     }
   }
-  if (!opts.topic) throw new Error('--topic is required');
+  // --topic is normally required, EXCEPT when a --source-keyword/--source-category facet is
+  // given on its own — that's a valid "browse everything tagged X" query with no free-text
+  // topic at all (see findCandidateSourceArticles' own doc comment).
+  if (!opts.topic && !opts.sourceKeyword && !opts.sourceCategory) {
+    throw new Error('--topic is required (or pass --source-keyword/--source-category to browse source articles by facet alone)');
+  }
   return opts;
+}
+
+function printCandidateSourceArticles(result) {
+  console.log(`\nCandidate source articles (Phase 2, ${result.candidateSourceArticles.length}):`);
+  for (const c of result.candidateSourceArticles) {
+    console.log(`  - [score ${c.score}] "${c.title}" (${c.slug}) — ${c.reason}${c.category ? ` [category: ${c.category}]` : ''}`);
+  }
 }
 
 function printHuman(result) {
   console.log(`Topic: "${result.topic}"\n`);
   if (result.note) {
     console.log(result.note);
+    printCandidateSourceArticles(result);
     return;
   }
 
@@ -660,6 +854,8 @@ function printHuman(result) {
       console.log(`  - ${m.slug} (title similarity ${m.titleSimilarityScore}, slug similarity ${m.slugSimilarityScore})`);
     }
   }
+
+  printCandidateSourceArticles(result);
 }
 
 async function main() {
@@ -671,6 +867,9 @@ async function main() {
       maxSuggestedLinks: opts.maxLinks,
       candidateTitle: opts.candidateTitle,
       candidateSlug: opts.candidateSlug,
+      sourceKeyword: opts.sourceKeyword,
+      sourceCategory: opts.sourceCategory,
+      maxSourceCandidates: opts.maxSourceCandidates,
     });
     if (opts.json) console.log(JSON.stringify(result, null, 2));
     else printHuman(result);

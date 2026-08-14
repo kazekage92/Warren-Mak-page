@@ -854,6 +854,13 @@
           <input type="search" id="ksSearchInput" class="article-search-input" style="max-width:none;" placeholder="Search entities, relations, articles, and source articles&hellip;" oninput="onKnowledgeSearchInput()" disabled>
           <span class="field-hint" id="ksLoadStatus">Loading knowledge graph&hellip;</span>
         </div>
+        <div class="form-field">
+          <label>Source article keyword facet</label>
+          <select id="ksKeywordFilter" onchange="ksRunSearch()" disabled>
+            <option value="">All keywords</option>
+          </select>
+          <span class="field-hint">Narrows &ldquo;Source Articles&rdquo; results below to this TradeWizard tag (source_articles.keywords) &mdash; works alone, with no search text, too.</span>
+        </div>
       </div>
     </div>
 
@@ -3193,6 +3200,8 @@
     $('knowledgeSearchScreen').classList.remove('hidden');
     $('ksSearchInput').value = '';
     $('ksSearchInput').disabled = true;
+    $('ksKeywordFilter').innerHTML = '<option value="">All keywords</option>';
+    $('ksKeywordFilter').disabled = true;
     $('ksResults').innerHTML = '';
     $('ksStats').innerHTML = '';
     $('ksLoadStatus').textContent = 'Loading knowledge graph…';
@@ -3200,11 +3209,35 @@
       $('ksLoadStatus').textContent = 'Type to search, or browse the totals below.';
       $('ksSearchInput').disabled = false;
       $('ksSearchInput').focus();
+      ksPopulateKeywordFilter(graph);
       ksRenderStats(graph);
     }).catch(function(err) {
       $('ksLoadStatus').textContent = 'Failed to load knowledge graph: ' + err.message;
     });
   };
+
+  // Distinct source_articles.keywords tags (TradeWizard's own filter tags — see
+  // schema.sql's comment on the column), collected across every staged/scraped row and sorted
+  // alphabetically, so the facet dropdown reflects whatever the pipeline has actually imported
+  // rather than a hardcoded list that would drift out of sync with it.
+  function ksPopulateKeywordFilter(graph) {
+    var select = $('ksKeywordFilter');
+    var seen = {};
+    var tags = [];
+    (graph.source_articles || []).forEach(function(s) {
+      (s.keywords || []).forEach(function(k) {
+        if (typeof k !== 'string' || !k.trim()) return;
+        var key = k.trim().toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        tags.push(k.trim());
+      });
+    });
+    tags.sort(function(a, b) { return a.localeCompare(b); });
+    select.innerHTML = '<option value="">All keywords</option>' +
+      tags.map(function(t) { return '<option value="' + escapeAttr(t) + '">' + escapeHtml(t) + '</option>'; }).join('');
+    select.disabled = tags.length === 0;
+  }
 
   window.closeKnowledgeSearch = function() {
     $('knowledgeSearchScreen').classList.add('hidden');
@@ -3267,28 +3300,48 @@
 
   var KS_RESULT_LIMIT = 25;
 
+  // True if any of a source_articles row's keywords tags matches `filterLower` — exact,
+  // case-insensitive, since the facet dropdown only ever offers values copied verbatim from the
+  // data itself (unlike free-text search, which stays substring-matched below).
+  function ksSourceHasKeywordTag(source, filterLower) {
+    return (source.keywords || []).some(function(k) { return typeof k === 'string' && k.toLowerCase() === filterLower; });
+  }
+
   function ksRunSearch() {
     var graph = knowledgeGraphJson;
     if (!graph) return;
     var query = $('ksSearchInput').value.trim();
-    if (!query) {
+    var keywordFilter = $('ksKeywordFilter').value;
+    if (!query && !keywordFilter) {
       $('ksResults').innerHTML = '';
       ksRenderStats(graph);
       return;
     }
     var queryLower = query.toLowerCase();
+    var keywordFilterLower = keywordFilter.toLowerCase();
 
-    var entityMatches = graph.entities.filter(function(e) { return ksMatch(e.name, queryLower) || ksMatch(e.type, queryLower); });
-    var edgeMatches = graph.edges.filter(function(e) { return ksMatch(e.source, queryLower) || ksMatch(e.relation, queryLower) || ksMatch(e.target, queryLower); });
-    var articleMatches = graph.articles.filter(function(a) {
+    // The keyword facet only narrows source_articles (the column it lives on) — entities/
+    // relations/articles have no keywords field to filter by, so they're skipped entirely
+    // when there's no free-text query to match them against (a facet-only search is a
+    // "browse source articles tagged X" query, not a general knowledge-base search).
+    var entityMatches = query ? graph.entities.filter(function(e) { return ksMatch(e.name, queryLower) || ksMatch(e.type, queryLower); }) : [];
+    var edgeMatches = query ? graph.edges.filter(function(e) { return ksMatch(e.source, queryLower) || ksMatch(e.relation, queryLower) || ksMatch(e.target, queryLower); }) : [];
+    var articleMatches = query ? graph.articles.filter(function(a) {
       return ksMatch(a.title, queryLower) || ksMatch(a.summary, queryLower) || ksMatch(a.body_text, queryLower) || ksMatch(a.slug, queryLower);
-    });
+    }) : [];
     var sourceMatches = (graph.source_articles || []).filter(function(s) {
-      return ksMatch(s.title, queryLower) || ksMatch(s.original_content, queryLower) || ksMatch(s.author, queryLower) || ksMatch(s.category, queryLower) || ksMatch(s.slug, queryLower);
+      var matchesQuery = !query || ksMatch(s.title, queryLower) || ksMatch(s.original_content, queryLower) ||
+        ksMatch(s.author, queryLower) || ksMatch(s.category, queryLower) || ksMatch(s.slug, queryLower) ||
+        (s.keywords || []).some(function(k) { return ksMatch(k, queryLower); });
+      var matchesFilter = !keywordFilter || ksSourceHasKeywordTag(s, keywordFilterLower);
+      return matchesQuery && matchesFilter;
     });
 
     if (!entityMatches.length && !edgeMatches.length && !articleMatches.length && !sourceMatches.length) {
-      $('ksResults').innerHTML = '<div class="ks-empty">No matches for &ldquo;' + escapeHtml(query) + '&rdquo; in entities, relations, articles, or source articles.</div>';
+      var scopeNote = keywordFilter
+        ? (query ? 'entities, relations, articles, or source articles tagged &ldquo;' + escapeHtml(keywordFilter) + '&rdquo;' : 'source articles tagged &ldquo;' + escapeHtml(keywordFilter) + '&rdquo;')
+        : 'entities, relations, articles, or source articles';
+      $('ksResults').innerHTML = '<div class="ks-empty">' + (query ? 'No matches for &ldquo;' + escapeHtml(query) + '&rdquo; in ' : 'No matches in ') + scopeNote + '.</div>';
       return;
     }
 
@@ -3356,11 +3409,16 @@
       if (s.category) meta.push(escapeHtml(s.category));
       if (s.published_at) meta.push(escapeHtml(String(s.published_at).slice(0, 10)));
       if (s.original_url) meta.push('<a href="' + escapeAttr(s.original_url) + '" target="_blank" rel="noopener">source link</a>');
+      var keywordTags = (s.keywords || []).filter(function(k) { return typeof k === 'string' && k.trim(); });
+      var keywordsHtml = keywordTags.length
+        ? '<div class="ks-result-item__meta">' + keywordTags.map(function(k) { return '<span class="ks-type-badge">' + ksHighlight(k, query) + '</span>'; }).join(' ') + '</div>'
+        : '';
       return '<div class="ks-result-item">' +
         '<div class="ks-result-item__head">' + (s.status ? ksTypeBadge(s.status) : '') +
         '<span class="ks-result-item__title">' + ksHighlight(s.title, query) + '</span></div>' +
         '<div class="ks-result-item__snippet">' + ksHighlight(snippet, query) + '</div>' +
         (meta.length ? '<div class="ks-result-item__meta">' + meta.join(' &nbsp;&middot;&nbsp; ') + '</div>' : '') +
+        keywordsHtml +
         '</div>';
     }).join('');
     return '<div class="ks-section ks-section--source"><div class="ks-section__title"><span>&#128196; Source Articles (staged/scraped)</span><span class="count">' + matches.length + '</span></div>' +

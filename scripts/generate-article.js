@@ -59,6 +59,8 @@
  *   OPENAI_API_KEY=sk-... node generate-article.js --topic "Time Decay"
  *   node generate-article.js --topic "..." --must-include-facts facts.json
  *   node generate-article.js --topic "..." --source-file column.txt   # optional single reference text (§4 Phase 1's manual-paste fallback)
+ *   node generate-article.js --topic "..." --source-keyword ipo       # §4 Phase 2: narrow candidateSourceArticles to a source_articles.keywords facet
+ *   node generate-article.js --topic "..." --source-category "fundamental analysis"
  *   node generate-article.js --topic "..." --json                    # machine-readable output
  *   node generate-article.js --topic "..." \
  *     --writer-fixture-dir DIR --reviewer-fixture-dir DIR             # fully offline, see README
@@ -179,8 +181,13 @@ function formatChecklistForWriter(checklist) {
  * @param {string|null} [args.sourceText] - optional single reference text (e.g. a manually-pasted
  *   Nanyang column — §4 Phase 1's fallback for paywalled content; Phase 1's import pipeline itself
  *   is not built, this is just an optional extra input)
+ * @param {Array} [args.candidateSourceArticles] - retrieval-layer.js's candidateSourceArticles
+ *   (§4 Phase 2 — related UNPUBLISHED `source_articles` rows found by keyword/category/topic, e.g.
+ *   via --source-keyword). Same "title/summary only, never full body" treatment as
+ *   articleSummaries above and the same reasoning: keeps the prompt small and avoids inviting the
+ *   writer to paraphrase a specific source column sentence-by-sentence, which Phase 3 forbids.
  */
-export function buildWriterPrompt({ topic, checklist, mustIncludeFacts, articleSummaries, nearDuplicates, sourceText }) {
+export function buildWriterPrompt({ topic, checklist, mustIncludeFacts, articleSummaries, nearDuplicates, sourceText, candidateSourceArticles = [] }) {
   const system =
     'You are ghostwriting an article for Warren Mak, a Malaysian trading educator: 32 years of ' +
     'market experience, former Head of 5 departments at Bursa Malaysia, weekly Nanyang Siang Pau ' +
@@ -200,6 +207,11 @@ export function buildWriterPrompt({ topic, checklist, mustIncludeFacts, articleS
     'somewhere in the article, substantively (not just a passing mention); a separate reviewer will ' +
     'check this afterward, so do not skip any. Must-include facts are non-negotiable and must appear ' +
     'accurately, exactly as given -- never alter a number, date, or credential.\n\n' +
+    (candidateSourceArticles.length
+      ? 'You may be given TITLES of related, unpublished Nanyang Siang Pau columns by Warren Mak that ' +
+        'have not yet become a site article. Treat them the same as the published-article summaries ' +
+        'above -- background context and ideas only, never copy paragraphs or structure.\n\n'
+      : '') +
     (sourceText
       ? 'You are also given ONE specific source text to draw ideas from -- extract ideas, reorganise ' +
         'concepts, explain differently; do not reproduce its wording or structure.\n\n'
@@ -226,6 +238,15 @@ export function buildWriterPrompt({ topic, checklist, mustIncludeFacts, articleS
     userParts.push(
       `\nNear-duplicate coverage warnings -- angle this new article differently from these:\n` +
         nearDuplicates.map((d) => `- [${d.level}] "${d.title}": ${d.note}`).join('\n')
+    );
+  }
+  if (candidateSourceArticles.length) {
+    userParts.push(
+      `\nRelated unpublished Warren Mak columns (background only -- do not copy):\n` +
+        candidateSourceArticles
+          .slice(0, 5)
+          .map((c) => `- "${c.title}"${c.category ? ` (${c.category})` : ''}`)
+          .join('\n')
     );
   }
   if (sourceText) {
@@ -351,6 +372,10 @@ export function fixtureReviewerByTopic(promptObj, { fixtureDir, topic, attempt }
  * @param {string} args.topic
  * @param {string[]} [args.mustIncludeFacts]
  * @param {string|null} [args.sourceText]
+ * @param {string|null} [args.sourceKeyword] - §4 Phase 2 facet: narrows retrieval-layer.js's
+ *   candidateSourceArticles to source_articles rows tagged with this keyword (substring,
+ *   case-insensitive — see findCandidateSourceArticles' own doc comment)
+ * @param {string|null} [args.sourceCategory] - same, but against the row's `category` bucket
  * @param {Function} args.writer - (promptObj, opts) => string|Promise<string>
  * @param {object} [args.writerOpts]
  * @param {Function} args.reviewer - (promptObj, opts) => string|Promise<string>
@@ -367,6 +392,8 @@ export async function generateArticleWithReview({
   topic,
   mustIncludeFacts = [],
   sourceText = null,
+  sourceKeyword = null,
+  sourceCategory = null,
   writer,
   writerOpts = {},
   reviewer,
@@ -378,7 +405,7 @@ export async function generateArticleWithReview({
   }
 
   // Step 2-3: retrieval-layer.js's one composed query, then merge in must-include facts.
-  const retrievalContext = buildRetrievalContext(db, topic);
+  const retrievalContext = buildRetrievalContext(db, topic, { sourceKeyword, sourceCategory });
   const checklist = buildFullChecklist(retrievalContext.checklist, mustIncludeFacts);
 
   // Step 4: writer call (initial).
@@ -389,6 +416,7 @@ export async function generateArticleWithReview({
     articleSummaries: retrievalContext.articleSummaries,
     nearDuplicates: retrievalContext.nearDuplicates,
     sourceText,
+    candidateSourceArticles: retrievalContext.candidateSourceArticles,
   });
   let draft = parseWriterResponse(await writer(writerPrompt, { ...writerOpts, topic, attempt: 'initial' }));
 
@@ -465,6 +493,8 @@ function parseArgs(argv) {
     reviewerModel: DEFAULT_REVIEWER_MODEL,
     mustIncludeFactsPath: null,
     sourceFilePath: null,
+    sourceKeyword: null,
+    sourceCategory: null,
     maxRetries: MAX_RETRIES_ALLOWED,
     writerFixtureDir: null,
     reviewerFixtureDir: null,
@@ -490,6 +520,12 @@ function parseArgs(argv) {
         break;
       case '--source-file':
         opts.sourceFilePath = path.resolve(nextArg(argv, ++i, '--source-file'));
+        break;
+      case '--source-keyword':
+        opts.sourceKeyword = nextArg(argv, ++i, '--source-keyword');
+        break;
+      case '--source-category':
+        opts.sourceCategory = nextArg(argv, ++i, '--source-category');
         break;
       case '--max-retries': {
         const n = Number(nextArg(argv, ++i, '--max-retries'));
@@ -520,7 +556,13 @@ function parseArgs(argv) {
 function printHuman(result) {
   console.log(`Topic: "${result.topic}"`);
   if (result.retrievalContext.note) console.log(`Retrieval note: ${result.retrievalContext.note}`);
-  console.log(`Checklist: ${result.checklist.length} item(s)\n`);
+  console.log(`Checklist: ${result.checklist.length} item(s)`);
+  if (result.retrievalContext.candidateSourceArticles.length) {
+    console.log(
+      `Candidate source articles used as background (§4 Phase 2): ${result.retrievalContext.candidateSourceArticles.length}`
+    );
+  }
+  console.log('');
 
   console.log(`--- Draft ---`);
   console.log(`Title: ${result.draft.title}`);
@@ -577,6 +619,8 @@ async function main() {
       topic: opts.topic,
       mustIncludeFacts,
       sourceText,
+      sourceKeyword: opts.sourceKeyword,
+      sourceCategory: opts.sourceCategory,
       writer,
       writerOpts: { model: opts.writerModel },
       reviewer,

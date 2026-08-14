@@ -353,6 +353,22 @@ function upsertMeta(db, records) {
 // that "no build step" means nothing else regenerates this file for you.
 // ---------------------------------------------------------------------------
 
+/** Parses source_articles.keywords (a JSON-encoded array of TradeWizard's own
+ *  filter tags — see schema.sql's comment on the column) back into an array
+ *  for the mirror, rather than exporting the raw double-encoded JSON string.
+ *  Never throws: null/absent (rows written before this column existed, or
+ *  via import-source-articles.js's manual-paste path, which has no
+ *  equivalent field to carry) and any malformed JSON both fall back to []. */
+function parseKeywords(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function regenerateJsonMirror(db, mirrorPath) {
   const articles = db.prepare('SELECT * FROM articles ORDER BY id').all();
   const entities = db.prepare('SELECT * FROM entities ORDER BY id').all();
@@ -421,6 +437,7 @@ export function regenerateJsonMirror(db, mirrorPath) {
       published_at: s.published_at,
       author: s.author,
       category: s.category,
+      keywords: parseKeywords(s.keywords),
       original_content: s.original_content,
       featured_image: s.featured_image,
       import_date: s.import_date,

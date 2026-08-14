@@ -304,9 +304,46 @@ node retrieval-layer.js --topic "..." --db ../admin/knowledge-graph.db   # (defa
 ```
 
 Returns `{ seedEntities, relatedEntities, articleSummaries, nearDuplicates,
-suggestedLinks, checklist, contentHierarchy, duplicateRisk? }`. A topic that
-matches no entity at all comes back with everything empty plus a `note`
-explaining it's genuinely new — that's a normal result, not an error.
+suggestedLinks, checklist, contentHierarchy, candidateSourceArticles,
+duplicateRisk? }`. A topic that matches no entity at all comes back with the
+entity-graph fields empty plus a `note` explaining it's genuinely new —
+that's a normal result, not an error; `candidateSourceArticles` is still
+computed even then, since it queries `source_articles` directly rather than
+via the entity graph (see below).
+
+**Phase 2 — candidate source-article selection**, completed once
+`scrape-enanyang-articles.js` actually populated `source_articles.keywords`
+at scale: `extra-md-files/ai-article-pipeline.md`'s Phase 2 asks to "search
+for related source articles by keyword/topic similarity/category/tag" before
+generating — `getArticleSummariesForEntities` above only ever covered
+already-*published* `articles` (via the entity graph); `source_articles` rows
+(imported eNanyang columns not yet turned into a site article) carry no
+entities/edges of their own, so `findCandidateSourceArticles(db, topic, opts)`
+queries that table directly instead:
+
+- Scored cheapest-signal-first: 1.0 topic verbatim in the title, 0.8 shares a
+  keyword with the row's `keywords` tags, 0.6 with its `category`, 0.4 with
+  its `original_content` body text (checked last, weakest signal).
+- `opts.keyword`/`opts.category` are **facets**, not just scoring inputs —
+  substring, case-insensitive (matching `scrape-enanyang-articles.js`'s own
+  `--category`/`--keyword` filter semantics), and any row passing a given
+  facet is guaranteed a floor score of 0.5 even when the topic text itself
+  adds no extra match on top of it — so a facet is a real filter, not merely
+  a tie-breaker. A facet with no `topic` at all is a valid "browse everything
+  tagged IPO" query on its own.
+- Excludes rows with `status = 'ignored'` (an admin already reviewed and
+  deliberately excluded that source article from future generation).
+- Wired into `buildRetrievalContext` as `result.candidateSourceArticles`
+  (`opts.maxSourceCandidates` default 5, `opts.sourceKeyword`/
+  `opts.sourceCategory` pass through to the facets above) and, from there,
+  into `generate-article.js`'s writer prompt as background-only titles (see
+  that section below).
+
+```bash
+node retrieval-layer.js --topic "IPO" --source-keyword ipo               # narrow candidateSourceArticles to a keyword facet
+node retrieval-layer.js --source-category "fundamental analysis"         # browse a facet with no free-text topic at all
+node retrieval-layer.js --topic "..." --max-source-candidates 10
+```
 
 This file also exports `insertSuggestedLinks(bodyText, suggestedLinks)` — §4
 Phase 5's auto-INSERT step, not just the suggest-what-to-link-to piece above.
@@ -369,7 +406,13 @@ several topics (`Time Decay`, `Leverage and Risk Management` at `--max-hops
 2`, a no-match topic, and a deliberately-similar `--candidate-title`/
 `--candidate-slug` pair) to confirm seed matching, hop expansion, near-
 duplicate flagging, link suggestions, content-hierarchy flags, and duplicate-
-risk verdicts all come back sane end-to-end.
+risk verdicts all come back sane end-to-end. `findCandidateSourceArticles`/the
+`--source-keyword`/`--source-category` facets were verified the same way
+(against the real, ~423-row scraped `source_articles` table) plus indirectly
+through `validate-generate-article.js`'s Part 0.75 (`buildWriterPrompt`'s
+`candidateSourceArticles` rendering) and its CLI-level `--source-keyword`
+checks (see `generate-article.js`'s section below) — this file itself stays
+without a dedicated harness.
 
 ## coverage-reviewer.js
 
@@ -439,6 +482,15 @@ An optional `--source-file` supplies one extra reference text (e.g. a
 manually-pasted Nanyang column — §4 Phase 1's fallback for paywalled content;
 Phase 1's own import pipeline is not built, this is just an ad hoc input).
 
+The writer prompt also receives retrieval-layer.js's `candidateSourceArticles`
+(§4 Phase 2 — related, unpublished `source_articles` rows found by keyword/
+category/topic) the same title-only way, labeled "unpublished Nanyang Siang
+Pau columns" so the writer treats them as background, never a copy source.
+`--source-keyword`/`--source-category` narrow that set to a specific
+`source_articles.keywords`/`category` facet (pass through to
+`buildRetrievalContext`'s `sourceKeyword`/`sourceCategory` opts — see
+`retrieval-layer.js`'s section above for the scoring/facet rules).
+
 Phase 3's fuller scope — SEO optimisation (§4 Phase 4, now `seo-optimizer.js`
 above), content-hierarchy enforcement (Phase 6, now `retrieval-layer.js`'s
 `contentHierarchy` field) — is **not** built in THIS file; those are separate,
@@ -468,6 +520,7 @@ cd scripts
 OPENAI_API_KEY=sk-... node generate-article.js --topic "Time Decay"
 node generate-article.js --topic "..." --must-include-facts facts.json   # facts.json: JSON array of strings
 node generate-article.js --topic "..." --source-file column.txt          # optional single reference text
+node generate-article.js --topic "..." --source-keyword ipo              # §4 Phase 2 facet: narrow candidateSourceArticles
 node generate-article.js --topic "..." --json                           # machine-readable output (Phase 8 consumes this shape)
 node generate-article.js --topic "..." --writer-model gpt-4o --reviewer-model gpt-4o-mini
 
@@ -517,12 +570,16 @@ untouched, and reports (never force-inserts) an entity with no verbatim
 mention — proven both as a standalone pure-function check and end-to-end
 against the real sample db's own `suggestedLinks` for a real topic, asserting
 the FINAL `result.draft.body_text` (not the reviewer's pre-link copy) carries
-the real `<a>` tags; and at the CLI level, `--json` output round-trips the
-same shape (including the new `internalLinks` field) and the process exits
-`0` even with a remaining coverage gap (gaps are Phase 8's job, not a
-pipeline failure), while `--max-retries 2` exits non-zero. No
-`OPENAI_API_KEY`/network needed — same dependency-injection
-pattern as every LLM-backed script above.
+the real `<a>` tags; `buildWriterPrompt`'s `candidateSourceArticles` handling
+(§4 Phase 2) — present only flags the writer prompt as background-only and
+lists candidate titles/categories, absent leaves both prompt halves
+untouched; and at the CLI level, `--json` output round-trips the same shape
+(including the new `internalLinks` field) and the process exits `0` even
+with a remaining coverage gap (gaps are Phase 8's job, not a pipeline
+failure), while `--max-retries 2` exits non-zero and `--source-keyword`
+reaches `retrievalContext.candidateSourceArticles` with every returned row
+actually carrying that keyword tag. No `OPENAI_API_KEY`/network needed —
+same dependency-injection pattern as every LLM-backed script above.
 
 ## seo-optimizer.js
 
@@ -737,10 +794,24 @@ node scrape-enanyang-articles.js --limit 3                       # real run, fir
 node scrape-enanyang-articles.js --url <enanyang-url>             # real run, one article
 node scrape-enanyang-articles.js --slug <slug>                    # real run, one row matching a computed slug
 node scrape-enanyang-articles.js --start-after <slug>             # resume after a given slug (checkpointing)
+node scrape-enanyang-articles.js --category "fundamental analysis" # only index rows whose TradeWizard category contains this (substring, case-insensitive)
+node scrape-enanyang-articles.js --keyword ipo                    # only index rows whose keywords tags contain this (substring, case-insensitive)
+node scrape-enanyang-articles.js --category ipo --keyword warrant # combine — AND, not OR
 node scrape-enanyang-articles.js --delay-ms 1500                  # between-request delay (default 1200ms)
 node scrape-enanyang-articles.js --no-mirror                      # skip regenerating admin/knowledge-graph.json after the db write
 npm run validate-scrape-enanyang-articles                         # offline fixture-based validation, no network
 ```
+
+**`--category`/`--keyword`** filter the TradeWizard *index* rows (title/url/
+category/keywords — before any eNanyang page is fetched, so they cost no
+extra requests), per the "Execution gate" small-test-batch need below. Both
+are substring, case-insensitive (`filterRowsByCategoryAndKeyword()`,
+exported) — `"ipo"` also matches a tag like `"IPO Analysis"` — and combine
+with AND when both are given. Neither can be combined with `--url` (a single
+article has no index row to filter). This is also the facet vocabulary
+`retrieval-layer.js`'s `findCandidateSourceArticles()` and `admin/index.html`'s
+Knowledge Search screen's keyword-facet dropdown both read against the same
+`source_articles.keywords`/`category` columns once scraped.
 
 **Manually verifying a run:** a real (non-`--dry-run`) run regenerates
 `admin/knowledge-graph.json` after its db writes (same
@@ -804,9 +875,46 @@ question is resolved, and there is no technical/auth blocker either. The
 full ~400+ row run is no longer blocked on permission, only on the user
 actually requesting it. Before that, the user wants one small real test
 batch first — either the ~10 most recent articles or an IPO-related subset
-— see `extra-md-files/nanyang-scraper.md`'s "Execution gate" section for the
-two small gaps (confirmed date-sort, category/keyword filtering) that still
-need closing to make either of those trivial to run.
+— see `extra-md-files/nanyang-scraper.md`'s "Execution gate" section. The
+category/keyword-filtering gap it flagged as unbuilt is now closed (the
+`--category`/`--keyword` flags above); the index's confirmed-date-sort gap is
+still open for the "10 most recent" variant of that test run.
+
+## backfill-source-article-keywords.js
+
+One-off backfill for `source_articles.keywords` on rows that were
+scraped/imported before `scrape-enanyang-articles.js` started writing that
+column, or whose keywords drifted out of sync with
+`output/tradewizard-index.json`. Does not re-fetch anything and does not
+touch any other column — for each index row it looks up the matching
+`source_articles` row and runs a single-column `UPDATE ... SET keywords = ?`.
+It also self-migrates a pre-`keywords`-column db (`ALTER TABLE ... ADD COLUMN
+keywords TEXT`, no-op if the column already exists) since `CREATE TABLE IF
+NOT EXISTS` alone doesn't retrofit columns onto an already-existing table.
+
+```bash
+cd scripts
+node backfill-source-article-keywords.js                          # real run
+node backfill-source-article-keywords.js --dry-run                # print planned updates only, no db write
+node backfill-source-article-keywords.js --no-mirror              # skip regenerating admin/knowledge-graph.json after the db write
+node backfill-source-article-keywords.js --index-file output/custom.json  # (default shown)
+node backfill-source-article-keywords.js --db ../admin/knowledge-graph.db # (default shown)
+```
+
+**Fallback match:** `findExistingSlugByUrl()`'s exact `original_url` match
+(imported from `scrape-enanyang-articles.js`, reused not reimplemented) only
+matched 117/423 rows in the real corpus — not because the rest are
+unscraped, but because `processRow()` stores the article's own JSON-LD
+canonical URL (e.g. `.../NYPLUS/674146`) in preference to the index's URL
+(e.g. `.../Testimonia-Column/674146`) when they disagree, and
+`canonicalizeUrl()` only strips query/hash/trailing-slash, not a differing
+path segment. Since eNanyang's trailing numeric article id is stable across
+both, any row the exact match misses falls back to matching on that id
+(`extractArticleIdFromUrl()`, same helper `buildSourceSlug()` uses) — this
+raised the match rate to 422/423 (the one remaining row is a genuinely
+unscraped URL). Index rows with no match after both attempts are logged and
+skipped, not treated as an error. Already run once against the live db — all
+423 `source_articles` rows carry non-empty `keywords` as of this writing.
 
 ## validate-admin-mirror-sync.js
 

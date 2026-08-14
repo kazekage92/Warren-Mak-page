@@ -104,7 +104,14 @@ CREATE TABLE IF NOT EXISTS source_articles (
     original_url TEXT,
     published_at TEXT,
     author TEXT,
-    category TEXT,
+    category TEXT,               -- TradeWizard's own single broad bucket for this row (one value,
+                                  -- e.g. "fundamental analysis") -- distinct from `keywords` below
+    keywords TEXT,                -- JSON-encoded array of TradeWizard's own filter tags for this
+                                  -- row (e.g. '["warrants","technical analysis"]'), read verbatim
+                                  -- from scrape-tradewizard-index.js's index output. Distinct from
+                                  -- `category` (one broad bucket, above) and from the
+                                  -- entities/article_entities tables (LLM-extracted, and only ever
+                                  -- populated for PUBLISHED `articles` rows, never source_articles)
     original_content TEXT,       -- full pasted source text (§ Phase 1's manual-paste fallback)
     featured_image TEXT,
     import_date TEXT,

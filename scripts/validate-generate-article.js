@@ -62,6 +62,7 @@ import { buildRetrievalContext, insertSuggestedLinks } from './retrieval-layer.j
 import { buildReviewPrompt } from './coverage-reviewer.js';
 import {
   buildFullChecklist,
+  buildWriterPrompt,
   generateArticleWithReview,
   fixtureWriter,
   fixtureReviewerByTopic,
@@ -216,6 +217,40 @@ function runLinkInsertionCheck() {
   checks.push(['skipped entries never appear as an <a> tag', !result.bodyText.includes('nowhere.html')]);
 
   checks.push(['empty suggestedLinks list returns the body text unchanged', insertSuggestedLinks(body, []).bodyText === body]);
+
+  return checks;
+}
+
+// ---------------------------------------------------------------------------
+// Part 0.75 — buildWriterPrompt()'s candidateSourceArticles handling (§4
+// Phase 2, retrieval-layer.js's findCandidateSourceArticles() consumed here).
+// Pure function, no db/fixtures needed.
+// ---------------------------------------------------------------------------
+
+function runCandidateSourceArticlesPromptCheck() {
+  console.log('\n=== Part 0.75: buildWriterPrompt() candidateSourceArticles (§4 Phase 2) ===\n');
+  const checks = [];
+
+  const basePromptArgs = {
+    topic: 'IPO Investing',
+    checklist: [],
+    mustIncludeFacts: [],
+    articleSummaries: [],
+    nearDuplicates: [],
+    sourceText: null,
+  };
+
+  const withoutCandidates = buildWriterPrompt(basePromptArgs);
+  checks.push(['no candidateSourceArticles -> no "unpublished" mention in either prompt half', !withoutCandidates.system.includes('unpublished') && !withoutCandidates.user.includes('unpublished')]);
+
+  const candidateSourceArticles = [
+    { title: '如何投资非上市公司?', slug: 'topic-1063463', category: 'advanced trading and investing knowledge', score: 0.8, reason: 'shares a keyword tag with the topic' },
+  ];
+  const withCandidates = buildWriterPrompt({ ...basePromptArgs, candidateSourceArticles });
+  checks.push(['candidateSourceArticles present -> system prompt flags them as background-only', withCandidates.system.includes('unpublished')]);
+  checks.push(['candidateSourceArticles present -> user prompt lists the candidate title', withCandidates.user.includes('如何投资非上市公司?')]);
+  checks.push(['candidateSourceArticles present -> user prompt includes its category', withCandidates.user.includes('advanced trading and investing knowledge')]);
+  checks.push(['candidateSourceArticles never leak into the JSON response-shape instruction', withCandidates.system.trim().endsWith('"body_text":"<the full article body as plain paragraphs separated by blank lines -- no HTML>"}')]);
 
   return checks;
 }
@@ -399,6 +434,20 @@ function runPart2(db) {
   const capRun = runCli(['--topic', TOPIC_CLEAN, '--max-retries', '2']);
   checks.push(['CLI: --max-retries 2 exits non-zero', capRun.exitCode !== 0]);
 
+  // --source-keyword (§4 Phase 2 facet) must reach retrievalContext.candidateSourceArticles —
+  // "ipo" is unrelated to TOPIC_GAP itself, so any hit here can only come from the facet filter,
+  // not topic-text scoring (see findCandidateSourceArticles' score-0.5 "facet with no topic
+  // relevance" branch in retrieval-layer.js).
+  const keywordRun = runCli(['--topic', TOPIC_GAP, '--source-keyword', 'ipo', '--json']);
+  let keywordParsed = null;
+  try {
+    keywordParsed = JSON.parse(keywordRun.stdout);
+  } catch {
+    // leave keywordParsed null — the next assertion fails and reports it
+  }
+  checks.push(['CLI: --source-keyword reaches retrievalContext.candidateSourceArticles', keywordRun.exitCode === 0 && Array.isArray(keywordParsed?.retrievalContext?.candidateSourceArticles) && keywordParsed.retrievalContext.candidateSourceArticles.length > 0]);
+  checks.push(['CLI: --source-keyword candidates are all actually tagged with that keyword', (keywordParsed?.retrievalContext?.candidateSourceArticles ?? []).every((c) => (c.keywords ?? []).some((k) => k.toLowerCase().includes('ipo')))]);
+
   // Reviewer-failure salvage (Part 1 scenario E), exercised end-to-end through the CLI: writer
   // fixture present, initial reviewer fixture deliberately absent so the reviewer call throws.
   writeScenarioFixtures(db, TOPIC_GAP, { omitFirstItem: false, repairStillPartial: false });
@@ -440,7 +489,7 @@ async function main() {
     throw new Error(`Missing ${path.relative(REPO_ROOT, ORIGINAL_DB)} — run \`npm run extract\` first.`);
   }
 
-  const checks = [...runChecklistCheck(), ...runLinkInsertionCheck(), ...(await runPart1())];
+  const checks = [...runChecklistCheck(), ...runLinkInsertionCheck(), ...runCandidateSourceArticlesPromptCheck(), ...(await runPart1())];
 
   const db = new DatabaseSync(ORIGINAL_DB, { readOnly: true });
   try {

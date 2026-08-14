@@ -40,6 +40,7 @@ import {
   findExistingSlugByUrl,
   fetchEnanyangHtml,
   processRow,
+  filterRowsByCategoryAndKeyword,
   StopRunError,
 } from './scrape-enanyang-articles.js';
 import { dedupeRowsByUrl } from './scrape-tradewizard-index.js';
@@ -182,7 +183,7 @@ async function checks_processRow() {
   console.log('\n=== Part 3: processRow() end-to-end ===\n');
   const checks = [];
 
-  const row = { title: null, url: REAL_LD.url, publishedAt: null, category: 'fundamental analysis', keywords: [], id: 42 };
+  const row = { title: null, url: REAL_LD.url, publishedAt: null, category: 'fundamental analysis', keywords: ['warrants', 'technical analysis'], id: 42 };
 
   // --- dry-run: no db touched ---
   await withFetch(
@@ -209,10 +210,11 @@ async function checks_processRow() {
     const afterFirst = db.prepare('SELECT COUNT(*) AS n FROM source_articles WHERE slug = ?').get(resolvedSlug);
     checks.push(['real run inserts exactly one row', afterFirst.n === 1]);
 
-    const written = db.prepare('SELECT title, author, original_content, category, published_at, featured_image FROM source_articles WHERE slug = ?').get(resolvedSlug);
+    const written = db.prepare('SELECT title, author, original_content, category, keywords, published_at, featured_image FROM source_articles WHERE slug = ?').get(resolvedSlug);
     checks.push(['author is hardcoded to Warren Mak, not the JSON-LD publisher org', written.author === '麦传球 (Warren Mak)']);
     checks.push(['original_content matches articleBody', written.original_content === REAL_LD.articleBody]);
     checks.push(['category falls back to the row (index) value', written.category === 'fundamental analysis']);
+    checks.push(['keywords is the row (TradeWizard index) tags, JSON-encoded', written.keywords === JSON.stringify(row.keywords)]);
     checks.push(['published_at comes from the JSON-LD datePublished', written.published_at === REAL_LD.datePublished]);
     checks.push(['featured_image comes from JSON-LD image.url', written.featured_image === REAL_LD.image.url]);
 
@@ -371,6 +373,43 @@ async function checks_processRow_urlDedup() {
 }
 
 // ---------------------------------------------------------------------------
+// Part 6 — filterRowsByCategoryAndKeyword() — the --category/--keyword CLI
+// flags' pure-function core, per nanyang-scraper.md's "Execution gate"
+// section (a small real test batch filtered by category/keyword).
+// ---------------------------------------------------------------------------
+
+function checks_filterRowsByCategoryAndKeyword() {
+  console.log('\n=== Part 6: filterRowsByCategoryAndKeyword() ===\n');
+  const checks = [];
+
+  const rows = [
+    { title: 'A', url: 'https://x/1', category: 'fundamental analysis', keywords: ['warrants', 'IPO Analysis'] },
+    { title: 'B', url: 'https://x/2', category: 'technical analysis', keywords: ['charting'] },
+    { title: 'C', url: 'https://x/3', category: 'IPO', keywords: ['warrants'] },
+    { title: 'D (no metadata)', url: 'https://x/4', category: null, keywords: [] },
+  ];
+
+  checks.push(['no filters given returns the same array unchanged', filterRowsByCategoryAndKeyword(rows, {}) === rows]);
+
+  const byCategory = filterRowsByCategoryAndKeyword(rows, { category: 'ipo' });
+  checks.push(['--category is substring + case-insensitive (matches "IPO" via lowercase "ipo")', byCategory.length === 1 && byCategory[0].title === 'C']);
+
+  const byKeyword = filterRowsByCategoryAndKeyword(rows, { keyword: 'ipo' });
+  checks.push(['--keyword matches a substring inside any one of the row\'s keyword tags', byKeyword.length === 1 && byKeyword[0].title === 'A']);
+
+  const byBoth = filterRowsByCategoryAndKeyword(rows, { category: 'analysis', keyword: 'warrants' });
+  checks.push(['--category and --keyword combine with AND, not OR', byBoth.length === 1 && byBoth[0].title === 'A']);
+
+  const byCategoryOnlyNoMatch = filterRowsByCategoryAndKeyword(rows, { category: 'nonexistent-bucket' });
+  checks.push(['a category with no matching rows returns an empty array, not a throw', byCategoryOnlyNoMatch.length === 0]);
+
+  const rowsWithMissingMetadata = filterRowsByCategoryAndKeyword(rows, { category: 'x' });
+  checks.push(['a row with null category never matches a --category filter (not an error)', !rowsWithMissingMetadata.some((r) => r.title === 'D (no metadata)')]);
+
+  return checks;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -384,6 +423,7 @@ async function main() {
     ...(await checks_processRow()),
     ...checks_canonicalizeUrl(),
     ...(await checks_processRow_urlDedup()),
+    ...checks_filterRowsByCategoryAndKeyword(),
   ];
 
   console.log('\n=== Results ===');

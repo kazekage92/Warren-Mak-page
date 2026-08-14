@@ -45,10 +45,24 @@
  *   node scrape-enanyang-articles.js --url <enanyang-url>             # real run, one article
  *   node scrape-enanyang-articles.js --slug <slug>                    # real run, one row matching a computed slug
  *   node scrape-enanyang-articles.js --start-after <slug>             # resume after a given slug (checkpointing)
+ *   node scrape-enanyang-articles.js --category "fundamental analysis" # only index rows whose TradeWizard category contains this (case-insensitive)
+ *   node scrape-enanyang-articles.js --keyword ipo                    # only index rows whose keywords tags contain this (case-insensitive)
+ *   node scrape-enanyang-articles.js --category ipo --keyword warrant # combine — both must match (AND, not OR)
  *   node scrape-enanyang-articles.js --delay-ms 1500                  # override the between-request delay (default 1200ms)
  *   node scrape-enanyang-articles.js --index-file output/custom.json  # override the index input path
  *   node scrape-enanyang-articles.js --db ../admin/knowledge-graph.db # (default shown)
  *   node scrape-enanyang-articles.js --no-mirror                      # skip regenerating admin/knowledge-graph.json after the db write
+ *
+ * --category/--keyword exist for exactly the small-real-test-batch need
+ * nanyang-scraper.md's "Execution gate" section flagged as unbuilt (e.g. "an
+ * IPO-only test run"): both filter the TradeWizard INDEX rows (title/url/
+ * category/keywords — see scrape-tradewizard-index.js) before any fetching
+ * happens, not the eNanyang page content itself, so they cost nothing extra
+ * in requests. Both are substring, case-insensitive matches (not exact) so
+ * "ipo" also catches a category/keyword tag like "IPO Analysis" — deliberately
+ * forgiving for a one-off test-batch filter, not a precise taxonomy query.
+ * --category and --keyword combine with AND when both are given. Neither can
+ * be combined with --url (a single article has no index row to filter).
  *
  * A real (non-dry-run) run also regenerates admin/knowledge-graph.json
  * (extract-articles.js's regenerateJsonMirror(), reused not reimplemented) so the
@@ -114,6 +128,8 @@ function parseArgs(argv) {
     delayMs: DEFAULT_DELAY_MS,
     onlySlug: null,
     startAfter: null,
+    category: null,
+    keyword: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -153,12 +169,20 @@ function parseArgs(argv) {
       case '--start-after':
         opts.startAfter = nextArg(argv, ++i, '--start-after');
         break;
+      case '--category':
+        opts.category = nextArg(argv, ++i, '--category');
+        break;
+      case '--keyword':
+        opts.keyword = nextArg(argv, ++i, '--keyword');
+        break;
       default:
         throw new Error(`Unknown flag: ${arg}`);
     }
   }
-  if (opts.url && (opts.onlySlug || opts.startAfter)) {
-    throw new Error('--url targets a single article directly; it cannot be combined with --slug or --start-after.');
+  if (opts.url && (opts.onlySlug || opts.startAfter || opts.category || opts.keyword)) {
+    throw new Error(
+      '--url targets a single article directly; it cannot be combined with --slug, --start-after, --category, or --keyword.'
+    );
   }
   return opts;
 }
@@ -193,6 +217,33 @@ export function buildSourceSlug(title, url) {
   if (articleId) return `${base}-${articleId}`;
   const hash = createHash('sha1').update(url || String(Math.random())).digest('hex').slice(0, 8);
   return `${base}-${hash}`;
+}
+
+/** Filters TradeWizard index rows (see scrape-tradewizard-index.js's row
+ *  shape: `{title, url, publishedAt, category, keywords, id}`) down to those
+ *  matching `category`/`keyword`, both optional and both substring/case-
+ *  insensitive per this file's header comment. `category` matches against
+ *  the row's single `category` bucket; `keyword` matches if ANY of the row's
+ *  `keywords` tags contains it. When both are given, a row must satisfy
+ *  both (AND). Rows with a null/non-string `category` or a non-array
+ *  `keywords` simply never match that filter (not an error) — real index
+ *  rows always have both per scrape-tradewizard-index.js's parser, but this
+ *  stays defensive for hand-edited/older index files. Returns `rows`
+ *  unchanged (same array, no copy) if neither filter is given. */
+export function filterRowsByCategoryAndKeyword(rows, { category, keyword } = {}) {
+  if (!category && !keyword) return rows;
+  const categoryLower = category ? category.trim().toLowerCase() : null;
+  const keywordLower = keyword ? keyword.trim().toLowerCase() : null;
+  return rows.filter((row) => {
+    if (categoryLower && !(typeof row.category === 'string' && row.category.toLowerCase().includes(categoryLower))) {
+      return false;
+    }
+    if (keywordLower) {
+      const tags = Array.isArray(row.keywords) ? row.keywords : [];
+      if (!tags.some((tag) => typeof tag === 'string' && tag.toLowerCase().includes(keywordLower))) return false;
+    }
+    return true;
+  });
 }
 
 /** Normalizes a URL for duplicate comparison: drops query string/hash and a
@@ -378,6 +429,9 @@ export async function processRow(row, { db, dryRun }) {
     published_at: ld.datePublished || row.publishedAt || null,
     author: AUTHOR,
     category: row.category ?? null,
+    // TradeWizard's own filter tags for this row (distinct from `category`,
+    // a single broad bucket) — see schema.sql's comment on the column.
+    keywords: JSON.stringify(row.keywords ?? []),
     original_content: ld.articleBody.trim(),
     featured_image: ld.image?.url || ld.thumbnailUrl || null,
     notes:
@@ -427,6 +481,15 @@ async function main() {
     rows = dedupeRowsByUrl(rows);
     if (rows.length !== beforeDedup) {
       console.log(`Dropped ${beforeDedup - rows.length} duplicate-URL row(s) from the index before processing.`);
+    }
+
+    if (opts.category || opts.keyword) {
+      const beforeFilter = rows.length;
+      rows = filterRowsByCategoryAndKeyword(rows, { category: opts.category, keyword: opts.keyword });
+      const filterDesc = [opts.category && `category~"${opts.category}"`, opts.keyword && `keyword~"${opts.keyword}"`]
+        .filter(Boolean)
+        .join(' AND ');
+      console.log(`Filtered to ${rows.length} row(s) matching ${filterDesc} (from ${beforeFilter}).`);
     }
   }
 
