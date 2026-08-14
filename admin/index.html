@@ -3182,8 +3182,24 @@
       if (!res.ok) throw new Error('Failed to load knowledge-graph.json (HTTP ' + res.status + ')');
       return res.json();
     }).then(function(data) {
-      knowledgeGraphJson = JSON.parse(base64ToUtf8(data.content.replace(/\n/g, '')));
-      return knowledgeGraphJson;
+      // The Contents API only inlines base64 `content` for files <=1MB; knowledge-graph.json
+      // has grown past that (full source-article scrape), so `data.content` comes back empty
+      // (encoding:"none") and JSON.parse('') throws "Unexpected end of JSON input". Fall back
+      // to the Git Data API's blobs endpoint (supports up to 100MB) using the same blob sha.
+      if (data.content) {
+        knowledgeGraphJson = JSON.parse(base64ToUtf8(data.content.replace(/\n/g, '')));
+        return knowledgeGraphJson;
+      }
+      return fetch(
+        'https://api.github.com/repos/' + CONFIG.REPO_OWNER + '/' + CONFIG.REPO_NAME + '/git/blobs/' + data.sha,
+        { headers: apiHeaders(), signal: signal }
+      ).then(function(blobRes) {
+        if (!blobRes.ok) throw new Error('Failed to load knowledge-graph.json blob (HTTP ' + blobRes.status + ')');
+        return blobRes.json();
+      }).then(function(blob) {
+        knowledgeGraphJson = JSON.parse(base64ToUtf8(blob.content.replace(/\n/g, '')));
+        return knowledgeGraphJson;
+      });
     });
   }
 
