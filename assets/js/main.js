@@ -9,16 +9,60 @@ document.addEventListener('DOMContentLoaded', function() {
 
   if (navToggle && navMenu) {
     navToggle.addEventListener('click', function() {
-      navMenu.classList.toggle('active');
+      var isOpen = navMenu.classList.toggle('active');
+      navToggle.innerHTML = isOpen ? '&#10005;' : '&#9776;';
+      navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      document.body.classList.toggle('nav-open', isOpen);
+      if (!isOpen) {
+        closeAllDropdowns();
+      }
     });
 
     // Close menu when clicking a link
     navMenu.querySelectorAll('a').forEach(function(link) {
       link.addEventListener('click', function() {
         navMenu.classList.remove('active');
+        navToggle.innerHTML = '&#9776;';
+        navToggle.setAttribute('aria-expanded', 'false');
+        document.body.classList.remove('nav-open');
+        closeAllDropdowns();
       });
     });
   }
+
+  // ============================================
+  // Nav Dropdowns (About / Courses / Learn)
+  // ============================================
+  var dropdowns = document.querySelectorAll('.navbar__dropdown');
+
+  dropdowns.forEach(function(dropdown) {
+    var trigger = dropdown.querySelector('.navbar__dropdown-trigger');
+    if (!trigger) return;
+
+    trigger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = dropdown.classList.contains('open');
+      closeAllDropdowns();
+      if (!isOpen) {
+        dropdown.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.navbar__dropdown')) {
+      closeAllDropdowns();
+    }
+  });
+
+  // Close dropdowns on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeAllDropdowns();
+    }
+  });
 
   // Scroll Animation Observer
   var animatedElements = document.querySelectorAll('[data-animate]');
@@ -58,7 +102,20 @@ document.addEventListener('DOMContentLoaded', function() {
   // Language Toggle (EN / 中文)
   // ============================================
   initLanguageToggle();
+
+  // ============================================
+  // Article View Counter
+  // ============================================
+  initArticleViewCounter();
 });
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.navbar__dropdown.open').forEach(function(dropdown) {
+    dropdown.classList.remove('open');
+    var trigger = dropdown.querySelector('.navbar__dropdown-trigger');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+  });
+}
 
 function initLanguageToggle() {
   // Get saved language or default to 'en'
@@ -99,4 +156,62 @@ function applyLanguage(lang) {
 
   // Update html lang attribute
   document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hans';
+
+  // Reveal body if it was hidden by the anti-flash snippet in <head>
+  // (see wm-lang-hide / data-lang-pending — only present for zh-preference visitors)
+  if (document.documentElement.hasAttribute('data-lang-pending')) {
+    document.documentElement.removeAttribute('data-lang-pending');
+    var hideStyle = document.getElementById('wm-lang-hide');
+    if (hideStyle) hideStyle.remove();
+  }
+}
+
+// ============================================
+// Article View Counter
+// ============================================
+// Public, per-article hit counter — no backend of our own. Uses CountAPI
+// (countapi.mileshilliard.com), a free, keyless, no-signup counting service:
+// GET /api/v1/hit/<key> increments and returns {value}, /get/<key> just reads it.
+// The key is derived from the article's own filename, so no per-page setup is
+// needed and every article (existing or new, via admin's buildArticleDocument)
+// automatically gets a working counter. If the service is slow/unreachable, the
+// .article-views element is simply left hidden — this must never block or
+// visibly break the page (same "never blocks" rule as the AI admin features).
+function initArticleViewCounter() {
+  var counters = document.querySelectorAll('.article-views__count');
+  if (counters.length === 0) return;
+
+  var slug = (location.pathname.split('/').pop() || '').replace(/\.html?$/i, '');
+  if (!slug) return;
+
+  var key = 'warrenmak-asia-article-' + slug;
+  var sessionKey = 'wm_viewed_' + slug;
+  var alreadyViewed = false;
+  try { alreadyViewed = sessionStorage.getItem(sessionKey) === '1'; } catch (e) {}
+
+  var endpoint = 'https://countapi.mileshilliard.com/api/v1/' +
+    (alreadyViewed ? 'get' : 'hit') + '/' + encodeURIComponent(key);
+
+  fetch(endpoint)
+    .then(function(res) {
+      if (!res.ok) throw new Error('view counter request failed');
+      return res.json();
+    })
+    .then(function(data) {
+      var value = parseInt(data && data.value, 10);
+      if (!isFinite(value)) return;
+
+      if (!alreadyViewed) {
+        try { sessionStorage.setItem(sessionKey, '1'); } catch (e) {}
+      }
+
+      var formatted = value.toLocaleString();
+      counters.forEach(function(el) { el.textContent = formatted; });
+      document.querySelectorAll('.article-views').forEach(function(el) {
+        el.hidden = false;
+      });
+    })
+    .catch(function() {
+      // Free counter service unreachable/down — fail silently, leave hidden.
+    });
 }

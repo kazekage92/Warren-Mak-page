@@ -19,6 +19,9 @@
   --text: #2d3436;
   --text-light: #636e72;
   --success: #27ae60;
+  --danger: #d64545;
+  --danger-glow: rgba(214, 69, 69, 0.1);
+  --info: #2563eb;
   --font-heading: 'Inter', 'Segoe UI', sans-serif;
   --font-body: 'Inter', 'Segoe UI', sans-serif;
   --max-width: 1200px;
@@ -146,6 +149,7 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   align-items: center;
   justify-content: space-between;
   height: 64px;
+  gap: 16px;
 }
 
 .navbar__logo {
@@ -159,7 +163,7 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 }
 
 .navbar__logo img {
-  height: 28px;
+  height: 46px;
   width: auto;
 }
 
@@ -171,12 +175,12 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   display: flex;
   align-items: center;
   list-style: none;
-  gap: 0;
+  gap: 6px;
 }
 
 .navbar__menu a {
   color: rgba(255,255,255,0.75);
-  padding: 6px 9px;
+  padding: 8px 12px;
   border-radius: 6px;
   font-size: 0.78rem;
   font-weight: 500;
@@ -190,10 +194,17 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   background: rgba(255,255,255,0.08);
 }
 
+/* Visually separate the CTA button group from the nav links */
+.navbar__menu li:has(.navbar__cta--tool) {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255,255,255,0.12);
+}
+
 .navbar__cta {
   background: var(--accent) !important;
   color: var(--white) !important;
-  padding: 7px 12px !important;
+  padding: 9px 16px !important;
   border-radius: 6px !important;
   font-weight: 600 !important;
   font-size: 0.78rem !important;
@@ -216,10 +227,20 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   display: none;
   background: none;
   border: none;
+  border-radius: 6px;
   color: var(--white);
   font-size: 1.5rem;
   cursor: pointer;
   padding: 8px;
+  transition: transform 0.25s ease, background 0.2s ease;
+}
+
+.navbar__toggle:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.navbar__toggle[aria-expanded="true"] {
+  transform: rotate(90deg);
 }
 
 .navbar__actions {
@@ -245,6 +266,105 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 .lang-toggle:hover {
   background: rgba(255,255,255,0.2);
   border-color: rgba(255,255,255,0.4);
+}
+
+/* --- Navigation Dropdowns (About / Courses / Learn) --- */
+.navbar__dropdown {
+  position: relative;
+}
+
+.navbar__dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  color: rgba(255,255,255,0.75);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.navbar__dropdown-trigger:hover,
+.navbar__dropdown-trigger:focus-visible,
+.navbar__dropdown-trigger.active,
+.navbar__dropdown.open > .navbar__dropdown-trigger,
+.navbar__dropdown:focus-within > .navbar__dropdown-trigger {
+  color: var(--white);
+  background: rgba(255,255,255,0.08);
+}
+
+.navbar__dropdown-caret {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid currentColor;
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+}
+
+.navbar__dropdown.open .navbar__dropdown-caret,
+.navbar__dropdown:hover .navbar__dropdown-caret,
+.navbar__dropdown:focus-within .navbar__dropdown-caret {
+  transform: rotate(180deg);
+}
+
+.navbar__dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 210px;
+  margin-top: 4px;
+  background: var(--primary-light);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 8px;
+  list-style: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: var(--transition);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navbar__dropdown:hover .navbar__dropdown-menu,
+.navbar__dropdown:focus-within .navbar__dropdown-menu,
+.navbar__dropdown.open .navbar__dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.navbar__dropdown-menu li {
+  list-style: none;
+}
+
+.navbar__dropdown-menu a {
+  display: block;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.8);
+  white-space: nowrap;
+}
+
+.navbar__dropdown-menu a:hover,
+.navbar__dropdown-menu a:focus-visible,
+.navbar__dropdown-menu a.active {
+  background: rgba(255,255,255,0.08);
+  color: var(--white);
 }
 
 /* --- Hero Section --- */
@@ -443,6 +563,20 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   font-size: 1.1rem;
 }
 
+/* Low-emphasis button for demoted/secondary CTAs on light backgrounds */
+.btn--secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  box-shadow: none;
+}
+
+.btn--secondary:hover {
+  background: var(--accent);
+  color: var(--white);
+  transform: translateY(-2px);
+}
+
 /* --- Stats Bar --- */
 .stats-bar {
   background: var(--white);
@@ -518,6 +652,71 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 .card__text {
   color: var(--text-light);
   font-size: 0.95rem;
+}
+
+/* --- Collapsible Card Grid ("Show more") ---
+   Structure: a `<details class="card-grid__more">` sits inside a
+   `.card-grid--collapsible` as an extra grid item, wrapping a
+   `.card-grid__more-inner` that holds the "extra" cards. The extra cards
+   stay collapsed behind the native <details> disclosure (keyboard + no-JS
+   accessible, no JS required) at every screen size — desktop included. */
+.card-grid--collapsible .card-grid__more {
+  display: block;
+  grid-column: 1 / -1;
+}
+
+.card-grid--collapsible .card-grid__more-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+  margin-top: 32px;
+}
+
+.card-grid--collapsible .card-grid__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 24px;
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: var(--transition);
+}
+
+.card-grid__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.card-grid__toggle::marker {
+  content: '';
+}
+
+.card-grid--collapsible .card-grid__toggle:hover,
+.card-grid--collapsible .card-grid__toggle:focus-visible {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.card-grid__toggle::after {
+  content: '\25BC';
+  font-size: 0.7rem;
+  transition: transform 0.25s ease;
+}
+
+.card-grid__more[open] .card-grid__toggle::after {
+  transform: rotate(180deg);
+}
+
+.card-grid__more[open] .card-grid__toggle .card-grid__toggle-label--more,
+.card-grid__more:not([open]) .card-grid__toggle .card-grid__toggle-label--less {
+  display: none;
 }
 
 /* --- About / Bio Section --- */
@@ -763,6 +962,19 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   flex-wrap: wrap;
 }
 
+/* Plain-text demoted link, used beneath the primary button in a .cta-section */
+.cta-link {
+  display: block;
+  margin-top: 20px;
+  color: rgba(255,255,255,0.75);
+  text-decoration: underline;
+  font-size: 0.95rem;
+}
+
+.cta-link:hover {
+  color: var(--white);
+}
+
 /* --- Social Links --- */
 .social-links {
   display: flex;
@@ -894,8 +1106,10 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   color: var(--white);
 }
 
-.course-hero h1 {
+.course-hero h1,
+.course-hero h2 {
   color: var(--white);
+  font-size: clamp(2rem, 5vw, 3.2rem);
 }
 
 .course-hero p {
@@ -973,6 +1187,20 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   margin-bottom: 40px;
 }
 
+.footer__logo {
+  display: inline-block;
+  background: var(--white);
+  padding: 10px 20px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.footer__logo img {
+  display: block;
+  height: 72px;
+  width: auto;
+}
+
 .footer__brand h3 {
   color: var(--white);
   margin-bottom: 12px;
@@ -1043,6 +1271,16 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   fill: currentColor;
 }
 
+/* --- Sticky Mobile CTA Bar ---
+   Slim fixed bottom bar, mobile-only, holding the page's single primary CTA
+   (see extra-md-files/done/03-cta-consolidation.md). Hidden by default;
+   shown only under the 640px breakpoint below. Sits below the navbar's
+   z-index (1000) and is hidden while the mobile nav dropdown is open
+   (body.nav-open) so the two never visually collide. */
+.sticky-cta-bar {
+  display: none;
+}
+
 /* --- Responsive --- */
 @media (max-width: 968px) {
   .hero .container {
@@ -1109,28 +1347,107 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   }
 
   .navbar__menu {
-    display: none;
+    display: flex;
     position: absolute;
     top: 64px;
     left: 0;
     right: 0;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
     background: var(--primary);
     flex-direction: column;
-    padding: 16px;
+    align-items: stretch;
+    gap: 4px;
+    padding: 12px;
     border-top: 1px solid rgba(255,255,255,0.1);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
+    pointer-events: none;
   }
 
   .navbar__menu.active {
-    display: flex;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
   }
 
   .navbar__menu a {
-    font-size: 0.9rem;
-    padding: 10px 16px;
+    font-size: 0.95rem;
+    padding: 13px 16px;
   }
 
   .navbar__toggle {
     display: block;
+    line-height: 1;
+  }
+
+  body.nav-open {
+    overflow: hidden;
+  }
+
+  .navbar__dropdown-trigger {
+    width: 100%;
+    justify-content: space-between;
+    font-size: 0.95rem;
+    padding: 13px 16px;
+  }
+
+  .navbar__dropdown-menu {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    background: rgba(255,255,255,0.04);
+    border: none;
+    border-radius: 8px;
+    box-shadow: none;
+    padding: 0 0 0 14px;
+    transform: none;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    visibility: hidden;
+    transition: max-height 0.3s ease, opacity 0.25s ease, margin 0.25s ease, padding 0.25s ease, visibility 0.3s;
+  }
+
+  .navbar__dropdown.open .navbar__dropdown-menu {
+    max-height: 400px;
+    opacity: 1;
+    visibility: visible;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    padding: 4px 0 4px 14px;
+  }
+
+  .navbar__dropdown-menu a {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.88rem;
+    padding: 11px 16px;
+  }
+
+  /* Give the CTA buttons room to breathe and stand apart from the nav links */
+  .navbar__menu li:has(.navbar__cta--tool) {
+    margin: 10px 0 0;
+    padding: 12px 0 0;
+    border-left: none;
+    border-top: 1px solid rgba(255,255,255,0.12);
+  }
+
+  .navbar__menu .navbar__cta {
+    display: block !important;
+    text-align: center !important;
+    padding: 13px 16px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .navbar__menu li:has(.navbar__cta--tool) + li {
+    margin-top: 8px;
   }
 }
 
@@ -1176,6 +1493,38 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 
   .media-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Sticky mobile CTA bar: single primary-CTA button pinned to the
+     viewport bottom. Only the pages that opt in add the markup
+     (.sticky-cta-bar), so this rule is a no-op elsewhere. */
+  body:has(.sticky-cta-bar) {
+    padding-bottom: 76px;
+  }
+
+  .sticky-cta-bar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(26, 35, 50, 0.97);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+  }
+
+  .sticky-cta-bar .btn {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    padding: 13px 24px;
+    font-size: 0.95rem;
+  }
+
+  body.nav-open .sticky-cta-bar {
+    display: none;
   }
 }
 
@@ -1406,6 +1755,13 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   border-bottom: 1px solid var(--light-gray);
 }
 
+.article-views {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
 .article-body .faq-item {
   margin-bottom: 24px;
   padding: 20px 24px;
@@ -1424,6 +1780,397 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
 .article-body .faq-item p {
   margin-bottom: 0;
   font-size: 0.95rem;
+}
+
+/* --- Article Graph/Visual Components --- */
+/* See extra-md-files/graph-implement.md for the authoring rules and per-type
+   HTML skeletons. Hand-authored into article-body [data-lang="en"] only —
+   never edit these blocks via the admin WYSIWYG editor. */
+.graph-block {
+  background: var(--off-white);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 24px;
+  margin: 32px 0;
+  box-shadow: var(--shadow);
+}
+
+.graph-block__title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primary);
+  margin-bottom: 20px;
+}
+
+/* Per-type left-border accent so the 6 graph types read as distinct at a
+   glance rather than all sharing the default --accent border. Mirrors the
+   --na1..--na5 border-left-accent idea from admin/index.html, mapped onto
+   this site's own token palette. */
+.graph-block--concept {
+  border-left-color: var(--primary);
+}
+
+.graph-block--flow {
+  border-left-color: var(--accent);
+}
+
+.graph-block--compare {
+  border-left-color: var(--gold);
+}
+
+.graph-block--decision {
+  border-left-color: var(--info);
+}
+
+.graph-block--risk-ladder {
+  border-left-color: var(--danger);
+}
+
+.graph-block--pyramid {
+  border-left-color: var(--success);
+}
+
+/* Flow (steps / timeline / cause-effect / cycle) */
+.graph-flow {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.graph-flow__step {
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  font-weight: 600;
+  color: var(--primary);
+  text-align: center;
+  position: relative;
+}
+
+.graph-flow__step + .graph-flow__step {
+  margin-top: 28px;
+}
+
+.graph-flow__step + .graph-flow__step::before {
+  content: "\2193";
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--accent);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.graph-flow--steps {
+  counter-reset: graph-step;
+}
+
+.graph-flow--steps .graph-flow__step {
+  padding-left: 44px;
+  text-align: left;
+}
+
+.graph-flow--steps .graph-flow__step::after {
+  counter-increment: graph-step;
+  content: counter(graph-step);
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--white);
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.graph-flow__step.graph-flow__step--repeat {
+  background: var(--primary);
+  color: var(--white);
+  border-color: var(--primary);
+}
+
+.graph-flow--steps .graph-flow__step--repeat::after {
+  content: none;
+}
+
+@media (min-width: 641px) {
+  .graph-flow--cause-effect {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .graph-flow--cause-effect .graph-flow__step {
+    flex: 1;
+  }
+
+  .graph-flow--cause-effect .graph-flow__step + .graph-flow__step {
+    margin-top: 0;
+    margin-left: 28px;
+  }
+
+  .graph-flow--cause-effect .graph-flow__step + .graph-flow__step::before {
+    content: "\2192";
+    top: 50%;
+    left: -28px;
+    transform: translateY(-50%);
+  }
+}
+
+/* Decision Tree */
+.graph-decision__question {
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+  padding: 14px 20px;
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+}
+
+.graph-decision__branches {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 32px;
+  position: relative;
+}
+
+.graph-decision__branches::before {
+  content: "\2193";
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--accent);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.graph-decision__branch {
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  color: var(--text);
+  flex: 1;
+}
+
+.graph-decision__label {
+  display: block;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+@media (min-width: 641px) {
+  .graph-decision__branches {
+    flex-direction: row;
+  }
+}
+
+/* Concept Map */
+.graph-concept__hub {
+  background: var(--primary);
+  color: var(--white);
+  font-weight: 700;
+  text-align: center;
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+}
+
+.graph-concept__spokes {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.graph-concept__spokes li {
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-top: 3px solid var(--accent-light);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 0.9rem;
+}
+
+/* Comparison */
+.graph-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.graph-compare__col {
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+
+.graph-compare__col h4 {
+  color: var(--primary);
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
+.graph-compare__col ul {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
+.graph-compare__col li {
+  padding-left: 22px;
+  position: relative;
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.graph-compare__col li:last-child {
+  margin-bottom: 0;
+}
+
+.graph-compare__col li::before {
+  content: "\2713";
+  position: absolute;
+  left: 0;
+  color: var(--mid-gray);
+  font-weight: 700;
+}
+
+.graph-compare__col--accent {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.graph-compare__col--accent li::before {
+  color: var(--accent);
+}
+
+.graph-compare__col--accent h4 {
+  color: var(--accent);
+}
+
+.graph-compare__col--negative {
+  border-color: var(--danger);
+  background: var(--danger-glow);
+}
+
+.graph-compare__col--negative li::before {
+  content: "\2717";
+  color: var(--danger);
+}
+
+.graph-compare__col--negative h4 {
+  color: var(--danger);
+}
+
+@media (max-width: 640px) {
+  .graph-compare {
+    grid-template-columns: 1fr;
+  }
+}
+
+.graph-compare--3col {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 640px) {
+  .graph-compare--3col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Risk Ladder */
+.graph-risk-ladder {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.graph-risk-ladder__rung {
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  text-align: center;
+  color: var(--white);
+}
+
+.graph-risk-ladder__rung.is-low {
+  background: var(--success);
+  color: var(--primary);
+}
+
+.graph-risk-ladder__rung.is-medium {
+  background: var(--gold);
+  color: var(--primary);
+}
+
+.graph-risk-ladder__rung.is-high {
+  background: var(--accent);
+  color: var(--white);
+}
+
+.graph-risk-ladder__rung.is-veryhigh {
+  background: var(--primary);
+  border: 2px solid var(--accent);
+  color: var(--white);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Pyramid */
+.graph-pyramid {
+  list-style: none;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 8px;
+}
+
+.graph-pyramid__tier {
+  width: 75%;
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-top: 3px solid var(--accent-light);
+  border-radius: var(--radius);
+  padding: 12px 24px;
+  font-weight: 600;
+  color: var(--primary);
+  text-align: center;
+}
+
+.graph-pyramid__tier.graph-pyramid__tier--base {
+  width: 100%;
+  background: var(--primary);
+  color: var(--white);
+  border-top-color: var(--accent);
+  font-weight: 700;
+}
+
+.graph-pyramid__tier--top {
+  width: 50%;
+  border-top-color: var(--accent);
 }
 
 .article-related {
@@ -1451,6 +2198,107 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   text-decoration: none;
 }
 
+/* --- Article Author Credibility Box --- */
+.author-box {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  background: var(--off-white);
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-top: 48px;
+}
+
+.author-box__photo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.author-box__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.author-box__title {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.author-box__credentials {
+  list-style: none;
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.author-box__credentials li {
+  font-size: 0.85rem;
+  color: var(--text);
+  padding-left: 18px;
+  position: relative;
+  margin-bottom: 0;
+}
+
+.author-box__credentials li::before {
+  content: '\2713';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.author-box__links {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* --- "As Featured In" Press Strip --- */
+.press-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 28px;
+  padding: 32px 0;
+}
+
+.press-strip__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-light);
+  margin-right: 6px;
+}
+
+.press-strip__item {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--text);
+  opacity: 0.7;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+a.press-strip__item:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
 @media (max-width: 640px) {
   .article-grid {
     grid-template-columns: 1fr;
@@ -1467,5 +2315,31 @@ h3 { font-size: clamp(1.2rem, 3vw, 1.6rem); }
   .article-meta {
     flex-direction: column;
     gap: 8px;
+  }
+
+  .author-box {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .author-box__credentials {
+    align-items: center;
+  }
+
+  .author-box__credentials li {
+    padding-left: 0;
+  }
+
+  .author-box__credentials li::before {
+    display: none;
+  }
+
+  .press-strip {
+    gap: 8px 18px;
+  }
+
+  .press-strip__item {
+    font-size: 0.9rem;
   }
 }

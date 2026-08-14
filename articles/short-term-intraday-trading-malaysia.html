@@ -10,11 +10,26 @@
     gtag('config', 'G-9H2NEZCD20');
   </script>
   <meta charset="UTF-8">
+  <script>
+    /* Anti-flash: for returning zh-preference visitors, hide body until
+       main.js applies the stored language (avoids a flash of English before
+       the bottom-of-body script runs). No-op for default/English visitors. */
+    (function(){
+      try {
+        if (localStorage.getItem('wm_lang') === 'zh') {
+          document.documentElement.setAttribute('data-lang-pending', '1');
+          document.write('<style id="wm-lang-hide">body{visibility:hidden}</style>');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Short-Term & Intraday Trading Malaysia: Strategies for Bursa Malaysia | Warren Mak</title>
   <meta name="description" content="Master short-term and intraday trading on Bursa Malaysia. Learn proven strategies — momentum breakouts, gap trading, scalping techniques — from Warren Mak, ex-Bursa Head with 32 years of experience.">
   <meta name="keywords" content="short term trading Malaysia, intraday trading Malaysia, Bursa Malaysia trading strategies, day trading Malaysia, scalping Bursa Malaysia, momentum trading Malaysia, Warren Mak trading">
   <link rel="canonical" href="https://www.warrenmak.asia/articles/short-term-intraday-trading-malaysia.html">
+  <link rel="icon" type="image/png" href="../assets/images/logo/favicon-square.png">
+  <link rel="apple-touch-icon" href="../assets/images/logo/favicon-square.png">
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +40,7 @@
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://www.warrenmak.asia/articles/short-term-intraday-trading-malaysia.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"Article","headline":"Short-Term & Intraday Trading Malaysia: Strategies for Bursa Malaysia","description":"Master short-term and intraday trading on Bursa Malaysia with proven strategies from Warren Mak.","image":"https://www.warrenmak.asia/assets/images/warren-mak-hero.jpg","author":{"@type":"Person","name":"Warren Mak","url":"https://www.warrenmak.asia/about.html"},"publisher":{"@type":"Organization","name":"TED Optimus Sdn Bhd","logo":{"@type":"ImageObject","url":"https://www.warrenmak.asia/assets/images/Logo - Trade Wizard Blue Word.png"}},"datePublished":"2026-03-22","dateModified":"2026-03-26","mainEntityOfPage":"https://www.warrenmak.asia/articles/short-term-intraday-trading-malaysia.html"}
+  {"@context":"https://schema.org","@type":"Article","headline":"Short-Term & Intraday Trading Malaysia: Strategies for Bursa Malaysia","description":"Master short-term and intraday trading on Bursa Malaysia with proven strategies from Warren Mak.","image":"https://www.warrenmak.asia/assets/images/warren-mak-hero.jpg","author":{"@type":"Person","name":"Warren Mak","url":"https://www.warrenmak.asia/about.html"},"publisher":{"@type":"Organization","name":"TED Optimus Sdn Bhd","logo":{"@type":"ImageObject","url":"https://www.warrenmak.asia/assets/images/logo/favicon.png"}},"datePublished":"2026-03-22","dateModified":"2026-03-26","mainEntityOfPage":"https://www.warrenmak.asia/articles/short-term-intraday-trading-malaysia.html"}
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
@@ -51,22 +66,49 @@
   </script>
 </head>
 <body>
+  <!-- Navigation -->
   <nav class="navbar">
     <div class="container">
-      <a href="../index.html" class="navbar__logo"><img src="../assets/images/Logo - Trade Wizard Blue Word.png" alt="Trade Wizard" width="28" height="28"> Warren <span>Mak</span></a>
+      <a href="../index.html" class="navbar__logo"><img src="../assets/images/logo/favicon.png" alt="Warren Mak" width="84" height="46"> Warren <span>Mak</span></a>
       <ul class="navbar__menu" id="navMenu">
-        <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
-        <li><a href="../about.html"><span data-lang="en">About</span><span data-lang="zh" style="display:none;">关于</span></a></li>
-        <li><a href="../ted-optimus.html">TED Optimus</a></li>
-        <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
-        <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
-        <li><a href="../articles.html" class="active"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
-        <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
-        <li><a href="../media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
+        <li class="navbar__dropdown">
+          <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+            <span data-lang="en">About</span><span data-lang="zh" style="display:none;">关于</span>
+            <span class="navbar__dropdown-caret" aria-hidden="true"></span>
+          </button>
+          <ul class="navbar__dropdown-menu">
+            <li><a href="../about.html"><span data-lang="en">Warren Mak</span><span data-lang="zh" style="display:none;">Warren Mak</span></a></li>
+            <li><a href="../ted-optimus.html"><span data-lang="en">TED Optimus</span><span data-lang="zh" style="display:none;">TED Optimus</span></a></li>
+            <li><a href="../media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
+          </ul>
+        </li>
+        <li class="navbar__dropdown">
+          <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+            <span data-lang="en">Courses</span><span data-lang="zh" style="display:none;">课程</span>
+            <span class="navbar__dropdown-caret" aria-hidden="true"></span>
+          </button>
+          <ul class="navbar__dropdown-menu">
+            <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
+            <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
+          </ul>
+        </li>
+        <li class="navbar__dropdown">
+          <button type="button" class="navbar__dropdown-trigger active" aria-haspopup="true" aria-expanded="false">
+            <span data-lang="en">Learn</span><span data-lang="zh" style="display:none;">学习资源</span>
+            <span class="navbar__dropdown-caret" aria-hidden="true"></span>
+          </button>
+          <ul class="navbar__dropdown-menu">
+            <li><a href="../articles.html" class="active"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
+            <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
+          </ul>
+        </li>
         <li><a href="https://www.thetradewizard.com/" target="_blank" class="navbar__cta navbar__cta--tool">Trade Wizard</a></li>
         <li><a href="https://academy.thetradewizard.com/" target="_blank" class="navbar__cta"><span data-lang="en">Free Webinar</span><span data-lang="zh" style="display:none;">免费网络研讨会</span></a></li>
       </ul>
-      <div class="navbar__actions"><button class="lang-toggle" id="langToggle" title="Switch to Chinese">中文</button><button class="navbar__toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button></div>
+      <div class="navbar__actions">
+        <button class="lang-toggle" id="langToggle" title="Switch to Chinese">中文</button>
+        <button class="navbar__toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button>
+      </div>
     </div>
   </nav>
 
@@ -81,7 +123,7 @@
       <div data-lang="zh" style="display:none;" aria-hidden="true">
         <div class="article-breadcrumb"><a href="../index.html">首页</a> <span>›</span> <a href="../articles.html">文章</a> <span>›</span> 短线与日内交易</div>
         <span class="tag">交易策略</span>
-        <h2 style="font-size:inherit;margin:inherit;">马来西亚短线与日内交易：Bursa Malaysia实战策略</h2>
+        <h2>马来西亚短线与日内交易：Bursa Malaysia实战策略</h2>
         <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">跟随32年市场老将掌握马来西亚交易所短线与日内交易的精髓。</p>
       </div>
     </div>
@@ -91,7 +133,7 @@
     <div class="container">
       <div class="article-body">
         <div data-lang="en">
-        <div class="article-meta"><span>By <strong><a href="../about.html">Warren Mak</a></strong></span><span>12 min read</span><span>Updated: March 2026</span></div>
+        <div class="article-meta"><span>By <strong><a href="../about.html">Warren Mak</a></strong></span><span>12 min read</span><span>Updated: March 2026</span><span class="article-views" hidden>👁 <span class="article-views__count">0</span> views</span></div>
 
         <p>Short-term and intraday trading on Bursa Malaysia offers some of the best opportunities in Southeast Asia — if you know where to look and how to execute. Unlike long-term investing, short-term trading requires precise timing, disciplined risk management, and strategies tailored specifically to Malaysian market conditions.</p>
 
@@ -108,6 +150,21 @@
           <li><strong>Predictable trading sessions</strong> — the morning session (9:00 AM - 12:30 PM) and afternoon session (2:30 PM - 5:00 PM) create distinct volatility windows that experienced traders exploit</li>
           <li><strong>Regional catalyst flow</strong> — overnight moves in US, European, and Asian markets create predictable opening gaps on Bursa Malaysia every morning</li>
         </ul>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">Why Bursa Malaysia Suits Short-Term Trading</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">Bursa Malaysia Advantages</div>
+            <ul class="graph-concept__spokes">
+              <li>No Pattern Day Trader Rule</li>
+              <li>T+2 Contra Facility</li>
+              <li>Warrants as Leverage</li>
+              <li>Predictable Sessions</li>
+              <li>Regional Catalyst Flow</li>
+            </ul>
+          </div>
+        </figure>
 
         <h2>5 Short-Term Trading Strategies for Bursa Malaysia</h2>
 
@@ -170,6 +227,21 @@
           <li>Exit at the opening of the next trading session — this is a one-night hold, not a swing trade</li>
         </ul>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">5 Short-Term Trading Strategies</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">5 Short-Term Strategies</div>
+            <ul class="graph-concept__spokes">
+              <li>Opening Gap</li>
+              <li>Momentum Breakout</li>
+              <li>Support Bounce</li>
+              <li>Warrant Momentum Play</li>
+              <li>End-of-Day Positioning</li>
+            </ul>
+          </div>
+        </figure>
+
         <h2>Intraday Trading: Timing the Bursa Malaysia Sessions</h2>
 
         <p>Successful intraday trading on Bursa Malaysia requires understanding the rhythm of the trading day:</p>
@@ -186,6 +258,19 @@
 
         <p><strong>4:30 - 5:00 PM (Closing Rush):</strong> Institutional positioning, fund rebalancing, and end-of-day orders create the second-highest volume window. This is when the End-of-Day Positioning Strategy is executed.</p>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--flow">
+          <figcaption class="graph-block__title">Bursa Malaysia Intraday Session Timeline</figcaption>
+          <ol class="graph-flow graph-flow--timeline">
+            <li class="graph-flow__step">Opening Rush — 9:00-9:30 AM</li>
+            <li class="graph-flow__step">Morning Trend — 9:30-11:00 AM</li>
+            <li class="graph-flow__step">Pre-Lunch — 11:00 AM-12:30 PM</li>
+            <li class="graph-flow__step">Lunch Break — 12:30-2:30 PM</li>
+            <li class="graph-flow__step">Afternoon Session — 2:30-4:30 PM</li>
+            <li class="graph-flow__step">Closing Rush — 4:30-5:00 PM</li>
+          </ol>
+        </figure>
+
         <h2>Risk Management for Short-Term Traders</h2>
 
         <p>Risk management is what separates profitable short-term traders from the <a href="why-90-percent-warrant-traders-lose-money-malaysia.html">90% who lose money</a>. Here are the non-negotiable rules I teach:</p>
@@ -197,6 +282,18 @@
           <li><strong>Limit daily losses.</strong> If you lose 4-5% of your capital in a single day, stop trading for the day. The market will be there tomorrow</li>
           <li><strong>Track every trade.</strong> Record your entry reason, exit reason, profit/loss, and what you learned. Without data, you cannot improve</li>
         </ul>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--flow">
+          <figcaption class="graph-block__title">Risk Management Checklist</figcaption>
+          <ol class="graph-flow graph-flow--steps">
+            <li class="graph-flow__step">Set Stop-Loss Before Entering</li>
+            <li class="graph-flow__step">Size Position (Risk ≤2%)</li>
+            <li class="graph-flow__step">Target 2:1 Reward-to-Risk</li>
+            <li class="graph-flow__step">Track Every Trade</li>
+            <li class="graph-flow__step">Limit Daily Losses</li>
+          </ol>
+        </figure>
 
         <h2>Essential Tools for Intraday Traders on Bursa Malaysia</h2>
 
@@ -218,6 +315,21 @@
           <li><strong>No trading plan.</strong> Every trade should have a pre-defined entry, stop-loss, and profit target before you click "buy." If you're trading based on feelings, you're gambling</li>
         </ol>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">5 Common Intraday Trading Mistakes</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">Intraday Trading Mistakes</div>
+            <ul class="graph-concept__spokes">
+              <li>Trading During Lunch</li>
+              <li>Ignoring Transaction Costs</li>
+              <li>Over-Leveraging with Warrants</li>
+              <li>Revenge Trading</li>
+              <li>No Trading Plan</li>
+            </ul>
+          </div>
+        </figure>
+
         <h2>Frequently Asked Questions</h2>
 
         <div class="faq-item"><h3>Is intraday trading legal in Malaysia?</h3><p>Yes, intraday trading is fully legal on Bursa Malaysia. There is no pattern day trader rule like in the US. You can buy and sell the same stock within the same day using a contra account with T+2 settlement. You need a CDS account and a trading account with a licensed Malaysian broker.</p></div>
@@ -230,17 +342,10 @@
 
         <div class="faq-item"><h3>Can I make a living from intraday trading in Malaysia?</h3><p>Some traders do trade full-time, but it requires significant skill, discipline, and capital. Start part-time while keeping your income source, master one or two strategies, and build a consistent track record over at least 6-12 months before considering full-time trading.</p></div>
 
-        <div class="article-related"><h3>Continue Learning</h3><ul>
-          <li><a href="best-stock-trading-course-malaysia.html">Best Stock Trading Course Malaysia</a></li>
-          <li><a href="leverage-strategies-structured-warrants-malaysia.html">Leverage Strategies for Structured Warrants</a></li>
-          <li><a href="how-to-choose-best-structured-warrants-malaysia.html">How to Choose the Best Warrants</a></li>
-          <li><a href="why-90-percent-warrant-traders-lose-money-malaysia.html">Why 90% of Warrant Traders Lose Money</a></li>
-          <li><a href="../short-term-trading.html">← Back to Short-Term Trading Course</a></li>
-        </ul></div>
         </div>
 
         <div data-lang="zh" style="display:none;" aria-hidden="true">
-        <div class="article-meta"><span>作者：<strong><a href="../about.html">Warren Mak（麦传球）</a></strong></span><span>阅读时间：12分钟</span><span>更新：2026年3月</span></div>
+        <div class="article-meta"><span>作者：<strong><a href="../about.html">Warren Mak（麦传球）</a></strong></span><span>阅读时间：12分钟</span><span>更新：2026年3月</span><span class="article-views" hidden>👁 <span class="article-views__count">0</span> 次浏览</span></div>
 
         <p>在马来西亚交易所进行短线和日内交易是东南亚最佳的交易机会之一——前提是你知道在哪里寻找机会以及如何执行。与长期投资不同，短线交易需要精确的时机把握、严格的风险管理和专为马来西亚市场条件量身定制的策略。</p>
 
@@ -257,6 +362,21 @@
           <li><strong>可预测的交易时段</strong>——上午时段（9:00-12:30）和下午时段（2:30-5:00）创造了经验丰富的交易者可以利用的明确波动窗口</li>
           <li><strong>区域催化因素流</strong>——美国、欧洲和亚洲市场的隔夜波动每天早晨在马来西亚交易所创造可预测的开盘跳空</li>
         </ul>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">为什么马来西亚交易所适合短线交易</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">马来西亚交易所优势</div>
+            <ul class="graph-concept__spokes">
+              <li>无日内交易限制</li>
+              <li>T+2对冲设施</li>
+              <li>凭单作为杠杆</li>
+              <li>可预测交易时段</li>
+              <li>区域催化因素流</li>
+            </ul>
+          </div>
+        </figure>
 
         <h2>马来西亚交易所5大短线交易策略</h2>
 
@@ -317,6 +437,21 @@
           <li>在下一个交易日开盘时退出——这是隔夜持仓，不是波段交易</li>
         </ul>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">5大短线交易策略</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">5种短线策略</div>
+            <ul class="graph-concept__spokes">
+              <li>开盘跳空</li>
+              <li>动量突破</li>
+              <li>支撑反弹</li>
+              <li>凭单动量交易</li>
+              <li>尾盘建仓</li>
+            </ul>
+          </div>
+        </figure>
+
         <h2>日内交易：把握马来西亚交易所的交易节奏</h2>
 
         <p>在马来西亚交易所成功进行日内交易需要理解交易日的节奏：</p>
@@ -333,6 +468,19 @@
 
         <p><strong>4:30 - 5:00 PM（收盘冲击）：</strong>机构建仓、基金再平衡和尾盘订单创造了全天第二高成交量窗口。尾盘建仓策略在此执行。</p>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--flow">
+          <figcaption class="graph-block__title">马来西亚交易所日内交易时段时间表</figcaption>
+          <ol class="graph-flow graph-flow--timeline">
+            <li class="graph-flow__step">开盘冲击 — 9:00-9:30 AM</li>
+            <li class="graph-flow__step">上午趋势 — 9:30-11:00 AM</li>
+            <li class="graph-flow__step">午餐前 — 11:00 AM-12:30 PM</li>
+            <li class="graph-flow__step">午休时间 — 12:30-2:30 PM</li>
+            <li class="graph-flow__step">下午时段 — 2:30-4:30 PM</li>
+            <li class="graph-flow__step">收盘冲击 — 4:30-5:00 PM</li>
+          </ol>
+        </figure>
+
         <h2>短线交易者的风险管理</h2>
 
         <p>风险管理是将盈利的短线交易者与<a href="why-90-percent-warrant-traders-lose-money-malaysia.html">90%亏损者</a>区分开来的关键。以下是我教授的不可妥协的规则：</p>
@@ -345,6 +493,18 @@
           <li><strong>记录每笔交易。</strong>记下入场理由、退出理由、盈亏和心得。没有数据就无法进步</li>
         </ul>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--flow">
+          <figcaption class="graph-block__title">风险管理清单</figcaption>
+          <ol class="graph-flow graph-flow--steps">
+            <li class="graph-flow__step">入场前设好止损</li>
+            <li class="graph-flow__step">控制仓位（风险≤2%）</li>
+            <li class="graph-flow__step">目标2:1盈亏比</li>
+            <li class="graph-flow__step">记录每笔交易</li>
+            <li class="graph-flow__step">限制日亏损</li>
+          </ol>
+        </figure>
+
         <h2>日内交易者在马来西亚交易所的常见错误</h2>
 
         <ol>
@@ -354,6 +514,21 @@
           <li><strong>报复性交易。</strong>亏损后"赚回来"的冲动导致冲动、超大仓位的交易。严格执行每日亏损限制</li>
           <li><strong>没有交易计划。</strong>每笔交易在点击"买入"之前都应有预设的入场点、止损和获利目标。如果你凭感觉交易，那就是赌博</li>
         </ol>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">5种常见日内交易错误</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">日内交易错误</div>
+            <ul class="graph-concept__spokes">
+              <li>午盘交易</li>
+              <li>忽视交易成本</li>
+              <li>凭单过度杠杆</li>
+              <li>报复性交易</li>
+              <li>没有交易计划</li>
+            </ul>
+          </div>
+        </figure>
 
         <h2>常见问题</h2>
 
@@ -367,13 +542,55 @@
 
         <div class="faq-item"><h3>在马来西亚可以靠日内交易为生吗？</h3><p>有些交易者确实全职交易，但这需要相当的技能、纪律和资金。建议先兼职交易同时保持收入来源，精通一两个策略，并在至少6-12个月内建立持续的盈利记录，然后再考虑全职交易。</p></div>
 
-        <div class="article-related"><h3>继续学习</h3><ul>
-          <li><a href="best-stock-trading-course-malaysia.html">马来西亚最佳股票交易课程</a></li>
-          <li><a href="leverage-strategies-structured-warrants-malaysia.html">结构性凭单杠杆策略</a></li>
-          <li><a href="how-to-choose-best-structured-warrants-malaysia.html">如何选择最佳凭单</a></li>
-          <li><a href="why-90-percent-warrant-traders-lose-money-malaysia.html">为什么90%的凭单交易者亏损</a></li>
-          <li><a href="../short-term-trading.html">← 返回短线交易课程</a></li>
-        </ul></div>
+        </div>
+
+        <div class="article-related">
+          <h3><span data-lang="en">Continue Learning</span><span data-lang="zh" style="display:none;">继续学习</span></h3>
+          <ul>
+            <li><a href="best-stock-trading-course-malaysia.html"><span data-lang="en">Best Stock Trading Course Malaysia</span><span data-lang="zh" style="display:none;">马来西亚最佳股票交易课程</span></a></li>
+            <li><a href="leverage-strategies-structured-warrants-malaysia.html"><span data-lang="en">Leverage Strategies for Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单杠杆策略</span></a></li>
+            <li><a href="how-to-choose-best-structured-warrants-malaysia.html"><span data-lang="en">How to Choose the Best Warrants</span><span data-lang="zh" style="display:none;">如何选择最佳凭单</span></a></li>
+            <li><a href="why-90-percent-warrant-traders-lose-money-malaysia.html"><span data-lang="en">Why 90% of Warrant Traders Lose Money</span><span data-lang="zh" style="display:none;">为什么90%的凭单交易者亏损</span></a></li>
+            <li><a href="../short-term-trading.html"><span data-lang="en">← Back to Short-Term Trading Course</span><span data-lang="zh" style="display:none;">← 返回短线交易课程</span></a></li>
+          </ul>
+        </div>
+
+        <!-- Author Credibility Box -->
+        <div class="author-box">
+          <picture>
+            <source srcset="../assets/images/warren-mak-profile.webp" type="image/webp">
+            <img src="../assets/images/warren-mak-profile.jpg" alt="Warren Mak" class="author-box__photo" loading="lazy" width="72" height="72">
+          </picture>
+          <div class="author-box__body">
+            <div data-lang="en">
+              <div class="author-box__name">Warren Mak (麦传球)</div>
+              <div class="author-box__title">Former Head of Investor Education &amp; 4 Departments, Bursa Malaysia &middot; Ex-Structured Products Trader, OCBC Bank</div>
+              <ul class="author-box__credentials">
+                <li>30+ years in securities &amp; derivatives markets</li>
+                <li>15 years at Bursa Malaysia, headed 5 departments</li>
+                <li>Weekly columnist, Nanyang Siang Pau, since 2018</li>
+                <li>Featured in The Edge Malaysia, BFM 89.9, TEDx</li>
+              </ul>
+              <div class="author-box__links">
+                <a href="../about.html">Full Bio &amp; Credentials &rarr;</a>
+                <a href="https://academy.thetradewizard.com/" target="_blank">Join Free Webinar &rarr;</a>
+              </div>
+            </div>
+            <div data-lang="zh" style="display:none;">
+              <div class="author-box__name">麦传球 Warren Mak</div>
+              <div class="author-box__title">前马来西亚交易所投资教育及4个部门主管 &middot; 前华侨银行（OCBC）结构性产品交易员</div>
+              <ul class="author-box__credentials">
+                <li>30多年证券与衍生品市场经验</li>
+                <li>在Bursa Malaysia任职15年，领导5个部门</li>
+                <li>自2018年起南洋商报每周专栏作家</li>
+                <li>曾受The Edge Malaysia、BFM 89.9、TEDx专访</li>
+              </ul>
+              <div class="author-box__links">
+                <a href="../about.html">查看完整简历 &rarr;</a>
+                <a href="https://academy.thetradewizard.com/" target="_blank">参加免费网络研讨会 &rarr;</a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -401,46 +618,64 @@
   </section>
 
   <footer class="footer">
-  <div class="container">
-    <div class="footer__grid">
-      <div class="footer__brand">
-        <h3>Warren Mak (&#40614;&#20256;&#29699;)</h3>
-        <p><span data-lang="en">Malaysia's #1 Structured Warrants & Short-Term Trading Coach.</span><span data-lang="zh" style="display:none;">马来西亚第一结构性凭单与短线交易教练。</span></p>
-        <p class="mt-16" style="font-size:0.85rem;">Email: warrenmak@tedoptimus.com</p>
+    <div class="container">
+      <div class="footer__grid">
+        <div class="footer__brand">
+          <div class="footer__logo"><img src="../assets/images/logo/logo.png" alt="Warren Mak"></div>
+          <h3>Warren Mak (&#40614;&#20256;&#29699;)</h3>
+          <p><span data-lang="en">Malaysia's #1 Structured Warrants &amp; Short-Term Trading Coach. Former Head of Investor Education at Bursa Malaysia. Empowering traders with live market experience and AI-powered tools.</span><span data-lang="zh" style="display:none;">马来西亚第一结构性凭单和短线交易教练。前马来西亚交易所投资教育主管。通过实盘市场经验和AI驱动工具赋能交易者。</span></p>
+          <p class="mt-16" style="font-size: 0.85rem;">
+            Email: warrenmak@tedoptimus.com
+          </p>
+        </div>
+        <div>
+          <h4><span data-lang="en">Pages</span><span data-lang="zh" style="display:none;">页面</span></h4>
+          <ul class="footer__links">
+            <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
+            <li><a href="../about.html"><span data-lang="en">About Warren</span><span data-lang="zh" style="display:none;">关于Warren</span></a></li>
+            <li><a href="../ted-optimus.html">TED Optimus</a></li>
+            <li><a href="../articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
+            <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
+            <li><a href="../media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
+          </ul>
+        </div>
+        <div>
+          <h4><span data-lang="en">Programmes</span><span data-lang="zh" style="display:none;">课程</span></h4>
+          <ul class="footer__links">
+            <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
+            <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
+            <li><a href="https://academy.thetradewizard.com/" target="_blank">Trade Wizard Academy</a></li>
+            <li><a href="https://www.thetradewizard.com/" target="_blank">Trade Wizard Platform</a></li>
+            <li><a href="https://www.thetradewizard.com/pricing" target="_blank"><span data-lang="en">TW Free Trial</span><span data-lang="zh" style="display:none;">TW 免费试用</span></a></li>
+            <li><a href="https://www.thetradewizard.com/articles" target="_blank"><span data-lang="en">Articles &amp; Insights</span><span data-lang="zh" style="display:none;">文章与洞察</span></a></li>
+          </ul>
+        </div>
+        <div>
+          <h4><span data-lang="en">Connect</span><span data-lang="zh" style="display:none;">联系我们</span></h4>
+          <ul class="footer__links">
+            <li><a href="https://t.me/tradewizardglobal" target="_blank"><span data-lang="en">Telegram Channel</span><span data-lang="zh" style="display:none;">Telegram频道</span></a></li>
+            <li><a href="https://www.facebook.com/TradeWizardGlobal" target="_blank">Facebook</a></li>
+            <li><a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank">YouTube</a></li>
+            <li><a href="https://www.linkedin.com/company/ted-optimus/" target="_blank">LinkedIn</a></li>
+          </ul>
+        </div>
       </div>
-      <div>
-        <h4><span data-lang="en">Pages</span><span data-lang="zh" style="display:none;">页面</span></h4>
-        <ul class="footer__links">
-          <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
-          <li><a href="../about.html"><span data-lang="en">About Warren</span><span data-lang="zh" style="display:none;">关于Warren</span></a></li>
-          <li><a href="../articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
-          <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
-        </ul>
-      </div>
-      <div>
-        <h4><span data-lang="en">Programmes</span><span data-lang="zh" style="display:none;">课程</span></h4>
-        <ul class="footer__links">
-          <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
-          <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
-          <li><a href="https://academy.thetradewizard.com/" target="_blank">Trade Wizard Academy</a></li>
-          <li><a href="https://www.thetradewizard.com/" target="_blank">Trade Wizard Platform</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4><span data-lang="en">Connect</span><span data-lang="zh" style="display:none;">联系我们</span></h4>
-        <ul class="footer__links">
-          <li><a href="https://t.me/tradewizardglobal" target="_blank">Telegram</a></li>
-          <li><a href="https://www.facebook.com/TradeWizardGlobal" target="_blank">Facebook</a></li>
-          <li><a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank">YouTube</a></li>
-          <li><a href="https://www.linkedin.com/company/ted-optimus/" target="_blank">LinkedIn</a></li>
-        </ul>
+      <div class="footer__bottom">
+        <p>&copy; 2026 TED Optimus Sdn Bhd. <span data-lang="en">All rights reserved.</span><span data-lang="zh" style="display:none;">版权所有。</span></p>
+        <div class="footer__social">
+          <a href="https://t.me/tradewizardglobal" target="_blank" title="Telegram"><svg viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></a>
+          <a href="https://www.facebook.com/TradeWizardGlobal" target="_blank" title="Facebook"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
+          <a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank" title="YouTube"><svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></a>
+          <a href="https://www.linkedin.com/company/ted-optimus/" target="_blank" title="LinkedIn"><svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+        </div>
       </div>
     </div>
-    <div class="footer__bottom">
-      <p>&copy; 2026 TED Optimus Sdn Bhd. <span data-lang="en">All rights reserved.</span><span data-lang="zh" style="display:none;">版权所有。</span></p>
-    </div>
+  </footer>
+
+  <div class="sticky-cta-bar" aria-label="Primary call to action">
+    <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary"><span data-lang="en">Join Free Webinar</span><span data-lang="zh" style="display:none;">参加免费网络研讨会</span></a>
   </div>
-</footer>
+
   <script src="../assets/js/main.js"></script>
 </body>
 </html>

@@ -1,0 +1,110 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button [ref=e7] [cursor=pointer]
+      - link [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img "logo" [ref=e9]
+    - link "Dashboard" [ref=e11] [cursor=pointer]:
+      - /url: /
+  - generic [ref=e12]:
+    - generic [ref=e13]: Weekly Financial Market Articles
+    - textbox "Enter some words to search..." [ref=e14]
+    - generic [ref=e15]: 0 results
+  - generic [ref=e20]:
+    - generic [ref=e21]:
+      - link [ref=e22] [cursor=pointer]:
+        - /url: /
+        - img "logo" [ref=e23]
+        - img "logo" [ref=e24]
+      - generic [ref=e25]:
+        - text: Trade Wizard features powerful TradingView charts to bring you the latest Bursa Malaysia stock pricing and market data. Sharpen your analysis with the TradingView platform — track market trends, follow global benchmarks like
+        - link "dow jones futures" [ref=e26] [cursor=pointer]:
+          - /url: https://www.tradingview.com/symbols/CBOT_MINI-YM1!/
+        - text: ", and use robust tools to interpret price movements — all in one place."
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - generic [ref=e30]: CONTACT US
+            - link "office@thetradewizard.com" [ref=e31] [cursor=pointer]:
+              - /url: mailto:office@thetradewizard.com
+            - link "+60 3-2739-6129 (Office)" [ref=e32] [cursor=pointer]:
+              - /url: tel:60327396129
+            - paragraph [ref=e33]: Customer Care Hub (WhatsApp only)
+            - link "+60 1-2290-9389" [ref=e34] [cursor=pointer]:
+              - /url: https://wa.me/60122909389
+            - link "+60 1-2301-9389" [ref=e35] [cursor=pointer]:
+              - /url: https://wa.me/60123019389
+          - generic [ref=e36]:
+            - link [ref=e37] [cursor=pointer]:
+              - /url: https://www.facebook.com/TradeWizardGlobal
+            - link [ref=e40] [cursor=pointer]:
+              - /url: https://www.youtube.com/channel/UCtFugTk0neR9CKTQlbfKCNQ
+            - link [ref=e43] [cursor=pointer]:
+              - /url: https://www.instagram.com/tradewizard.tedoptimus/
+            - link [ref=e46] [cursor=pointer]:
+              - /url: https://www.linkedin.com/company/ted-optimus/
+        - generic [ref=e49]:
+          - generic [ref=e50]: MARKET
+          - link "Bursa Malaysia" [ref=e51] [cursor=pointer]:
+            - /url: /exchange/MYX
+          - link "Sector Performance" [ref=e52] [cursor=pointer]:
+            - /url: /monitor?layout=sector%20performance
+          - link "SMA/ EMA" [ref=e53] [cursor=pointer]:
+            - /url: /smaema
+          - link "TICK" [ref=e54] [cursor=pointer]:
+            - /url: /tick
+          - link "News" [ref=e55] [cursor=pointer]:
+            - /url: /news
+          - link "Heatmap" [ref=e56] [cursor=pointer]:
+            - /url: /heatmap
+        - generic [ref=e57]:
+          - generic [ref=e58]: TOOLS
+          - link "Screener" [ref=e59] [cursor=pointer]:
+            - /url: /screener
+          - link "Scanner" [ref=e60] [cursor=pointer]:
+            - /url: /scanner/ath
+        - generic [ref=e61]:
+          - generic [ref=e62]: EDUCATION
+          - link "Trade Wizard Events" [ref=e63] [cursor=pointer]:
+            - /url: /event
+          - link "Academy Events" [ref=e64] [cursor=pointer]:
+            - /url: https://academy.thetradewizard.com
+          - link "Podcasts" [ref=e65] [cursor=pointer]:
+            - /url: /podcasts
+          - link "Investment Roadmap" [ref=e66] [cursor=pointer]:
+            - /url: /investment-roadmap
+          - link "Articles" [ref=e67] [cursor=pointer]:
+            - /url: /articles
+          - link "Resources" [ref=e68] [cursor=pointer]:
+            - /url: /resources
+          - link "Videos" [ref=e69] [cursor=pointer]:
+            - /url: /videos
+        - generic [ref=e70]:
+          - generic [ref=e71]: COMPANY
+          - link "The Trade Wizard (TW)" [ref=e72] [cursor=pointer]:
+            - /url: https://www.tedoptimus.com/about-us
+          - link "TED Academy" [ref=e73] [cursor=pointer]:
+            - /url: https://tedacademy.my
+          - link "Strategic Collaborations" [ref=e74] [cursor=pointer]:
+            - /url: /investment-roadmap/category/172
+          - link "Contact Us" [ref=e75] [cursor=pointer]:
+            - /url: https://www.tedoptimus.com/contact
+          - link "Careers" [ref=e76] [cursor=pointer]:
+            - /url: https://www.tedoptimus.com/careers
+          - link "Media Coverage" [ref=e77] [cursor=pointer]:
+            - /url: https://www.tedoptimus.com/media
+          - link "Corporate Social Responsibility" [ref=e78] [cursor=pointer]:
+            - /url: https://www.tedoptimus.com/csr
+          - link "Terms of Use" [ref=e79] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy Policy" [ref=e80] [cursor=pointer]:
+            - /url: /privacy-policy
+          - link "Payment Policy" [ref=e81] [cursor=pointer]:
+            - /url: /payment-policy
+    - generic [ref=e82]:
+      - separator [ref=e83]
+      - generic [ref=e84]:
+        - generic [ref=e85]: Copyright © 2026 TED Optimus Sdn. Bhd. 202001030083 (1386403-X)
+        - generic [ref=e86]: The information contained in this website is for general information and education purposes only. It is not intended to constitute as investment advice or recommendations which a user may rely upon.In no event will we be liable for any loss or damage including without limitation, indirect or consequential loss or damage, or any loss or damage whatsoever arising from use or inability to use this website.

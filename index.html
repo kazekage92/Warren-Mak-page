@@ -23,6 +23,8 @@
   <meta property="og:locale" content="en_MY">
   <meta name="keywords" content="Warren Mak, structured warrants Malaysia, structured warrant trading Malaysia, stock trading Malaysia, learn stock trading Malaysia, stock trading course Malaysia, best stock trading course Malaysia, short term trading Malaysia, intraday trading Malaysia, Bursa Malaysia trading strategies, how to trade structured warrants, Trade Wizard">
   <link rel="canonical" href="https://www.warrenmak.asia/">
+  <link rel="icon" type="image/png" href="assets/images/logo/favicon-square.png">
+  <link rel="apple-touch-icon" href="assets/images/logo/favicon-square.png">
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -48,7 +50,7 @@
       "url": "https://www.warrenmak.asia/ted-optimus.html",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://www.warrenmak.asia/assets/images/Logo - Trade Wizard Blue Word.png"
+        "url": "https://www.warrenmak.asia/assets/images/logo/favicon.png"
       }
     }
   }
@@ -80,7 +82,7 @@
     "url": "https://www.warrenmak.asia/",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://www.warrenmak.asia/assets/images/Logo - Trade Wizard Blue Word.png"
+      "url": "https://www.warrenmak.asia/assets/images/logo/favicon.png"
     },
     "image": "https://www.warrenmak.asia/assets/images/warren-mak-hero.jpg",
     "description": "Malaysia's leading trading education company specialising in structured warrants and short-term stock trading courses on Bursa Malaysia.",
@@ -104,16 +106,39 @@
   <!-- Navigation -->
   <nav class="navbar">
     <div class="container">
-      <a href="index.html" class="navbar__logo"><img src="assets/images/Logo - Trade Wizard Blue Word.png" alt="Trade Wizard" width="28" height="28"> Warren <span>Mak</span></a>
+      <a href="index.html" class="navbar__logo"><img src="assets/images/logo/favicon.png" alt="Warren Mak" width="84" height="46"> Warren <span>Mak</span></a>
       <ul class="navbar__menu" id="navMenu">
-        <li><a href="index.html" class="active"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
-        <li><a href="about.html"><span data-lang="en">About</span><span data-lang="zh" style="display:none;">关于</span></a></li>
-        <li><a href="ted-optimus.html">TED Optimus</a></li>
-        <li><a href="short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
-        <li><a href="structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
-        <li><a href="articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
-        <li><a href="testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学生评价</span></a></li>
-        <li><a href="media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
+        <li class="navbar__dropdown">
+          <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+            <span data-lang="en">About</span><span data-lang="zh" style="display:none;">关于</span>
+            <span class="navbar__dropdown-caret" aria-hidden="true"></span>
+          </button>
+          <ul class="navbar__dropdown-menu">
+            <li><a href="about.html"><span data-lang="en">Warren Mak</span><span data-lang="zh" style="display:none;">Warren Mak</span></a></li>
+            <li><a href="ted-optimus.html"><span data-lang="en">TED Optimus</span><span data-lang="zh" style="display:none;">TED Optimus</span></a></li>
+            <li><a href="media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
+          </ul>
+        </li>
+        <li class="navbar__dropdown">
+          <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+            <span data-lang="en">Courses</span><span data-lang="zh" style="display:none;">课程</span>
+            <span class="navbar__dropdown-caret" aria-hidden="true"></span>
+          </button>
+          <ul class="navbar__dropdown-menu">
+            <li><a href="short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
+            <li><a href="structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
+          </ul>
+        </li>
+        <li class="navbar__dropdown">
+          <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+            <span data-lang="en">Learn</span><span data-lang="zh" style="display:none;">学习资源</span>
+            <span class="navbar__dropdown-caret" aria-hidden="true"></span>
+          </button>
+          <ul class="navbar__dropdown-menu">
+            <li><a href="articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
+            <li><a href="testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
+          </ul>
+        </li>
         <li><a href="https://www.thetradewizard.com/" target="_blank" class="navbar__cta navbar__cta--tool">Trade Wizard</a></li>
         <li><a href="https://academy.thetradewizard.com/" target="_blank" class="navbar__cta"><span data-lang="en">Free Webinar</span><span data-lang="zh" style="display:none;">免费网络研讨会</span></a></li>
       </ul>
@@ -131,7 +156,7 @@
         <!-- English -->
         <div data-lang="en">
           <h1 class="hero__title">Learn Stock Trading in Malaysia — Trade <span>Profitably</span> With Real Market Experience</h1>
-          <p class="hero__subtitle">Malaysia's Best Stock Trading Course &bull; Structured Warrant Trading &bull; Short-Term & Intraday Trading &bull; Bursa Malaysia Trading Strategies</p>
+          <p class="hero__subtitle">Structured Warrant Trading &bull; Short-Term & Intraday Trading Strategies</p>
           <ul class="hero__credentials">
             <li>Former Head of Investor Education & 4 Departments at Bursa Malaysia</li>
             <li>Ex-Structured Products Trader at OCBC Bank</li>
@@ -145,11 +170,11 @@
         </div>
         <!-- Chinese -->
         <div data-lang="zh" style="display:none;" aria-hidden="true">
-          <h2 class="hero__title" style="font-size:inherit;margin:inherit;">学习<span>盈利交易</span> — 来自真实市场经验</h2>
-          <p class="hero__subtitle">前马来西亚交易所主管（15年）&bull; 前银行交易员 &bull; 300+ 场研讨会 &bull; 30+ 年市场经验</p>
+          <h2 class="hero__title">学习<span>盈利交易</span> — 来自真实市场经验</h2>
+          <p class="hero__subtitle">结构性凭单交易 &bull; 短线与日内交易策略</p>
           <ul class="hero__credentials">
-            <li>前马来西亚交易所投资教育和其他4个部门主管</li>
-            <li>华侨银行结构性产品和衍生品前交易员</li>
+            <li>前马来西亚交易所投资教育及4个部门主管</li>
+            <li>前华侨银行（OCBC）结构性产品交易员</li>
             <li>澳大利亚皇家墨尔本理工大学金融硕士学位</li>
             <li>曾受 The Edge Malaysia、BFM 89.9、TEDx 专访</li>
           </ul>
@@ -167,12 +192,12 @@
         <div class="hero__badges" data-lang="en">
           <div class="hero__badge">&#127942; #1 Malaysia's Only Live Trading Coach for Stocks & HSI Structured Warrants</div>
           <div class="hero__badge">&#128300; #1 Only Specialist Who Developed Both Over-The-Counter (OCBC) & Exchange-Traded (Bursa) Products</div>
-          <div class="hero__badge">&#128197; 32+ Years of Experience — Trader, Regulator, Trading Coach & Investment Columnist (> 400 Articles)</div>
+          <div class="hero__badge">&#128197; Trader, Regulator, Trading Coach & Investment Columnist (> 400 Articles)</div>
         </div>
         <div class="hero__badges" data-lang="zh" style="display:none;">
           <div class="hero__badge">&#127942; #1 马来西亚唯一股票和HSI结构性凭单实盘交易教练</div>
           <div class="hero__badge">&#128300; #1 唯一同时开发场外交易（OCBC）和交易所交易（Bursa）产品的专家</div>
-          <div class="hero__badge">&#128197; 32年以上经验 — 交易员、监管者、交易教练和投资专栏作家（超过400篇文章）</div>
+          <div class="hero__badge">&#128197; 交易员、监管者、交易教练和投资专栏作家（超过400篇文章）</div>
         </div>
       </div>
     </div>
@@ -200,6 +225,21 @@
     </div>
   </section>
 
+  <!-- As Featured In -->
+  <section class="press-strip-section" style="background: var(--off-white); border-bottom: 1px solid var(--light-gray);">
+    <div class="container">
+      <div class="press-strip">
+        <span class="press-strip__label"><span data-lang="en">As Featured In</span><span data-lang="zh" style="display:none;">媒体报道</span></span>
+        <a href="media.html" class="press-strip__item">The Edge Malaysia</a>
+        <a href="media.html" class="press-strip__item">BFM 89.9</a>
+        <a href="media.html" class="press-strip__item">TEDx</a>
+        <a href="media.html" class="press-strip__item">New Straits Times</a>
+        <a href="media.html" class="press-strip__item">Nanyang Siang Pau</a>
+        <a href="media.html" class="press-strip__item">CityPlus FM</a>
+      </div>
+    </div>
+  </section>
+
   <!-- Why Warren Mak -->
   <section class="section">
     <div class="container">
@@ -215,7 +255,7 @@
           <p>大多数交易教练从课本教学。我从实盘图表、真实交易、真实错误和真实思维过程中教学 — 在你实际交易的马来西亚市场中。</p>
         </div>
       </div>
-      <div class="card-grid">
+      <div class="card-grid card-grid--collapsible">
         <div class="card" data-animate>
           <div class="card__icon">&#128200;</div>
           <h3 class="card__title"><span data-lang="en">Live Market Specialist</span><span data-lang="zh" style="display:none;">实盘市场专家</span></h3>
@@ -231,21 +271,29 @@
           <h3 class="card__title"><span data-lang="en">Real Trading Background</span><span data-lang="zh" style="display:none;">真实交易背景</span></h3>
           <p class="card__text"><span data-lang="en">Professional structured products and derivatives trader at OCBC Bank. I've managed institutional-level trades — now I teach you the strategies that actually work.</span><span data-lang="zh" style="display:none;">华侨银行专业结构性产品和衍生品交易员。我曾管理机构级别的交易 — 现在教你真正有效的策略。</span></p>
         </div>
-        <div class="card" data-animate>
-          <div class="card__icon">&#129302;</div>
-          <h3 class="card__title"><span data-lang="en">AI-Powered Tools</span><span data-lang="zh" style="display:none;">AI驱动工具</span></h3>
-          <p class="card__text"><span data-lang="en">Trade Wizard — Malaysia's first Bursa-licensed AI-powered stock analysis platform. Professional-grade tools made simple for everyday traders.</span><span data-lang="zh" style="display:none;">Trade Wizard — 马来西亚首个获Bursa授权的AI股票分析平台。专业级工具，为日常交易者简化操作。</span></p>
-        </div>
-        <div class="card" data-animate>
-          <div class="card__icon">&#127891;</div>
-          <h3 class="card__title"><span data-lang="en">Proven Education System</span><span data-lang="zh" style="display:none;">成熟教育体系</span></h3>
-          <p class="card__text"><span data-lang="en">Structured courses on short-term trading and structured warrants, with HRDC-claimable programmes. From beginners to experienced traders.</span><span data-lang="zh" style="display:none;">短线交易和结构性凭单的系统课程，HRDC可索赔课程。从初学者到经验丰富的交易者。</span></p>
-        </div>
-        <div class="card" data-animate>
-          <div class="card__icon">&#128101;</div>
-          <h3 class="card__title"><span data-lang="en">Supportive Community</span><span data-lang="zh" style="display:none;">支持性社区</span></h3>
-          <p class="card__text"><span data-lang="en">Daily morning and evening market sessions, live coaching, and an active community of traders supporting each other. You're never alone on this journey.</span><span data-lang="zh" style="display:none;">每日早晚市场分析、实盘指导和活跃的交易者社区。在这段旅程中你永远不会孤单。</span></p>
-        </div>
+        <details class="card-grid__more">
+          <summary class="card-grid__toggle">
+            <span class="card-grid__toggle-label--more"><span data-lang="en">Show 3 more</span><span data-lang="zh" style="display:none;">显示更多</span></span>
+            <span class="card-grid__toggle-label--less"><span data-lang="en">Show less</span><span data-lang="zh" style="display:none;">收起</span></span>
+          </summary>
+          <div class="card-grid__more-inner">
+            <div class="card card-grid__item--extra" data-animate>
+              <div class="card__icon">&#129302;</div>
+              <h3 class="card__title"><span data-lang="en">AI-Powered Tools</span><span data-lang="zh" style="display:none;">AI驱动工具</span></h3>
+              <p class="card__text"><span data-lang="en">Trade Wizard — Malaysia's first Bursa-licensed AI-powered stock analysis platform. Professional-grade tools made simple for everyday traders.</span><span data-lang="zh" style="display:none;">Trade Wizard — 马来西亚首个获Bursa授权的AI股票分析平台。专业级工具，为日常交易者简化操作。</span></p>
+            </div>
+            <div class="card card-grid__item--extra" data-animate>
+              <div class="card__icon">&#127891;</div>
+              <h3 class="card__title"><span data-lang="en">Proven Education System</span><span data-lang="zh" style="display:none;">成熟教育体系</span></h3>
+              <p class="card__text"><span data-lang="en">Structured courses on short-term trading and structured warrants, with HRDC-claimable programmes. From beginners to experienced traders.</span><span data-lang="zh" style="display:none;">短线交易和结构性凭单的系统课程，HRDC可索赔课程。从初学者到经验丰富的交易者。</span></p>
+            </div>
+            <div class="card card-grid__item--extra" data-animate>
+              <div class="card__icon">&#128101;</div>
+              <h3 class="card__title"><span data-lang="en">Supportive Community</span><span data-lang="zh" style="display:none;">支持性社区</span></h3>
+              <p class="card__text"><span data-lang="en">Daily morning and evening market sessions, live coaching, and an active community of traders supporting each other. You're never alone on this journey.</span><span data-lang="zh" style="display:none;">每日早晚市场分析、实盘指导和活跃的交易者社区。在这段旅程中你永远不会孤单。</span></p>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </section>
@@ -282,41 +330,11 @@
       <div class="video-wrapper mt-48">
         <iframe width="100%" height="500" src="https://www.youtube.com/embed/Rf0xr0Hoiyg" title="Warren Mak — Live Trading Education" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="border-radius: var(--radius); box-shadow: var(--shadow-lg);"></iframe>
       </div>
-      <div class="text-center mt-24">
-        <a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank" class="btn btn--dark"><span data-lang="en">Subscribe on YouTube</span><span data-lang="zh" style="display:none;">订阅YouTube频道</span></a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Community -->
-  <section class="section">
-    <div class="container">
-      <div class="section__header">
-        <div data-lang="en">
-          <span class="tag">Our Community</span>
-          <h2>Join a Growing Community of Traders</h2>
-          <p>From Kuala Lumpur to Penang, Johor, Melaka, Sabah and Sarawak — hundreds of traders learning and growing together.</p>
-        </div>
-        <div data-lang="zh" style="display:none;">
-          <span class="tag">我们的社区</span>
-          <h2>加入不断壮大的交易者社区</h2>
-          <p>从吉隆坡到槟城、柔佛、马六甲、沙巴和砂拉越 — 数百名交易者一起学习和成长。</p>
-        </div>
-      </div>
-      <div style="border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-lg);">
-        <picture>
-          <source srcset="assets/images/large_crowd.webp" type="image/webp">
-          <img src="assets/images/large_crowd.JPG" alt="Build Your Wealth via AI and Automation seminar — large group photo" loading="lazy" width="1600" height="855" style="width: 100%;">
-        </picture>
-      </div>
-      <div class="text-center mt-32">
-        <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary btn--lg"><span data-lang="en">Reserve Your Free Seat</span><span data-lang="zh" style="display:none;">预订免费席位</span></a>
-      </div>
     </div>
   </section>
 
   <!-- Articles -->
-  <section class="section section--gray">
+  <section class="section">
     <div class="container">
       <div class="section__header">
         <div data-lang="en">
@@ -349,13 +367,12 @@
       </div>
       <div class="text-center mt-32">
         <a href="articles.html" class="btn btn--primary"><span data-lang="en">Read All Articles</span><span data-lang="zh" style="display:none;">阅读所有文章</span></a>
-        <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--dark"><span data-lang="en">Attend Free Webinar</span><span data-lang="zh" style="display:none;">参加免费网络研讨会</span></a>
       </div>
     </div>
   </section>
 
   <!-- What You'll Learn -->
-  <section class="section">
+  <section class="section section--gray">
     <div class="container">
       <div class="section__header">
         <div data-lang="en">
@@ -392,38 +409,55 @@
     </div>
   </section>
 
-  <!-- Testimonials Preview -->
-  <section class="section section--gray">
+  <!-- Community & Testimonials -->
+  <section class="section">
     <div class="container">
       <div class="section__header">
         <div data-lang="en">
-          <span class="tag">What Students Say</span>
-          <h2>Real Results From Real Students</h2>
+          <span class="tag">Our Community</span>
+          <h2>Real Results From a Growing Community</h2>
+          <p>From Kuala Lumpur to Penang, Johor, Melaka, Sabah and Sarawak — hundreds of traders learning and growing together.</p>
         </div>
         <div data-lang="zh" style="display:none;">
-          <span class="tag">学生评价</span>
-          <h2>真实学生的真实成果</h2>
+          <span class="tag">我们的社区</span>
+          <h2>真实成果，来自不断壮大的社区</h2>
+          <p>从吉隆坡到槟城、柔佛、马六甲、沙巴和砂拉越 — 数百名交易者一起学习和成长。</p>
         </div>
       </div>
-      <div class="testimonial-grid">
-        <div class="testimonial" data-animate>
-          <div class="testimonial__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-          <p class="testimonial__text">"Out of all of the trading tools and classes I have attended, TED Optimus and Trade Wizard has been the best that I have tried. From informative and detailed classes while keeping it easy to understand... my trading journey has significantly improved."</p>
-          <div class="testimonial__author">— Janice Sin</div>
+      <div class="two-col">
+        <div>
+          <div style="border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-lg);">
+            <picture>
+              <source srcset="assets/images/large_crowd.webp" type="image/webp">
+              <img src="assets/images/large_crowd.JPG" alt="Build Your Wealth via AI and Automation seminar — large group photo" loading="lazy" width="1600" height="855" style="width: 100%;">
+            </picture>
+          </div>
+          <div class="text-center mt-32">
+            <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary btn--lg"><span data-lang="en">Reserve Your Free Seat</span><span data-lang="zh" style="display:none;">预订免费席位</span></a>
+          </div>
         </div>
-        <div class="testimonial" data-animate>
-          <div class="testimonial__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-          <p class="testimonial__text">"I have zero knowledge of technical and chart analysis before I join TED Optimus. With the Trade Wizard platform, I get very well support from the technical teams. Every day they have morning and night online sessions..."</p>
-          <div class="testimonial__author">— KK Ong</div>
+        <div>
+          <div class="testimonial-grid" style="grid-template-columns: 1fr;">
+            <div class="testimonial" data-animate>
+              <div class="testimonial__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              <p class="testimonial__text">"Out of all of the trading tools and classes I have attended, TED Optimus and Trade Wizard has been the best that I have tried. From informative and detailed classes while keeping it easy to understand... my trading journey has significantly improved."</p>
+              <div class="testimonial__author">— Janice Sin</div>
+            </div>
+            <div class="testimonial" data-animate>
+              <div class="testimonial__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              <p class="testimonial__text">"I have zero knowledge of technical and chart analysis before I join TED Optimus. With the Trade Wizard platform, I get very well support from the technical teams. Every day they have morning and night online sessions..."</p>
+              <div class="testimonial__author">— KK Ong</div>
+            </div>
+            <div class="testimonial" data-animate>
+              <div class="testimonial__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              <p class="testimonial__text">"One of if not the best places to learn trading that's taught by experienced traders and ex-professionals in the local market. The quality of the teaching is second to none and not just a PowerPoint class."</p>
+              <div class="testimonial__author">— Episode</div>
+            </div>
+          </div>
+          <div class="text-center mt-32">
+            <a href="testimonials.html" class="btn btn--dark"><span data-lang="en">Read All Testimonials</span><span data-lang="zh" style="display:none;">阅读所有评价</span></a>
+          </div>
         </div>
-        <div class="testimonial" data-animate>
-          <div class="testimonial__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-          <p class="testimonial__text">"One of if not the best places to learn trading that's taught by experienced traders and ex-professionals in the local market. The quality of the teaching is second to none and not just a PowerPoint class."</p>
-          <div class="testimonial__author">— Episode</div>
-        </div>
-      </div>
-      <div class="text-center mt-32">
-        <a href="testimonials.html" class="btn btn--dark"><span data-lang="en">Read All Testimonials</span><span data-lang="zh" style="display:none;">阅读所有评价</span></a>
       </div>
     </div>
   </section>
@@ -441,13 +475,8 @@
       </div>
       <div class="cta-buttons">
         <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary btn--lg"><span data-lang="en">Start Learning — Free Webinar</span><span data-lang="zh" style="display:none;">开始学习 — 免费网络研讨会</span></a>
-        <a href="https://t.me/tradewizardglobal" target="_blank" class="btn btn--outline"><span data-lang="en">&#128172; AI Trading & Investment<br>Buddy Community</span><span data-lang="zh" style="display:none;">&#128172; AI交易与投资<br>伙伴社区</span></a>
       </div>
-      <div class="cta-buttons mt-24">
-        <a href="https://www.thetradewizard.com/pricing" target="_blank" class="btn btn--primary btn--lg"><span data-lang="en">&#128640; TW Free Trial</span><span data-lang="zh" style="display:none;">&#128640; TW 免费试用</span></a>
-        <a href="https://www.thetradewizard.com/" target="_blank" class="btn btn--outline"><span data-lang="en">Explore Trade Wizard</span><span data-lang="zh" style="display:none;">探索 Trade Wizard</span></a>
-        <a href="https://www.thetradewizard.com/articles" target="_blank" class="btn btn--outline"><span data-lang="en">400+ Trading & Investment Articles<br>(Beginner to Pro)</span><span data-lang="zh" style="display:none;">400+ 交易与投资文章<br>（初学者到专业）</span></a>
-      </div>
+      <a href="https://t.me/tradewizardglobal" target="_blank" class="cta-link"><span data-lang="en">&#128172; Or join the AI Trading & Investment Buddy Community</span><span data-lang="zh" style="display:none;">&#128172; 或加入AI交易与投资伙伴社区</span></a>
       <div class="social-links mt-48" style="justify-content: center;">
         <a href="https://www.facebook.com/TradeWizardGlobal" target="_blank" class="social-link">&#128077; Facebook</a>
         <a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank" class="social-link">&#9654; YouTube</a>
@@ -461,8 +490,9 @@
     <div class="container">
       <div class="footer__grid">
         <div class="footer__brand">
+          <div class="footer__logo"><img src="assets/images/logo/logo.png" alt="Warren Mak"></div>
           <h3>Warren Mak (&#40614;&#20256;&#29699;)</h3>
-          <p><span data-lang="en">Malaysia's best stock trading course provider. Learn stock trading, structured warrant trading, intraday trading, and Bursa Malaysia trading strategies from a former Head of Investor Education at Bursa Malaysia.</span><span data-lang="zh" style="display:none;">马来西亚第一结构性凭单和短线交易教练。前马来西亚交易所投资教育主管。通过实盘市场经验和AI驱动工具赋能交易者。</span></p>
+          <p><span data-lang="en">Malaysia's #1 Structured Warrants &amp; Short-Term Trading Coach. Former Head of Investor Education at Bursa Malaysia. Empowering traders with live market experience and AI-powered tools.</span><span data-lang="zh" style="display:none;">马来西亚第一结构性凭单和短线交易教练。前马来西亚交易所投资教育主管。通过实盘市场经验和AI驱动工具赋能交易者。</span></p>
           <p class="mt-16" style="font-size: 0.85rem;">
             Email: warrenmak@tedoptimus.com
           </p>
@@ -473,7 +503,8 @@
             <li><a href="index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
             <li><a href="about.html"><span data-lang="en">About Warren</span><span data-lang="zh" style="display:none;">关于Warren</span></a></li>
             <li><a href="ted-optimus.html">TED Optimus</a></li>
-            <li><a href="testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学生评价</span></a></li>
+            <li><a href="articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
+            <li><a href="testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
             <li><a href="media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
           </ul>
         </div>
@@ -484,7 +515,8 @@
             <li><a href="structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
             <li><a href="https://academy.thetradewizard.com/" target="_blank">Trade Wizard Academy</a></li>
             <li><a href="https://www.thetradewizard.com/" target="_blank">Trade Wizard Platform</a></li>
-            <li><a href="https://www.thetradewizard.com/articles" target="_blank"><span data-lang="en">Articles & Insights</span><span data-lang="zh" style="display:none;">文章与洞察</span></a></li>
+            <li><a href="https://www.thetradewizard.com/pricing" target="_blank"><span data-lang="en">TW Free Trial</span><span data-lang="zh" style="display:none;">TW 免费试用</span></a></li>
+            <li><a href="https://www.thetradewizard.com/articles" target="_blank"><span data-lang="en">Articles &amp; Insights</span><span data-lang="zh" style="display:none;">文章与洞察</span></a></li>
           </ul>
         </div>
         <div>
@@ -498,7 +530,7 @@
         </div>
       </div>
       <div class="footer__bottom">
-        <p>&copy; 2026 TED Optimus Sdn Bhd. All rights reserved.</p>
+        <p>&copy; 2026 TED Optimus Sdn Bhd. <span data-lang="en">All rights reserved.</span><span data-lang="zh" style="display:none;">版权所有。</span></p>
         <div class="footer__social">
           <a href="https://t.me/tradewizardglobal" target="_blank" title="Telegram"><svg viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></a>
           <a href="https://www.facebook.com/TradeWizardGlobal" target="_blank" title="Facebook"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
@@ -508,6 +540,10 @@
       </div>
     </div>
   </footer>
+
+  <div class="sticky-cta-bar" aria-label="Primary call to action">
+    <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary"><span data-lang="en">Join Free Webinar</span><span data-lang="zh" style="display:none;">参加免费网络研讨会</span></a>
+  </div>
 
   <script src="assets/js/main.js"></script>
 </body>

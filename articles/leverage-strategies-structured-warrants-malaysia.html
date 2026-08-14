@@ -10,11 +10,26 @@
     gtag('config', 'G-9H2NEZCD20');
   </script>
   <meta charset="UTF-8">
+  <script>
+    /* Anti-flash: for returning zh-preference visitors, hide body until
+       main.js applies the stored language (avoids a flash of English before
+       the bottom-of-body script runs). No-op for default/English visitors. */
+    (function(){
+      try {
+        if (localStorage.getItem('wm_lang') === 'zh') {
+          document.documentElement.setAttribute('data-lang-pending', '1');
+          document.write('<style id="wm-lang-hide">body{visibility:hidden}</style>');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Leverage Strategies for Structured Warrants Malaysia: Multiply Returns on Bursa | Warren Mak</title>
   <meta name="description" content="How to use leverage effectively in structured warrants on Bursa Malaysia — gearing strategies, capital-efficient trading, and how to multiply returns without blowing up. By Warren Mak.">
   <meta name="keywords" content="leverage structured warrants Malaysia, gearing warrants Bursa Malaysia, effective gearing warrants, leverage trading Malaysia, capital efficient trading warrants">
   <link rel="canonical" href="https://www.warrenmak.asia/articles/leverage-strategies-structured-warrants-malaysia.html">
+  <link rel="icon" type="image/png" href="../assets/images/logo/favicon-square.png">
+  <link rel="apple-touch-icon" href="../assets/images/logo/favicon-square.png">
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +40,7 @@
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://www.warrenmak.asia/articles/leverage-strategies-structured-warrants-malaysia.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"Article","headline":"Leverage Strategies for Structured Warrants Malaysia: Multiply Returns on Bursa","description":"How to use leverage effectively in structured warrants on Bursa Malaysia — gearing strategies and capital-efficient trading.","image":"https://www.warrenmak.asia/assets/images/warren-mak-hero.jpg","author":{"@type":"Person","name":"Warren Mak","url":"https://www.warrenmak.asia/about.html"},"publisher":{"@type":"Organization","name":"TED Optimus Sdn Bhd","logo":{"@type":"ImageObject","url":"https://www.warrenmak.asia/assets/images/Logo - Trade Wizard Blue Word.png"}},"datePublished":"2026-03-22","dateModified":"2026-03-26","mainEntityOfPage":"https://www.warrenmak.asia/articles/leverage-strategies-structured-warrants-malaysia.html"}
+  {"@context":"https://schema.org","@type":"Article","headline":"Leverage Strategies for Structured Warrants Malaysia: Multiply Returns on Bursa","description":"How to use leverage effectively in structured warrants on Bursa Malaysia — gearing strategies and capital-efficient trading.","image":"https://www.warrenmak.asia/assets/images/warren-mak-hero.jpg","author":{"@type":"Person","name":"Warren Mak","url":"https://www.warrenmak.asia/about.html"},"publisher":{"@type":"Organization","name":"TED Optimus Sdn Bhd","logo":{"@type":"ImageObject","url":"https://www.warrenmak.asia/assets/images/logo/favicon.png"}},"datePublished":"2026-03-22","dateModified":"2026-03-26","mainEntityOfPage":"https://www.warrenmak.asia/articles/leverage-strategies-structured-warrants-malaysia.html"}
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
@@ -51,22 +66,49 @@
   </script>
 </head>
 <body>
+  <!-- Navigation -->
   <nav class="navbar">
     <div class="container">
-      <a href="../index.html" class="navbar__logo"><img src="../assets/images/Logo - Trade Wizard Blue Word.png" alt="Trade Wizard" width="28" height="28"> Warren <span>Mak</span></a>
+      <a href="../index.html" class="navbar__logo"><img src="../assets/images/logo/favicon.png" alt="Warren Mak" width="84" height="46"> Warren <span>Mak</span></a>
       <ul class="navbar__menu" id="navMenu">
-        <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
-        <li><a href="../about.html"><span data-lang="en">About</span><span data-lang="zh" style="display:none;">关于</span></a></li>
-        <li><a href="../ted-optimus.html">TED Optimus</a></li>
-        <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
-        <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
-        <li><a href="../articles.html" class="active"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
-        <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
-        <li><a href="../media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
+        <li class="navbar__dropdown">
+          <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+            <span data-lang="en">About</span><span data-lang="zh" style="display:none;">关于</span>
+            <span class="navbar__dropdown-caret" aria-hidden="true"></span>
+          </button>
+          <ul class="navbar__dropdown-menu">
+            <li><a href="../about.html"><span data-lang="en">Warren Mak</span><span data-lang="zh" style="display:none;">Warren Mak</span></a></li>
+            <li><a href="../ted-optimus.html"><span data-lang="en">TED Optimus</span><span data-lang="zh" style="display:none;">TED Optimus</span></a></li>
+            <li><a href="../media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
+          </ul>
+        </li>
+        <li class="navbar__dropdown">
+          <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+            <span data-lang="en">Courses</span><span data-lang="zh" style="display:none;">课程</span>
+            <span class="navbar__dropdown-caret" aria-hidden="true"></span>
+          </button>
+          <ul class="navbar__dropdown-menu">
+            <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
+            <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
+          </ul>
+        </li>
+        <li class="navbar__dropdown">
+          <button type="button" class="navbar__dropdown-trigger active" aria-haspopup="true" aria-expanded="false">
+            <span data-lang="en">Learn</span><span data-lang="zh" style="display:none;">学习资源</span>
+            <span class="navbar__dropdown-caret" aria-hidden="true"></span>
+          </button>
+          <ul class="navbar__dropdown-menu">
+            <li><a href="../articles.html" class="active"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
+            <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
+          </ul>
+        </li>
         <li><a href="https://www.thetradewizard.com/" target="_blank" class="navbar__cta navbar__cta--tool">Trade Wizard</a></li>
         <li><a href="https://academy.thetradewizard.com/" target="_blank" class="navbar__cta"><span data-lang="en">Free Webinar</span><span data-lang="zh" style="display:none;">免费网络研讨会</span></a></li>
       </ul>
-      <div class="navbar__actions"><button class="lang-toggle" id="langToggle" title="Switch to Chinese">中文</button><button class="navbar__toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button></div>
+      <div class="navbar__actions">
+        <button class="lang-toggle" id="langToggle" title="Switch to Chinese">中文</button>
+        <button class="navbar__toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button>
+      </div>
     </div>
   </nav>
 
@@ -81,7 +123,7 @@
       <div data-lang="zh" style="display:none;" aria-hidden="true">
         <div class="article-breadcrumb"><a href="../index.html">首页</a> <span>›</span> <a href="../articles.html">文章</a> <span>›</span> 杠杆策略</div>
         <span class="tag">交易策略</span>
-        <h2 style="font-size:inherit;margin:inherit;">马来西亚结构性凭单杠杆策略：在交易所倍增回报</h2>
+        <h2>马来西亚结构性凭单杠杆策略：在交易所倍增回报</h2>
         <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">利用结构性凭单作为杠杆工具，实现事半功倍——Warren Mak的高资金效率交易策略。</p>
       </div>
     </div>
@@ -91,7 +133,7 @@
     <div class="container">
       <div class="article-body">
         <div data-lang="en">
-        <div class="article-meta"><span>By <strong><a href="../about.html">Warren Mak</a></strong></span><span>10 min read</span><span>Updated: March 2026</span></div>
+        <div class="article-meta"><span>By <strong><a href="../about.html">Warren Mak</a></strong></span><span>10 min read</span><span>Updated: March 2026</span><span class="article-views" hidden>👁 <span class="article-views__count">0</span> views</span></div>
 
         <p>In my Nanyang Siang Pau column "杠杆策略事半功倍" (Leverage Strategy: Half the Effort, Double the Results), I explained that leverage isn't just about magnifying returns — it's about <strong>capital efficiency</strong>. The smartest traders use <a href="what-are-structured-warrants-malaysia.html">structured warrants</a> not to gamble bigger, but to achieve the same market exposure with far less capital at risk.</p>
 
@@ -116,6 +158,29 @@
             <tr><td>12x+</td><td>~12%+ warrant move</td><td>~36%+ warrant move</td><td>Very High Risk</td></tr>
           </tbody>
         </table>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--compare">
+          <figcaption class="graph-block__title">Simple Gearing vs Effective Gearing</figcaption>
+          <div class="graph-compare">
+            <div class="graph-compare__col">
+              <h4>Simple Gearing</h4>
+              <ul>
+                <li>Stock price ÷ warrant price</li>
+                <li>Adjusted for conversion ratio</li>
+                <li>Doesn't account for delta</li>
+              </ul>
+            </div>
+            <div class="graph-compare__col graph-compare__col--accent">
+              <h4>Effective Gearing</h4>
+              <ul>
+                <li>Simple gearing × delta</li>
+                <li>Reflects actual price sensitivity</li>
+                <li>The number that matters for trading</li>
+              </ul>
+            </div>
+          </div>
+        </figure>
 
         <h2>Strategy 1: Capital Replacement — Same Exposure, Less Risk</h2>
 
@@ -145,6 +210,18 @@
         </ol>
 
         <p>As I wrote in my Nanyang column on pullback trading "浪止回调金不换": the best entry points are at breakout levels with confirmation. Warrants amplify these high-conviction entries.</p>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--flow">
+          <figcaption class="graph-block__title">Executing a Leveraged Momentum Trade</figcaption>
+          <ol class="graph-flow graph-flow--steps">
+            <li class="graph-flow__step">Identify the Setup</li>
+            <li class="graph-flow__step">Select the Warrant</li>
+            <li class="graph-flow__step">Entry on Confirmed Breakout</li>
+            <li class="graph-flow__step">Set Profit Target</li>
+            <li class="graph-flow__step">Set Stop-Loss</li>
+          </ol>
+        </figure>
 
         <h2>Strategy 3: Pair Trading with Call and Put Warrants</h2>
 
@@ -180,6 +257,21 @@
         </ol>
         <p>This approach uses leverage to build a large effective position while managing risk — your early entries are small, and you only scale up when the market confirms your analysis.</p>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">5 Leverage Strategies</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">Leverage Strategies</div>
+            <ul class="graph-concept__spokes">
+              <li>Capital Replacement</li>
+              <li>Momentum Trading</li>
+              <li>Pair Trading</li>
+              <li>Income Strategy</li>
+              <li>Scaling-In</li>
+            </ul>
+          </div>
+        </figure>
+
         <h2>Leverage Mistakes That Destroy Accounts</h2>
 
         <ol>
@@ -189,6 +281,21 @@
           <li><strong>No position limits:</strong> Never allocate more than 30% of total capital to warrant positions at any time. The remaining 70% should be in cash or stocks</li>
           <li><strong>Overleveraging during volatile markets:</strong> When VIX is high, warrant premiums are inflated. Leverage costs more during volatility — reduce position sizes accordingly</li>
         </ol>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">5 Leverage Mistakes That Destroy Accounts</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">Account-Destroying Mistakes</div>
+            <ul class="graph-concept__spokes">
+              <li>Leverage as Gambling</li>
+              <li>Chasing Max Gearing</li>
+              <li>Ignoring Time Decay</li>
+              <li>No Position Limits</li>
+              <li>Overleveraging in Volatility</li>
+            </ul>
+          </div>
+        </figure>
 
         <h2>Gearing Selection Guide</h2>
 
@@ -203,6 +310,17 @@
           </tbody>
         </table>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--risk-ladder">
+          <figcaption class="graph-block__title">Gearing Risk Levels</figcaption>
+          <ol class="graph-risk-ladder">
+            <li class="graph-risk-ladder__rung is-low">3x — Conservative</li>
+            <li class="graph-risk-ladder__rung is-medium">5x — Moderate</li>
+            <li class="graph-risk-ladder__rung is-high">8x — Aggressive</li>
+            <li class="graph-risk-ladder__rung is-veryhigh">12x+ — Very High Risk</li>
+          </ol>
+        </figure>
+
         <h2>Frequently Asked Questions</h2>
 
         <div class="faq-item"><h3>What is effective gearing in structured warrants?</h3><p>Effective gearing measures how much a warrant's price moves per 1% stock move. A 5x gearing warrant rises ~5% when the stock rises 1%. It combines the conversion ratio with delta sensitivity.</p></div>
@@ -215,17 +333,10 @@
 
         <div class="faq-item"><h3>What's the difference between gearing and effective gearing?</h3><p>Simple gearing is the raw price ratio. Effective gearing multiplies by delta (actual price sensitivity). Effective gearing is the practical measure for trading decisions.</p></div>
 
-        <div class="article-related"><h3>Continue Learning</h3><ul>
-          <li><a href="how-to-trade-structured-warrants-bursa-malaysia.html">How to Trade Structured Warrants: Step-by-Step</a></li>
-          <li><a href="how-to-choose-best-structured-warrants-malaysia.html">How to Choose the Best Structured Warrants</a></li>
-          <li><a href="bottom-fishing-structured-warrants-malaysia.html">Bottom Fishing with Structured Warrants</a></li>
-          <li><a href="structured-warrant-risks-time-decay-malaysia.html">Structured Warrant Risks & Time Decay</a></li>
-          <li><a href="../structured-warrants.html">← Back to Structured Warrants Course</a></li>
-        </ul></div>
         </div>
 
         <div data-lang="zh" style="display:none;" aria-hidden="true">
-        <div class="article-meta"><span>作者：<strong><a href="../about.html">Warren Mak（麦传球）</a></strong></span><span>阅读时间：10分钟</span><span>更新：2026年3月</span></div>
+        <div class="article-meta"><span>作者：<strong><a href="../about.html">Warren Mak（麦传球）</a></strong></span><span>阅读时间：10分钟</span><span>更新：2026年3月</span><span class="article-views" hidden>👁 <span class="article-views__count">0</span> 次浏览</span></div>
 
         <p>在我的《南洋商报》专栏"杠杆策略事半功倍"中，我解释了杠杆不仅仅是放大回报——它的核心是<strong>资金效率</strong>。最聪明的交易者利用<a href="what-are-structured-warrants-malaysia.html">结构性凭单</a>不是为了加大赌注，而是以更少的风险资金获得相同的市场敞口。</p>
 
@@ -250,6 +361,29 @@
             <tr><td>12倍以上</td><td>凭单约变动12%+</td><td>凭单约变动36%+</td><td>极高风险</td></tr>
           </tbody>
         </table>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--compare">
+          <figcaption class="graph-block__title">简单杠杆 vs 有效杠杆</figcaption>
+          <div class="graph-compare">
+            <div class="graph-compare__col">
+              <h4>简单杠杆</h4>
+              <ul>
+                <li>股价 ÷ 凭单价格</li>
+                <li>经转换比率调整</li>
+                <li>未考虑delta</li>
+              </ul>
+            </div>
+            <div class="graph-compare__col graph-compare__col--accent">
+              <h4>有效杠杆</h4>
+              <ul>
+                <li>简单杠杆 × delta</li>
+                <li>反映实际价格敏感度</li>
+                <li>交易决策的关键数字</li>
+              </ul>
+            </div>
+          </div>
+        </figure>
 
         <h2>策略一：资金替代——同等敞口，更低风险</h2>
 
@@ -279,6 +413,18 @@
         </ol>
 
         <p>正如我在"浪止回调金不换"回调交易专栏中所写：最佳入场点在有确认的突破位。凭单放大这些高确信度的入场。</p>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--flow">
+          <figcaption class="graph-block__title">执行杠杆动量交易</figcaption>
+          <ol class="graph-flow graph-flow--steps">
+            <li class="graph-flow__step">识别设置</li>
+            <li class="graph-flow__step">选择凭单</li>
+            <li class="graph-flow__step">确认突破后入场</li>
+            <li class="graph-flow__step">设定盈利目标</li>
+            <li class="graph-flow__step">设定止损</li>
+          </ol>
+        </figure>
 
         <h2>策略三：认购与认沽凭单对冲交易</h2>
 
@@ -314,6 +460,21 @@
         </ol>
         <p>这种方法利用杠杆建立大规模有效仓位的同时管理风险——你的早期入场很小，只有在市场确认你的分析时才放大。</p>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">5种杠杆策略</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">杠杆策略</div>
+            <ul class="graph-concept__spokes">
+              <li>资金替代</li>
+              <li>动量交易</li>
+              <li>对冲交易</li>
+              <li>收入策略</li>
+              <li>分批入场</li>
+            </ul>
+          </div>
+        </figure>
+
         <h2>毁灭账户的杠杆错误</h2>
 
         <ol>
@@ -323,6 +484,21 @@
           <li><strong>无仓位限制：</strong>任何时候凭单仓位不超过总资金的30%。其余70%应保持现金或股票</li>
           <li><strong>波动市场中过度杠杆：</strong>当VIX高企时，凭单溢价膨胀。波动期间杠杆成本更高——相应减少仓位</li>
         </ol>
+
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--concept">
+          <figcaption class="graph-block__title">毁灭账户的5大杠杆错误</figcaption>
+          <div class="graph-concept">
+            <div class="graph-concept__hub">毁灭账户的错误</div>
+            <ul class="graph-concept__spokes">
+              <li>杠杆当赌博</li>
+              <li>追逐最高杠杆</li>
+              <li>忽视时间损耗</li>
+              <li>无仓位限制</li>
+              <li>波动市场过度杠杆</li>
+            </ul>
+          </div>
+        </figure>
 
         <h2>杠杆选择指南</h2>
 
@@ -337,6 +513,17 @@
           </tbody>
         </table>
 
+        <!-- graph block: hand-authored, do not edit via admin WYSIWYG -->
+        <figure class="graph-block graph-block--risk-ladder">
+          <figcaption class="graph-block__title">杠杆风险等级</figcaption>
+          <ol class="graph-risk-ladder">
+            <li class="graph-risk-ladder__rung is-low">3倍——保守</li>
+            <li class="graph-risk-ladder__rung is-medium">5倍——适中</li>
+            <li class="graph-risk-ladder__rung is-high">8倍——激进</li>
+            <li class="graph-risk-ladder__rung is-veryhigh">12倍以上——极高风险</li>
+          </ol>
+        </figure>
+
         <h2>常见问题</h2>
 
         <div class="faq-item"><h3>什么是结构性凭单的有效杠杆？</h3><p>有效杠杆衡量股价每变动1%时凭单价格的变动幅度。5倍杠杆的凭单在股价上涨1%时约上涨5%。它结合了转换比率和delta敏感度。</p></div>
@@ -349,13 +536,55 @@
 
         <div class="faq-item"><h3>杠杆和有效杠杆有什么区别？</h3><p>简单杠杆是原始价格比率。有效杠杆乘以delta（实际价格敏感度）。有效杠杆是交易决策的实用指标。</p></div>
 
-        <div class="article-related"><h3>继续学习</h3><ul>
-          <li><a href="how-to-trade-structured-warrants-bursa-malaysia.html">如何交易结构性凭单：分步指南</a></li>
-          <li><a href="how-to-choose-best-structured-warrants-malaysia.html">如何选择最佳结构性凭单</a></li>
-          <li><a href="bottom-fishing-structured-warrants-malaysia.html">结构性凭单捞底策略</a></li>
-          <li><a href="structured-warrant-risks-time-decay-malaysia.html">结构性凭单风险与时间损耗</a></li>
-          <li><a href="../structured-warrants.html">← 返回结构性凭单课程</a></li>
-        </ul></div>
+        </div>
+
+        <div class="article-related">
+          <h3><span data-lang="en">Continue Learning</span><span data-lang="zh" style="display:none;">继续学习</span></h3>
+          <ul>
+            <li><a href="how-to-trade-structured-warrants-bursa-malaysia.html"><span data-lang="en">How to Trade Structured Warrants: Step-by-Step</span><span data-lang="zh" style="display:none;">如何交易结构性凭单：分步指南</span></a></li>
+            <li><a href="how-to-choose-best-structured-warrants-malaysia.html"><span data-lang="en">How to Choose the Best Structured Warrants</span><span data-lang="zh" style="display:none;">如何选择最佳结构性凭单</span></a></li>
+            <li><a href="bottom-fishing-structured-warrants-malaysia.html"><span data-lang="en">Bottom Fishing with Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单捞底策略</span></a></li>
+            <li><a href="structured-warrant-risks-time-decay-malaysia.html"><span data-lang="en">Structured Warrant Risks & Time Decay</span><span data-lang="zh" style="display:none;">结构性凭单风险与时间损耗</span></a></li>
+            <li><a href="../structured-warrants.html"><span data-lang="en">← Back to Structured Warrants Course</span><span data-lang="zh" style="display:none;">← 返回结构性凭单课程</span></a></li>
+          </ul>
+        </div>
+
+        <!-- Author Credibility Box -->
+        <div class="author-box">
+          <picture>
+            <source srcset="../assets/images/warren-mak-profile.webp" type="image/webp">
+            <img src="../assets/images/warren-mak-profile.jpg" alt="Warren Mak" class="author-box__photo" loading="lazy" width="72" height="72">
+          </picture>
+          <div class="author-box__body">
+            <div data-lang="en">
+              <div class="author-box__name">Warren Mak (麦传球)</div>
+              <div class="author-box__title">Former Head of Investor Education &amp; 4 Departments, Bursa Malaysia &middot; Ex-Structured Products Trader, OCBC Bank</div>
+              <ul class="author-box__credentials">
+                <li>30+ years in securities &amp; derivatives markets</li>
+                <li>15 years at Bursa Malaysia, headed 5 departments</li>
+                <li>Weekly columnist, Nanyang Siang Pau, since 2018</li>
+                <li>Featured in The Edge Malaysia, BFM 89.9, TEDx</li>
+              </ul>
+              <div class="author-box__links">
+                <a href="../about.html">Full Bio &amp; Credentials &rarr;</a>
+                <a href="https://academy.thetradewizard.com/" target="_blank">Join Free Webinar &rarr;</a>
+              </div>
+            </div>
+            <div data-lang="zh" style="display:none;">
+              <div class="author-box__name">麦传球 Warren Mak</div>
+              <div class="author-box__title">前马来西亚交易所投资教育及4个部门主管 &middot; 前华侨银行（OCBC）结构性产品交易员</div>
+              <ul class="author-box__credentials">
+                <li>30多年证券与衍生品市场经验</li>
+                <li>在Bursa Malaysia任职15年，领导5个部门</li>
+                <li>自2018年起南洋商报每周专栏作家</li>
+                <li>曾受The Edge Malaysia、BFM 89.9、TEDx专访</li>
+              </ul>
+              <div class="author-box__links">
+                <a href="../about.html">查看完整简历 &rarr;</a>
+                <a href="https://academy.thetradewizard.com/" target="_blank">参加免费网络研讨会 &rarr;</a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -383,46 +612,64 @@
   </section>
 
   <footer class="footer">
-  <div class="container">
-    <div class="footer__grid">
-      <div class="footer__brand">
-        <h3>Warren Mak (&#40614;&#20256;&#29699;)</h3>
-        <p><span data-lang="en">Malaysia's #1 Structured Warrants & Short-Term Trading Coach.</span><span data-lang="zh" style="display:none;">马来西亚第一结构性凭单与短线交易教练。</span></p>
-        <p class="mt-16" style="font-size:0.85rem;">Email: warrenmak@tedoptimus.com</p>
+    <div class="container">
+      <div class="footer__grid">
+        <div class="footer__brand">
+          <div class="footer__logo"><img src="../assets/images/logo/logo.png" alt="Warren Mak"></div>
+          <h3>Warren Mak (&#40614;&#20256;&#29699;)</h3>
+          <p><span data-lang="en">Malaysia's #1 Structured Warrants &amp; Short-Term Trading Coach. Former Head of Investor Education at Bursa Malaysia. Empowering traders with live market experience and AI-powered tools.</span><span data-lang="zh" style="display:none;">马来西亚第一结构性凭单和短线交易教练。前马来西亚交易所投资教育主管。通过实盘市场经验和AI驱动工具赋能交易者。</span></p>
+          <p class="mt-16" style="font-size: 0.85rem;">
+            Email: warrenmak@tedoptimus.com
+          </p>
+        </div>
+        <div>
+          <h4><span data-lang="en">Pages</span><span data-lang="zh" style="display:none;">页面</span></h4>
+          <ul class="footer__links">
+            <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
+            <li><a href="../about.html"><span data-lang="en">About Warren</span><span data-lang="zh" style="display:none;">关于Warren</span></a></li>
+            <li><a href="../ted-optimus.html">TED Optimus</a></li>
+            <li><a href="../articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
+            <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
+            <li><a href="../media.html"><span data-lang="en">Media</span><span data-lang="zh" style="display:none;">媒体报道</span></a></li>
+          </ul>
+        </div>
+        <div>
+          <h4><span data-lang="en">Programmes</span><span data-lang="zh" style="display:none;">课程</span></h4>
+          <ul class="footer__links">
+            <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
+            <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
+            <li><a href="https://academy.thetradewizard.com/" target="_blank">Trade Wizard Academy</a></li>
+            <li><a href="https://www.thetradewizard.com/" target="_blank">Trade Wizard Platform</a></li>
+            <li><a href="https://www.thetradewizard.com/pricing" target="_blank"><span data-lang="en">TW Free Trial</span><span data-lang="zh" style="display:none;">TW 免费试用</span></a></li>
+            <li><a href="https://www.thetradewizard.com/articles" target="_blank"><span data-lang="en">Articles &amp; Insights</span><span data-lang="zh" style="display:none;">文章与洞察</span></a></li>
+          </ul>
+        </div>
+        <div>
+          <h4><span data-lang="en">Connect</span><span data-lang="zh" style="display:none;">联系我们</span></h4>
+          <ul class="footer__links">
+            <li><a href="https://t.me/tradewizardglobal" target="_blank"><span data-lang="en">Telegram Channel</span><span data-lang="zh" style="display:none;">Telegram频道</span></a></li>
+            <li><a href="https://www.facebook.com/TradeWizardGlobal" target="_blank">Facebook</a></li>
+            <li><a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank">YouTube</a></li>
+            <li><a href="https://www.linkedin.com/company/ted-optimus/" target="_blank">LinkedIn</a></li>
+          </ul>
+        </div>
       </div>
-      <div>
-        <h4><span data-lang="en">Pages</span><span data-lang="zh" style="display:none;">页面</span></h4>
-        <ul class="footer__links">
-          <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
-          <li><a href="../about.html"><span data-lang="en">About Warren</span><span data-lang="zh" style="display:none;">关于Warren</span></a></li>
-          <li><a href="../articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
-          <li><a href="../testimonials.html"><span data-lang="en">Testimonials</span><span data-lang="zh" style="display:none;">学员评价</span></a></li>
-        </ul>
-      </div>
-      <div>
-        <h4><span data-lang="en">Programmes</span><span data-lang="zh" style="display:none;">课程</span></h4>
-        <ul class="footer__links">
-          <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term Trading</span><span data-lang="zh" style="display:none;">短线交易</span></a></li>
-          <li><a href="../structured-warrants.html"><span data-lang="en">Structured Warrants</span><span data-lang="zh" style="display:none;">结构性凭单</span></a></li>
-          <li><a href="https://academy.thetradewizard.com/" target="_blank">Trade Wizard Academy</a></li>
-          <li><a href="https://www.thetradewizard.com/" target="_blank">Trade Wizard Platform</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4><span data-lang="en">Connect</span><span data-lang="zh" style="display:none;">联系我们</span></h4>
-        <ul class="footer__links">
-          <li><a href="https://t.me/tradewizardglobal" target="_blank">Telegram</a></li>
-          <li><a href="https://www.facebook.com/TradeWizardGlobal" target="_blank">Facebook</a></li>
-          <li><a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank">YouTube</a></li>
-          <li><a href="https://www.linkedin.com/company/ted-optimus/" target="_blank">LinkedIn</a></li>
-        </ul>
+      <div class="footer__bottom">
+        <p>&copy; 2026 TED Optimus Sdn Bhd. <span data-lang="en">All rights reserved.</span><span data-lang="zh" style="display:none;">版权所有。</span></p>
+        <div class="footer__social">
+          <a href="https://t.me/tradewizardglobal" target="_blank" title="Telegram"><svg viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></a>
+          <a href="https://www.facebook.com/TradeWizardGlobal" target="_blank" title="Facebook"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
+          <a href="https://www.youtube.com/@TradeWizardGlobal" target="_blank" title="YouTube"><svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></a>
+          <a href="https://www.linkedin.com/company/ted-optimus/" target="_blank" title="LinkedIn"><svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+        </div>
       </div>
     </div>
-    <div class="footer__bottom">
-      <p>&copy; 2026 TED Optimus Sdn Bhd. <span data-lang="en">All rights reserved.</span><span data-lang="zh" style="display:none;">版权所有。</span></p>
-    </div>
+  </footer>
+
+  <div class="sticky-cta-bar" aria-label="Primary call to action">
+    <a href="https://academy.thetradewizard.com/" target="_blank" class="btn btn--primary"><span data-lang="en">Join Free Webinar</span><span data-lang="zh" style="display:none;">参加免费网络研讨会</span></a>
   </div>
-</footer>
+
   <script src="../assets/js/main.js"></script>
 </body>
 </html>
