@@ -37,6 +37,7 @@ import {
   extractArticleIdFromUrl,
   cleanHeadline,
   canonicalizeUrl,
+  buildExistingSlugByCanonicalUrlMap,
   findExistingSlugByUrl,
   fetchEnanyangHtml,
   processRow,
@@ -302,6 +303,8 @@ function checks_canonicalizeUrl() {
 
     checks.push(['finds the existing slug by exact original_url match', findExistingSlugByUrl(db, 'https://www.enanyang.my/news/x/999') === 'old-title-slug']);
     checks.push(['finds it through a query-string/trailing-slash variant too', findExistingSlugByUrl(db, 'https://www.enanyang.my/news/x/999/?ref=share') === 'old-title-slug']);
+    const cache = buildExistingSlugByCanonicalUrlMap(db);
+    checks.push(['cached slug lookup matches the direct original_url lookup', findExistingSlugByUrl(null, 'https://www.enanyang.my/news/x/999?ref=share', cache) === 'old-title-slug']);
     checks.push(['returns null when no row matches', findExistingSlugByUrl(db, 'https://www.enanyang.my/news/x/000') === null]);
     checks.push(['returns null when db is null (dry-run mode)', findExistingSlugByUrl(null, 'https://www.enanyang.my/news/x/999') === null]);
   } finally {
@@ -372,6 +375,42 @@ async function checks_processRow_urlDedup() {
   return checks;
 }
 
+async function checks_processRow_updatesCache() {
+  console.log('\n=== Part 5b: processRow() updates the URL cache ===\n');
+  const checks = [];
+
+  const db = freshTempDb();
+  try {
+    const cache = buildExistingSlugByCanonicalUrlMap(db);
+    const row = { title: null, url: REAL_LD.url, publishedAt: null, category: null, keywords: [], id: 1 };
+    let insertedSlug;
+
+    await withFetch(
+      async () => htmlResponse(REAL_PAGE_HTML),
+      async () => {
+        const outcome = await processRow(row, { db, dryRun: false, existingSlugByCanonicalUrl: cache });
+        insertedSlug = outcome.slug;
+        checks.push(['first cached run inserts ok', outcome.status === 'ok']);
+      }
+    );
+
+    checks.push(['processRow adds the inserted original_url to the cache', findExistingSlugByUrl(null, REAL_LD.url, cache) === insertedSlug]);
+
+    const RETITLED_LD = { ...REAL_LD, headline: '缓存复查标题/麦传球 | e南洋', name: '缓存复查标题/麦传球 | e南洋' };
+    await withFetch(
+      async () => htmlResponse(pageWithLd([RETITLED_LD])),
+      async () => {
+        const outcome = await processRow(row, { db, dryRun: false, existingSlugByCanonicalUrl: cache });
+        checks.push(['second cached run reuses the cached slug', outcome.slug === insertedSlug]);
+      }
+    );
+  } finally {
+    db.close();
+  }
+
+  return checks;
+}
+
 // ---------------------------------------------------------------------------
 // Part 6 — filterRowsByCategoryAndKeyword() — the --category/--keyword CLI
 // flags' pure-function core, per nanyang-scraper.md's "Execution gate"
@@ -423,6 +462,7 @@ async function main() {
     ...(await checks_processRow()),
     ...checks_canonicalizeUrl(),
     ...(await checks_processRow_urlDedup()),
+    ...(await checks_processRow_updatesCache()),
     ...checks_filterRowsByCategoryAndKeyword(),
   ];
 

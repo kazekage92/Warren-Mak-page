@@ -279,15 +279,22 @@ export function canonicalizeUrl(url) {
  * processRow() calls this before deciding what slug to upsert under, and
  * reuses the existing slug (updating that row) instead of minting a fresh
  * one, whenever it finds a match. */
-export function findExistingSlugByUrl(db, url) {
-  if (!db) return null;
-  const canonical = canonicalizeUrl(url);
-  if (!canonical) return null;
+export function buildExistingSlugByCanonicalUrlMap(db) {
+  const byCanonicalUrl = new Map();
   const rows = db.prepare('SELECT slug, original_url FROM source_articles WHERE original_url IS NOT NULL').all();
   for (const row of rows) {
-    if (canonicalizeUrl(row.original_url) === canonical) return row.slug;
+    const canonical = canonicalizeUrl(row.original_url);
+    if (canonical && !byCanonicalUrl.has(canonical)) byCanonicalUrl.set(canonical, row.slug);
   }
-  return null;
+  return byCanonicalUrl;
+}
+
+export function findExistingSlugByUrl(db, url, existingSlugByCanonicalUrl = null) {
+  const canonical = canonicalizeUrl(url);
+  if (!canonical) return null;
+  if (existingSlugByCanonicalUrl) return existingSlugByCanonicalUrl.get(canonical) ?? null;
+  if (!db) return null;
+  return buildExistingSlugByCanonicalUrlMap(db).get(canonical) ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -394,7 +401,7 @@ export async function fetchEnanyangHtml(url, { maxAttempts = MAX_ATTEMPTS, baseD
  *  can differ in --url mode (nothing knows the real title until the JSON-LD
  *  headline is parsed), so callers must log/key off the outcome's `slug`,
  *  not `row.slug`, once a row has been processed. */
-export async function processRow(row, { db, dryRun }) {
+export async function processRow(row, { db, dryRun, existingSlugByCanonicalUrl = null }) {
   let html;
   try {
     html = await fetchEnanyangHtml(row.url);
@@ -420,7 +427,7 @@ export async function processRow(row, { db, dryRun }) {
   // so the upsert below updates that row instead of inserting a duplicate.
   // See findExistingSlugByUrl()'s doc comment for why slug alone can't
   // catch this.
-  const existingSlug = findExistingSlugByUrl(db, originalUrl);
+  const existingSlug = findExistingSlugByUrl(db, originalUrl, existingSlugByCanonicalUrl);
   const slug = existingSlug || buildSourceSlug(title, row.url);
   const record = {
     title,
@@ -447,6 +454,8 @@ export async function processRow(row, { db, dryRun }) {
 
   try {
     upsertSourceArticle(db, record);
+    const canonicalOriginalUrl = canonicalizeUrl(record.original_url);
+    if (existingSlugByCanonicalUrl && canonicalOriginalUrl) existingSlugByCanonicalUrl.set(canonicalOriginalUrl, slug);
     return { status: 'ok', slug, detail: `title="${record.title}" bodyLength=${record.original_content.length}${dedupNote}` };
   } catch (err) {
     return { status: 'error', slug, detail: err.message };
@@ -518,9 +527,11 @@ async function main() {
   console.log(`Processing ${rows.length} article(s)${opts.dryRun ? ' (--dry-run: no db writes)' : ''}...`);
 
   let db = null;
+  let existingSlugByCanonicalUrl = null;
   if (!opts.dryRun) {
     db = new DatabaseSync(opts.dbPath);
     db.exec(SCHEMA_SQL);
+    existingSlugByCanonicalUrl = buildExistingSlugByCanonicalUrlMap(db);
   }
 
   const outcomes = [];
@@ -529,7 +540,7 @@ async function main() {
     const row = rows[i];
     let outcome;
     try {
-      outcome = await processRow(row, { db, dryRun: opts.dryRun });
+      outcome = await processRow(row, { db, dryRun: opts.dryRun, existingSlugByCanonicalUrl });
     } catch (err) {
       if (err instanceof StopRunError) {
         console.error(`\nStopping run: ${err.message}`);

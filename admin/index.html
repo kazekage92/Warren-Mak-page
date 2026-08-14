@@ -3464,6 +3464,8 @@
   // path (or let the unique-index write fail loudly) rather than assuming it for free.
   function kcExpandRelatedEntities(graph, seedEntities, maxHops) {
     maxHops = maxHops || 1;
+    var entityByName = {};
+    graph.entities.forEach(function(e) { entityByName[e.name] = e; });
     var byName = {};
     seedEntities.forEach(function(e) { byName[e.name] = { name: e.name, type: e.type, hop: 0, via: e.reason || 'topic match' }; });
     var frontier = seedEntities.map(function(e) { return e.name; });
@@ -3475,7 +3477,7 @@
         var phrase = edge.source + ' --[' + edge.relation + ']--> ' + edge.target;
         [{ from: edge.source, to: edge.target }, { from: edge.target, to: edge.source }].forEach(function(c) {
           if (frontierSet[c.from] && !byName[c.to]) {
-            var entity = graph.entities.filter(function(e) { return e.name === c.to; })[0];
+            var entity = entityByName[c.to];
             byName[c.to] = { name: c.to, type: entity ? entity.type : null, hop: hop, via: phrase };
             next.push(c.to);
           }
