@@ -8,7 +8,9 @@
  *   1. bodyTextToHtml() converts blank-line paragraphs into <p> tags, "## "
  *      lines into <h2> tags (the gap admin's plainTextWithAnchorsToParagraphHtml
  *      leaves open -- see build-article-document.js's own header comment),
- *      leaves inline <a> markup untouched, and HTML-escapes everything else.
+ *      leaves inline <a> markup and <strong>/<em>/<u> emphasis (including an
+ *      anchor nested inside emphasis, e.g. from link-insertion landing inside
+ *      a bolded span) untouched, and HTML-escapes everything else.
  *   2. buildArticleDocument() produces the expected page skeleton: DOCTYPE,
  *      nav/footer verbatim, correct CTA preset selection, both language
  *      bodies present, JSON-LD present and well-formed, title/meta escaped.
@@ -59,6 +61,12 @@ function checks_bodyTextToHtml() {
 
   const withAnchor = bodyTextToHtml('Read more about <a href="other-slug.html">structured warrants</a> here.');
   checks.push(['leaves an inline <a href="...html"> anchor untouched', withAnchor === '<p>Read more about <a href="other-slug.html">structured warrants</a> here.</p>']);
+
+  const withEmphasis = bodyTextToHtml('This is <strong>very important</strong> and this is <em>nuanced</em> and this is <u>underlined</u>.');
+  checks.push(['leaves inline <strong>/<em>/<u> emphasis untouched', withEmphasis === '<p>This is <strong>very important</strong> and this is <em>nuanced</em> and this is <u>underlined</u>.</p>']);
+
+  const withNestedEmphasisAndAnchor = bodyTextToHtml('Read about <strong><a href="other-slug.html">structured warrants</a></strong> here.');
+  checks.push(['leaves an anchor nested inside <strong> untouched (link-insertion landing inside an emphasis span)', withNestedEmphasisAndAnchor === '<p>Read about <strong><a href="other-slug.html">structured warrants</a></strong> here.</p>']);
 
   const withMarkup = bodyTextToHtml('Risk & "Reward" <Explained> in one paragraph.');
   checks.push(['HTML-escapes & < > in ordinary paragraph text', withMarkup === '<p>Risk &amp; "Reward" &lt;Explained&gt; in one paragraph.</p>']);

@@ -26,14 +26,11 @@
  * (buildFlowGraphHtml, buildArticleDocument) — not every mirrored function in
  * admin/index.html. Response-PARSING mirrors
  * (parseReviewResponseBrowser, parseSeoResponseBrowser, kgParseExtractionResponse,
- * kgParseJudgeResponse) and the checklist-retrieval mirrors (kcTokenize/
- * kcFindSeedEntities/kcExpandRelatedEntities/kcBuildChecklist) are out of scope:
- * the parsers' shapes already diverge slightly by necessity (the browser
- * versions also do the DOM-safe escaping their render step needs), and the
- * retrieval mirrors run against a materially different data source (the JSON
- * graph mirror vs. a live SQLite `db` handle via .prepare().all()), so a
- * literal string/deep-equal diff isn't the right tool for either — see
- * retrieval-layer.js's own README section on that db-vs-JSON split.
+ * kgParseJudgeResponse) are out of scope: the parsers' shapes already diverge
+ * slightly by necessity (the browser versions also do the DOM-safe escaping
+ * their render step needs). Retrieval mirrors run against a materially
+ * different data source (JSON graph vs. SQLite), so this script checks their
+ * behavior with small fixtures rather than byte-for-byte output.
  *
  * Covers:
  *   - coverage-reviewer.js:      formatChecklist   <-> kcFormatChecklist
@@ -60,7 +57,7 @@ import { buildReviewPrompt, formatChecklist } from './coverage-reviewer.js';
 import { buildSeoPrompt } from './seo-optimizer.js';
 import { buildExtractionPrompt } from './extract-entities.js';
 import { buildJudgePrompt, formatState } from './fact-retention-checker.js';
-import { buildWriterPrompt, buildRepairPrompt } from './generate-article.js';
+import { buildWriterPrompt, buildRepairPrompt, detectOffTopicSections, countBodyWords } from './generate-article.js';
 import { buildFlowGraphHtml } from './graph-blocks.js';
 import { buildArticleDocument } from './build-article-document.js';
 
@@ -207,6 +204,9 @@ function loadAdminMirrors() {
   const moduleSrc = [
     extractVarDecl(html, 'KG_ENTITY_TYPES'),
     extractVarDecl(html, 'KG_RELATIONS'),
+    extractVarStatementSource(html, 'KC_STOPWORDS'),
+    extractVarStatementSource(html, 'KC_WEAK_RELATIONS'),
+    extractVarStatementSource(html, 'KC_CONTRAST_RELATIONS'),
     // formatChecklistItemsBrowser is a private helper both kcFormatChecklist and
     // formatChecklistForWriterBrowser call (mirrors scripts/checklist-format.js's
     // formatChecklistItems()) — not itself in this validator's target list (it's asserted
@@ -219,6 +219,16 @@ function loadAdminMirrors() {
     extractFunctionSource(html, 'kgFormatState'),
     extractFunctionSource(html, 'kgBuildJudgePrompt'),
     extractFunctionSource(html, 'kgBuildExtractionPrompt'),
+    extractFunctionSource(html, 'kcTokenize'),
+    extractFunctionSource(html, 'kcFindSeedEntities'),
+    extractFunctionSource(html, 'kcExpandRelatedEntities'),
+    extractFunctionSource(html, 'kcBuildChecklist'),
+    extractFunctionSource(html, 'suggestInternalLinksBrowser'),
+    // kcHeadingMentionsEntity is a private helper kcDetectOffTopicSections calls — not itself in
+    // this validator's target list (asserted transitively through kcDetectOffTopicSections), but
+    // must still be in-scope for the sandbox eval below to resolve the call.
+    extractFunctionSource(html, 'kcHeadingMentionsEntity'),
+    extractFunctionSource(html, 'kcDetectOffTopicSections'),
     // formatChecklistForWriterBrowser is a private helper buildWriterPromptBrowser/
     // buildRepairPromptBrowser both call — not itself in this validator's target list (it's
     // asserted transitively through those two), but it must still be in-scope for the sandbox
@@ -226,6 +236,7 @@ function loadAdminMirrors() {
     extractFunctionSource(html, 'formatChecklistForWriterBrowser'),
     extractFunctionSource(html, 'buildWriterPromptBrowser'),
     extractFunctionSource(html, 'buildRepairPromptBrowser'),
+    extractFunctionSource(html, 'countBodyWordsBrowser'),
     // escapeHtml is a dependency of buildFlowGraphHtml below (the 5th pair) --
     // not itself a validated pair, same "in-scope for the sandbox eval, not
     // separately asserted" treatment as formatChecklistItemsBrowser above.
@@ -276,8 +287,14 @@ function loadAdminMirrors() {
       '  kgFormatState: kgFormatState,',
       '  kgBuildJudgePrompt: kgBuildJudgePrompt,',
       '  kgBuildExtractionPrompt: kgBuildExtractionPrompt,',
+      '  kcFindSeedEntities: kcFindSeedEntities,',
+      '  kcExpandRelatedEntities: kcExpandRelatedEntities,',
+      '  kcBuildChecklist: kcBuildChecklist,',
+      '  suggestInternalLinksBrowser: suggestInternalLinksBrowser,',
+      '  kcDetectOffTopicSections: kcDetectOffTopicSections,',
       '  buildWriterPromptBrowser: buildWriterPromptBrowser,',
       '  buildRepairPromptBrowser: buildRepairPromptBrowser,',
+      '  countBodyWordsBrowser: countBodyWordsBrowser,',
       '  buildFlowGraphHtml: buildFlowGraphHtml,',
       '  buildArticleDocument: buildArticleDocument',
       '};',
@@ -387,6 +404,30 @@ const REPAIR_PARTIAL_SAMPLE = [
   { name: 'Leverage', evidence: 'mentioned once but not explained' },
   { name: 'Time Decay (Theta)' }, // no `evidence` field -- exercises the "(none)" fallback
 ];
+const REPAIR_OFF_TOPIC_EMPTY = [];
+const REPAIR_OFF_TOPIC_SAMPLE = [
+  { heading: 'The Role of Call Warrants', entity: 'Call Warrant', relation: 'distinguished_from' },
+];
+
+const OFF_TOPIC_CHECKLIST_SAMPLE = [
+  { name: 'Stock Trading Course', type: 'product', why: 'directly matches the topic', relation: null },
+  {
+    name: 'Call Warrant',
+    type: 'product',
+    why: 'related to the topic via: Stock Trading Course --[distinguished_from]--> Call Warrant',
+    relation: 'distinguished_from',
+  },
+  {
+    name: 'Risk Management',
+    type: 'concept',
+    why: 'related to the topic via: Risk Management --[prerequisite_of]--> Stock Trading Course',
+    relation: 'prerequisite_of',
+  },
+];
+const OFF_TOPIC_BODY_TEXT_SAMPLE =
+  '## Understanding Stock Trading Courses\n\nBody text.\n\n' +
+  '## The Role of Call Warrants\n\nWhile some might confuse a course with Call Warrants...\n\n' +
+  '## The Importance of Risk Management\n\nRisk Management is a prerequisite...';
 
 // ---------------------------------------------------------------------------
 // Comparison harness
@@ -432,6 +473,82 @@ function comparePromptObjects(label, mirrorResult, originalResult) {
 
 console.log(`Extracting mirror functions from ${path.relative(REPO_ROOT, ADMIN_HTML_PATH)}...`);
 const mirrors = loadAdminMirrors();
+
+console.log('\nadmin retrieval mirrors — weak relation/link behavior');
+const RETRIEVAL_GRAPH_SAMPLE = {
+  entities: [
+    { name: 'Stock Trading Course', type: 'topic' },
+    { name: 'Gap Trading', type: 'strategy' },
+    { name: 'Course Selection Criteria', type: 'concept' },
+    { name: 'HSI Structured Warrants', type: 'product' },
+  ],
+  edges: [
+    { source: 'Stock Trading Course', relation: 'related_to', target: 'Gap Trading' },
+    { source: 'Stock Trading Course', relation: 'part_of', target: 'Course Selection Criteria' },
+    { source: 'Gap Trading', relation: 'related_to', target: 'HSI Structured Warrants' },
+  ],
+};
+const retrievalSeeds = mirrors.kcFindSeedEntities(RETRIEVAL_GRAPH_SAMPLE, 'Stock Trading Course', 8);
+const retrievalStrongOnly = mirrors.kcExpandRelatedEntities(RETRIEVAL_GRAPH_SAMPLE, retrievalSeeds, 1, false);
+const retrievalStrongOnlyNames = retrievalStrongOnly.map((e) => e.name);
+assertEqual('weak related_to edge excluded from browser required expansion', retrievalStrongOnlyNames.includes('Gap Trading'), false);
+assertEqual('specific relation still expands in browser required expansion', retrievalStrongOnlyNames.includes('Course Selection Criteria'), true);
+assertEqual('browser mirror reports skipped weak related_to edges', retrievalStrongOnly.skippedWeakEdges.some((e) => e.source === 'Stock Trading Course' && e.target === 'Gap Trading'), true);
+const retrievalWithWeak = mirrors.kcExpandRelatedEntities(RETRIEVAL_GRAPH_SAMPLE, retrievalSeeds, 1, true).map((e) => e.name);
+assertEqual('browser retrieval can still include weak relations when explicitly requested', retrievalWithWeak.includes('Gap Trading'), true);
+assertEqual(
+  'browser internal-link suggestions reject weak target-entity relevance',
+  mirrors.suggestInternalLinksBrowser(
+    [{ slug: 'hsi-structured-warrants-malaysia', title: 'HSI Structured Warrants Malaysia', matchedEntities: [{ name: 'Gap Trading', relevance_score: 0.3 }] }],
+    [{ name: 'Gap Trading', type: 'strategy', reason: 'test seed' }]
+  ).length,
+  0
+);
+assertEqual(
+  'browser internal-link suggestions keep strong target-entity relevance',
+  mirrors.suggestInternalLinksBrowser(
+    [{ slug: 'gap-trading-malaysia', title: 'Gap Trading Malaysia', matchedEntities: [{ name: 'Gap Trading', relevance_score: 0.85 }] }],
+    [{ name: 'Gap Trading', type: 'strategy', reason: 'test seed' }]
+  )[0]?.targetSlug,
+  'gap-trading-malaysia'
+);
+
+console.log('\nadmin retrieval mirrors — relation passthrough / off-topic section detection');
+// Same RETRIEVAL_GRAPH_SAMPLE as above, plus one distinguished_from edge (a CONTRAST relation)
+// to exercise the `relation` field expandRelatedEntities/buildChecklist now carry through, and
+// kcDetectOffTopicSections/detectOffTopicSections' own real-incident scenario (2026-08-20
+// addendum, admin-ai-article-creator-test-run memory).
+const RELATION_GRAPH_SAMPLE = {
+  entities: RETRIEVAL_GRAPH_SAMPLE.entities.concat([{ name: 'Call Warrant', type: 'product' }]),
+  edges: RETRIEVAL_GRAPH_SAMPLE.edges.concat([
+    { source: 'Stock Trading Course', relation: 'distinguished_from', target: 'Call Warrant' },
+  ]),
+};
+const relationSeeds = mirrors.kcFindSeedEntities(RELATION_GRAPH_SAMPLE, 'Stock Trading Course', 8);
+const relationExpanded = mirrors.kcExpandRelatedEntities(RELATION_GRAPH_SAMPLE, relationSeeds, 1, false);
+const relationSeedEntry = relationExpanded.find((e) => e.name === 'Stock Trading Course');
+const relationPartOfEntry = relationExpanded.find((e) => e.name === 'Course Selection Criteria');
+const relationContrastEntry = relationExpanded.find((e) => e.name === 'Call Warrant');
+assertEqual('browser expandRelatedEntities: hop-0 seed carries relation: null', relationSeedEntry?.relation, null);
+assertEqual('browser expandRelatedEntities: part_of hop-1 entity carries its raw relation type', relationPartOfEntry?.relation, 'part_of');
+assertEqual('browser expandRelatedEntities: distinguished_from hop-1 entity carries its raw relation type', relationContrastEntry?.relation, 'distinguished_from');
+const relationChecklist = mirrors.kcBuildChecklist(relationExpanded);
+const relationChecklistContrastItem = relationChecklist.find((c) => c.name === 'Call Warrant');
+assertEqual('browser buildChecklist: relation field passed through onto the checklist item', relationChecklistContrastItem?.relation, 'distinguished_from');
+
+assertEqual(
+  'browser kcDetectOffTopicSections <-> Node detectOffTopicSections — real-incident sample (empty checklist)',
+  JSON.stringify(mirrors.kcDetectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, [])),
+  JSON.stringify(detectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, []))
+);
+assertEqual(
+  'browser kcDetectOffTopicSections <-> Node detectOffTopicSections — real-incident sample',
+  JSON.stringify(mirrors.kcDetectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, OFF_TOPIC_CHECKLIST_SAMPLE)),
+  JSON.stringify(detectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, OFF_TOPIC_CHECKLIST_SAMPLE))
+);
+const offTopicFlags = detectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, OFF_TOPIC_CHECKLIST_SAMPLE);
+assertEqual('detectOffTopicSections flags exactly the distinguished_from heading, not the prerequisite_of one', offTopicFlags.length, 1);
+assertEqual('detectOffTopicSections flags the right heading', offTopicFlags[0]?.heading, 'The Role of Call Warrants');
 
 console.log('\ncoverage-reviewer.js formatChecklist <-> kcFormatChecklist');
 assertEqual('empty checklist', mirrors.kcFormatChecklist(CHECKLIST_EMPTY), formatChecklist(CHECKLIST_EMPTY));
@@ -545,6 +662,74 @@ comparePromptObjects(
   mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_SAMPLE, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_SAMPLE, REPAIR_PARTIAL_SAMPLE),
   buildRepairPrompt({ topic: 'Time Decay', checklist: CHECKLIST_SAMPLE, draft: REPAIR_DRAFT_SAMPLE, missing: REPAIR_MISSING_SAMPLE, partial: REPAIR_PARTIAL_SAMPLE })
 );
+comparePromptObjects(
+  'sample checklist/missing/partial, with offTopicSections',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_SAMPLE, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_SAMPLE, REPAIR_PARTIAL_SAMPLE, REPAIR_OFF_TOPIC_SAMPLE),
+  buildRepairPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_SAMPLE,
+    draft: REPAIR_DRAFT_SAMPLE,
+    missing: REPAIR_MISSING_SAMPLE,
+    partial: REPAIR_PARTIAL_SAMPLE,
+    offTopicSections: REPAIR_OFF_TOPIC_SAMPLE,
+  })
+);
+comparePromptObjects(
+  'empty checklist/missing/partial, with offTopicSections but empty checklist/missing/partial',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_EMPTY, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_EMPTY, REPAIR_PARTIAL_EMPTY, REPAIR_OFF_TOPIC_SAMPLE),
+  buildRepairPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_EMPTY,
+    draft: REPAIR_DRAFT_SAMPLE,
+    missing: REPAIR_MISSING_EMPTY,
+    partial: REPAIR_PARTIAL_EMPTY,
+    offTopicSections: REPAIR_OFF_TOPIC_SAMPLE,
+  })
+);
+// article-length-expansion.md's expandTarget param — the length-gap addition on top of the
+// pre-existing missing/partial/offTopicSections gaps above.
+const REPAIR_EXPAND_TARGET_SAMPLE = { currentWords: 640, targetWords: 2200 };
+comparePromptObjects(
+  'sample checklist/missing/partial, with expandTarget (no offTopicSections)',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_SAMPLE, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_SAMPLE, REPAIR_PARTIAL_SAMPLE, REPAIR_OFF_TOPIC_EMPTY, REPAIR_EXPAND_TARGET_SAMPLE),
+  buildRepairPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_SAMPLE,
+    draft: REPAIR_DRAFT_SAMPLE,
+    missing: REPAIR_MISSING_SAMPLE,
+    partial: REPAIR_PARTIAL_SAMPLE,
+    expandTarget: REPAIR_EXPAND_TARGET_SAMPLE,
+  })
+);
+comparePromptObjects(
+  'sample checklist/missing/partial, with BOTH offTopicSections and expandTarget together',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_SAMPLE, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_SAMPLE, REPAIR_PARTIAL_SAMPLE, REPAIR_OFF_TOPIC_SAMPLE, REPAIR_EXPAND_TARGET_SAMPLE),
+  buildRepairPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_SAMPLE,
+    draft: REPAIR_DRAFT_SAMPLE,
+    missing: REPAIR_MISSING_SAMPLE,
+    partial: REPAIR_PARTIAL_SAMPLE,
+    offTopicSections: REPAIR_OFF_TOPIC_SAMPLE,
+    expandTarget: REPAIR_EXPAND_TARGET_SAMPLE,
+  })
+);
+
+console.log('\ngenerate-article.js countBodyWords <-> countBodyWordsBrowser');
+const WORD_COUNT_SAMPLES = [
+  '## Heading One\n\nSome plain body text with several words in it.',
+  '## Understanding Time Decay\n\nA paragraph. \n\n## A Second Heading\n\nAnother paragraph with more words than the first one.',
+  'No heading marker at all, just plain paragraphs of body text.',
+  '',
+  '   ',
+];
+for (const sample of WORD_COUNT_SAMPLES) {
+  assertEqual(
+    `countBodyWords(${JSON.stringify(sample.slice(0, 40))}...)`,
+    mirrors.countBodyWordsBrowser(sample),
+    countBodyWords(sample)
+  );
+}
 
 console.log('\ngraph-blocks.js buildFlowGraphHtml <-> admin buildFlowGraphHtml');
 const GRAPH_TITLE_SAMPLE = 'Warrant\'s "Extrinsic" Value & <Risk> Tags — A Quick Primer';

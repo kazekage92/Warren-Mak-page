@@ -305,7 +305,13 @@ node retrieval-layer.js --topic "..." --db ../admin/knowledge-graph.db   # (defa
 
 Returns `{ seedEntities, relatedEntities, articleSummaries, nearDuplicates,
 suggestedLinks, checklist, contentHierarchy, candidateSourceArticles,
-duplicateRisk? }`. A topic that matches no entity at all comes back with the
+weakRelationWarnings, duplicateRisk? }`. `related_to` is treated as a weak
+generic edge by default: it is reported in `weakRelationWarnings` but does not
+expand the mandatory writer checklist unless `includeWeakRelations: true` is
+passed for diagnostics/manual exploration. Specific relations (`part_of`,
+`prerequisite_of`, `distinguished_from`, etc.) still expand normally. This
+keeps loose co-occurrence edges from steering broad-topic drafts into unrelated
+claims. A topic that matches no entity at all comes back with the
 entity-graph fields empty plus a `note` explaining it's genuinely new —
 that's a normal result, not an error; `candidateSourceArticles` is still
 computed even then, since it queries `source_articles` directly rather than
@@ -350,7 +356,9 @@ Phase 5's auto-INSERT step, not just the suggest-what-to-link-to piece above.
 For each suggestion (best-scored first), wraps the first verbatim mention of
 its entity name in `bodyText` with an ordinary `<a href="<slug>.html">`
 anchor (relative link, same convention every article's `.article-related`
-block already uses); an entity with no verbatim mention is reported in
+block already uses). Suggested targets must cover the anchor entity with at
+least `relevance_score >= 0.6` by default, so a passing mention does not cause
+a misleading link to a page about something else; an entity with no verbatim mention is reported in
 `skipped`, never force-inserted. Pure text transform, no LLM, no db access —
 kept in this file next to `suggestInternalLinks` since it's the natural
 second half of the same phase, even though it operates on a draft body text
@@ -455,8 +463,10 @@ Phase 3 (AI Content Generation) and §5's coverage reviewer, "in the SAME pass
    --must-include-facts, merged by buildFullChecklist()
 3. Generate a draft      -- writer LLM call (buildWriterPrompt), checklist in the prompt
 4. Review the draft      -- reviewer LLM call (coverage-reviewer.js), a SEPARATE call
-5. <=1 repair retry      -- only if step 4 found a gap: feed missing/partial items
-                              back to the writer (buildRepairPrompt), regenerate, re-review once
+5. <=1 repair retry      -- if step 4 found a coverage/off-topic gap, OR the draft is still
+                              under the 2,200-word length target (see below): feed the gap(s)
+                              back to the writer (buildRepairPrompt) as ONE combined repair
+                              prompt, regenerate, re-review once
 6. Auto-insert internal   -- §4 Phase 5, on the FINAL draft body text (after any repair):
    links                     retrieval-layer.js's insertSuggestedLinks() wraps the first
                               verbatim mention of each suggestedLinks entity in a real <a> tag
@@ -540,6 +550,60 @@ response-parsing mirrors are documented as out of that validator's scope) —
 harmless today since nothing browser-side consumes it yet either, pending
 `graph-blocks.js`'s browser-side counterpart.
 
+**Inline emphasis (`<strong>`/`<em>`/`<u>`)** — a readability addition on top
+of the section-break work above: the writer (and repair) prompt now also
+allows wrapping a key term or important point in `<strong>...</strong>`
+(bold), `<em>...</em>` (italic), or `<u>...</u>` (underline) directly inside
+`body_text`, instructed to be used sparingly (a handful of times per article,
+never a whole paragraph or a heading) so long articles read as more than an
+undifferentiated wall of paragraphs. These are real HTML tags, not markdown —
+chosen to match the existing `<a href="...html">...</a>` convention §4 Phase
+5's `insertSuggestedLinks()` already weaves into `body_text`, rather than
+inventing a second, markdown-flavored syntax the pipeline would also have to
+parse. `parseWriterResponse()` does not validate their presence (unlike the
+`"## "` heading requirement) — the writer may reasonably produce zero in a
+short article, and this is decoration, not required structure. Downstream,
+`build-article-document.js`'s `bodyTextToHtml()` and admin's
+`plainTextWithAnchorsToParagraphHtml()` both pass these tags through
+untouched into the final HTML (see that file's own section below for how);
+admin additionally lets Quill recognize them natively via
+`dangerouslyPasteHTML()`, so an AI-drafted article inserted into the wizard
+shows real bold/italic/underline formatting in the editor, not literal tag
+text.
+
+**Length expansion (`extra-md-files/article-length-expansion.md`)** — a
+10-minute-read floor added on top of the coverage/off-topic repair loop
+above, not a separate pipeline stage: `TARGET_BODY_WORD_COUNT_EN` (2,200
+words, `countBodyWords()`'s word count of the draft's `body_text`) is checked
+right alongside the coverage summary and `detectOffTopicSections()` result,
+and if the draft is still short it's folded into the SAME single repair
+prompt as a third kind of gap (`buildRepairPrompt`'s `expandTarget` param) —
+sharing the one retry §5 already caps this loop at, not adding a second call.
+Unlike coverage gaps, the length check does **not** require a non-empty
+checklist (a thin article on a topic that matched no graph entities is still
+a real gap). This is a **soft target only** (owner decision, 2026-08-21):
+it never blocks the CLI's exit code, `Save-as-Draft`, or `Publish` — a draft
+that's still short after the one retry attempt is returned normally, with
+`result.wordCount`/`targetWordCount`/`meetsLengthTarget` surfaced for Phase
+8 (the human) the same informational way `reviewCoverageFailed`/
+`offTopicSections` already are. The writer's own system prompt was also
+raised accordingly: a 2,200-word minimum (was ~900), 6-8 section headings of
+3-4 paragraphs each (was 4-6 headings of 2-3 paragraphs), with explicit
+instructions to reach that length by going deeper on already-central
+sub-topics — real examples, more mechanics, more "why it matters" — never by
+padding/repetition or by promoting a loosely-related checklist item into its
+own heading just to fill space (the exact failure mode the off-topic-section
+backstop above already guards against; see that doc's "Real incident"
+section for why this risk gets WORSE, not better, as required length grows).
+`MAX_TOKENS` was raised from 6000 to 8000 to give the larger body headroom,
+and `admin/index.html`'s `BODY_TRANSLATE_MODEL_OPTS` (the body-translate AI
+buttons' token budget) was raised the same way, since a longer EN body also
+means a longer ZH translation of it — length expansion must not cost
+translation quality. `--target-words` (default 2,200, no upper cap since
+it's a soft target — 0 disables the check entirely) lets a CLI run or a test
+harness override the target; see `validate-generate-article.js`'s scenarios
+G/H/I for the length-only, retry-cap, and combined-gap cases respectively.
+
 ```bash
 cd scripts
 OPENAI_API_KEY=sk-... node generate-article.js --topic "Time Decay"
@@ -548,6 +612,7 @@ node generate-article.js --topic "..." --source-file column.txt          # optio
 node generate-article.js --topic "..." --source-keyword ipo              # §4 Phase 2 facet: narrow candidateSourceArticles
 node generate-article.js --topic "..." --json                           # machine-readable output (Phase 8 consumes this shape)
 node generate-article.js --topic "..." --writer-model gpt-4o --reviewer-model gpt-4o-mini
+node generate-article.js --topic "..." --target-words 500                # override the 2,200-word soft length target (0 disables it)
 
 node generate-article.js --topic "..." --writer-fixture-dir DIR --reviewer-fixture-dir DIR   # fully offline, see below
 ```
@@ -587,8 +652,9 @@ rejects a response missing `suggestedGraphSteps` entirely, with too few, too
 many, or an empty entry, or with no `"## "` line anywhere in `body_text`
 (including a `"##"` that appears mid-paragraph rather than as a real
 line-start prefix); `buildWriterPrompt()`/`buildRepairPrompt()` both actually
-instruct for the `"## "` convention and `suggestedGraphSteps`, with the
-correct JSON response shape at the end of each system prompt, and the repair
+instruct for the `"## "` convention, inline `<strong>`/`<em>`/`<u>` emphasis,
+and `suggestedGraphSteps`, with the correct JSON response shape at the end of
+each system prompt, and the repair
 prompt's user text surfaces the CURRENT draft's suggested graph steps (never
 crashing on a draft that doesn't have any yet); the reviewer is called as a
 genuinely separate, independently-countable invocation from the writer; a missing checklist item triggers
@@ -616,6 +682,22 @@ not a pipeline failure), while `--max-retries 2` exits non-zero and `--source-ke
 reaches `retrievalContext.candidateSourceArticles` with every returned row
 actually carrying that keyword tag. No `OPENAI_API_KEY`/network needed —
 same dependency-injection pattern as every LLM-backed script above.
+
+Three more scenarios cover the length-expansion pass
+(`article-length-expansion.md`): a fully-covered-but-short first draft
+triggers the shared repair retry purely off `countBodyWords()`, and the
+padded repair draft clears the real 2,200-word default target (scenario G);
+a repair draft left exactly as short as the initial one proves the length
+gap does NOT get a second retry just because it's still unmet — the result
+still returns normally with `meetsLengthTarget: false`, never throwing or
+blocking (scenario H); and a draft with BOTH a coverage gap and a too-short
+body proves the two gap types share the SAME single retry rather than
+costing two sequential ones (scenario I). At the CLI level, `--json` output
+always carries `wordCount`/`targetWordCount`/`meetsLengthTarget`, defaulting
+to the real 2,200-word target when `--target-words` isn't passed, and an
+explicit `--target-words` override reaches the same fields end-to-end
+through the real CLI subprocess (plus a negative override rejected the same
+way an over-cap `--max-retries` is).
 
 ## seo-optimizer.js
 
@@ -1135,7 +1217,11 @@ a pre-existing gap in the admin/human path. This pipeline has no human editor to
 `"## "` sitting in a published paragraph, so `bodyTextToHtml()` implements the heading conversion
 correctly rather than reproducing the gap — blank-line-separated paragraphs become `<p>`, a `"## "`
 line becomes `<h2>`, inline `<a href="...html">` markup (already woven in by
-`generate-article.js`'s link-insertion step) is left untouched, everything else is HTML-escaped.
+`generate-article.js`'s link-insertion step) and inline `<strong>`/`<em>`/`<u>` emphasis (the writer
+prompt's own readability convention — see `generate-article.js`'s section above) are left untouched
+— including a combination of the two, e.g. an anchor `insertSuggestedLinks()` inserted INSIDE an
+emphasis span the writer already wrote (`<strong><a href="...">...</a></strong>`) — everything else
+is HTML-escaped.
 
 `assembleFromDraftState(rawState)` is the CLI's convenience entry point: reads a state whose
 `bodyTextEn`/`bodyTextZh` are RAW `body_text` (not yet HTML), runs `bodyTextToHtml()` on both,
@@ -1163,8 +1249,10 @@ node validate-build-article-document.js
 
 It asserts: `bodyTextToHtml()` splits blank-line paragraphs into `<p>` tags, converts a `"## "`
 line into `<h2>` (without also wrapping it in `<p>`), leaves an inline `<a href="...html">` anchor
-untouched, HTML-escapes `&`/`<`/`>` in ordinary text, converts an internal single newline to
-`<br>`, and handles empty/null input without throwing; `buildArticleDocument()` produces the
+untouched, leaves inline `<strong>`/`<em>`/`<u>` emphasis untouched (including an anchor nested
+inside an emphasis span, e.g. link-insertion landing inside a bolded phrase), HTML-escapes
+`&`/`<`/`>` in ordinary text, converts an internal single newline to `<br>`, and handles empty/null
+input without throwing; `buildArticleDocument()` produces the
 expected page skeleton (DOCTYPE start, `</body></html>` end, escaped EN/ZH titles, both language
 bodies present verbatim, the right CTA preset selected — including a graceful fallback to
 `"warrants"` for an unrecognized preset value — the author-box credibility component, the sticky

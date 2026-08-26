@@ -15,6 +15,7 @@
     "check-retention": "node --no-warnings fact-retention-checker.js",
     "validate-retention-checker": "node --no-warnings validate-fact-retention-checker.js",
     "generate-article": "node --no-warnings generate-article.js",
+    "validate-retrieval-layer": "node --no-warnings validate-retrieval-layer.js",
     "validate-generate-article": "node --no-warnings validate-generate-article.js",
     "seo-optimizer": "node --no-warnings seo-optimizer.js",
     "validate-seo-optimizer": "node --no-warnings validate-seo-optimizer.js",

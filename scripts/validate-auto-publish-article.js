@@ -244,6 +244,18 @@ function runPart0() {
   try { replaceGraphFigure('<figure class="graph-block">A</figure><figure class="graph-block">B</figure>', '<figure>NEW</figure>'); } catch { threwOnTwoFigures = true; }
   checks.push(['replaceGraphFigure(): throws when the body has more than one graph figure', threwOnTwoFigures]);
 
+  // Real shape produced by translateArticleBodyHtml() (which skips graph-block subtrees,
+  // so the stale EN figure survives WITH its own leading marker comment) fed into
+  // buildFlowGraphHtml()'s output (which also carries that same leading comment) — asserts
+  // the swap leaves exactly one marker comment, not two back-to-back (found running a real
+  // article through this pipeline; see replaceGraphFigure()'s own comment for the story).
+  const MARKER = '<!-- graph block: hand-authored, do not edit via admin WYSIWYG -->';
+  const bodyWithMarkerComment = `<p>a</p>${MARKER}<figure class="graph-block graph-block--flow">OLD</figure><p>b</p>`;
+  const newFigureWithMarkerComment = `${MARKER}<figure class="graph-block graph-block--flow">NEW</figure>`;
+  const replacedWithMarker = replaceGraphFigure(bodyWithMarkerComment, newFigureWithMarkerComment);
+  const markerCount = (replacedWithMarker.match(/graph block: hand-authored, do not edit via admin WYSIWYG/g) || []).length;
+  checks.push(['replaceGraphFigure(): a leading marker comment on the stale figure is not duplicated when the replacement carries its own', markerCount === 1 && replacedWithMarker.includes('NEW') && !replacedWithMarker.includes('OLD')]);
+
   // deriveCategory
   checks.push(['deriveCategory(): falls back to "Trading Strategy" with no section', deriveCategory({ section: null }) === 'Trading Strategy']);
   checks.push(['deriveCategory(): takes the last ">"-separated segment of a real section', deriveCategory({ section: 'Key Trading Strategy Articles > Time Decay' }) === 'Time Decay']);

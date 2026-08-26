@@ -230,12 +230,28 @@ export function deriveCategory(candidate) {
  *  it skips graph-block subtrees) with the real ZH figure built from the
  *  translated steps. Throws rather than silently no-oping if the body
  *  doesn't contain exactly one graph figure, since that would mean step 5
- *  (or this function) is being called out of the order runPipeline() expects. */
+ *  (or this function) is being called out of the order runPipeline() expects.
+ *
+ *  `newFigureHtml` is always graph-blocks.js's buildFlowGraphHtml() output,
+ *  which carries its own leading `<!-- graph block: hand-authored... -->`
+ *  marker comment ahead of the `<figure>` — and the STALE (untranslated) EN
+ *  figure this function replaces was built the same way, so it has that same
+ *  comment as its immediately preceding sibling. Without stripping it here,
+ *  the swap leaves the old comment behind while inserting a second, fresh
+ *  copy as part of `newFigureHtml`, so the translated body ends up carrying
+ *  the marker comment twice back-to-back (found running a real test article
+ *  through this pipeline — every ZH body this step ever touched has the same
+ *  doubled comment). Removing it before the replace keeps exactly one copy. */
 export function replaceGraphFigure(html, newFigureHtml) {
   const $ = cheerio.load(html, null, false);
   const figures = $('figure.graph-block');
   if (figures.length !== 1) {
     throw new Error(`replaceGraphFigure: expected exactly 1 graph-block figure in the body, found ${figures.length}.`);
+  }
+  const figureNode = figures.get(0);
+  const prevSibling = figureNode.prev;
+  if (prevSibling && prevSibling.type === 'comment' && prevSibling.data.trim() === 'graph block: hand-authored, do not edit via admin WYSIWYG') {
+    $(prevSibling).remove();
   }
   figures.first().replaceWith(newFigureHtml);
   return $.root().html();

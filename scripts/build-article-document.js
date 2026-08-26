@@ -288,16 +288,29 @@ export const CTA_PRESETS = {
 // Same anchor shape generate-article.js's link-insertion step produces:
 // `<a href="some-slug.html">anchor text</a>`, always a same-site relative
 // article link (never target="_blank"/external), matching admin's own
-// AI_ANCHOR_RE (search admin/index.html for it).
-const ANCHOR_RE = /<a href="[a-z0-9-]+\.html">[^<]*<\/a>/gi;
+// AI_ANCHOR_RE (search admin/index.html for it). Alongside it, the individual
+// open/close tags for the inline emphasis markup generate-article.js's writer
+// prompt now allows (`<strong>`/`<em>`/`<u>`) are recognized as their own
+// bare tokens rather than whole matched elements -- unlike the anchor, which
+// is always self-contained with plain-text content, an emphasis span can end
+// up wrapping (or being wrapped by) an anchor §4 Phase 5's
+// insertSuggestedLinks() inserted INSIDE it, e.g.
+// `<strong><a href="...">Time Decay</a></strong>`. Tokenizing each piece
+// (open tag, anchor element, close tag) independently means any combination/
+// nesting of the two still passes through untouched instead of being
+// HTML-escaped.
+const SAFE_INLINE_RE = /<a href="[a-z0-9-]+\.html">[^<]*<\/a>|<\/?(?:strong|em|u)>/gi;
 const HEADING_LINE_RE = /^##\s+(.+)$/;
 
 /**
  * @param {string} text - draft.body_text: blank-line-separated paragraphs,
  *   optionally containing inline `<a href="...">...</a>` markup (left
- *   untouched, same as admin's plainTextWithAnchorsToParagraphHtml) and
+ *   untouched, same as admin's plainTextWithAnchorsToParagraphHtml),
+ *   inline `<strong>`/`<em>`/`<u>` emphasis (also left untouched -- Quill
+ *   recognizes the same tags natively when admin pastes AI-drafted content,
+ *   so this keeps the two paths producing equivalent formatting), and
  *   "## "-prefixed section-heading lines (converted to `<h2>...</h2>`,
- *   escaped like any other text -- headings never carry inline links).
+ *   escaped like any other text -- headings never carry inline markup).
  * @returns {string}
  */
 export function bodyTextToHtml(text) {
@@ -316,10 +329,10 @@ export function bodyTextToHtml(text) {
       let lastIndex = 0;
       let out = '';
       let m;
-      ANCHOR_RE.lastIndex = 0;
-      while ((m = ANCHOR_RE.exec(block))) {
+      SAFE_INLINE_RE.lastIndex = 0;
+      while ((m = SAFE_INLINE_RE.exec(block))) {
         out += escapeHtml(block.slice(lastIndex, m.index)).replace(/\n/g, '<br>');
-        out += m[0]; // the anchor itself -- already-safe markup, left untouched
+        out += m[0]; // the anchor/emphasis tag itself -- already-safe markup, left untouched
         lastIndex = m.index + m[0].length;
       }
       out += escapeHtml(block.slice(lastIndex)).replace(/\n/g, '<br>');

@@ -19,10 +19,13 @@
  *      from the writer (coverage-reviewer.js's buildReviewPrompt) — never the
  *      writer self-checking its own output (§5: shares the same blind spots
  *      that caused the omission in the first place).
- *   6. (<=1 retry) feed missing/partial items back to the writer as a repair
- *      prompt, regenerate, re-review once. Whatever is still missing/partial
- *      afterward is handed to Phase 8 (the human) as-is — never silently
- *      dropped or force-inserted (§5's own explicit cap + rationale). Steps
+ *   6. (<=1 retry) feed missing/partial items — and, per extra-md-files/
+ *      article-length-expansion.md, a still-under-target word count — back
+ *      to the writer as a repair prompt, regenerate, re-review once.
+ *      Whatever is still missing/partial/short afterward is handed to
+ *      Phase 8 (the human) as-is — never silently dropped, force-inserted,
+ *      or retried past the cap (§5's own explicit cap + rationale, and the
+ *      length target's own "soft target, never blocks" decision). Steps
  *      5-6 are wrapped so a reviewer/repair failure never discards the
  *      writer's already-paid-for draft — see generateArticleWithReview()'s
  *      own doc comment for the `reviewCoverageFailed` fallback this returns
@@ -75,6 +78,7 @@
  *   node generate-article.js --topic "..." --source-keyword ipo       # §4 Phase 2: narrow candidateSourceArticles to a source_articles.keywords facet
  *   node generate-article.js --topic "..." --source-category "fundamental analysis"
  *   node generate-article.js --topic "..." --json                    # machine-readable output
+ *   node generate-article.js --topic "..." --target-words 500        # override the 2,200-word soft length target (0 disables it)
  *   node generate-article.js --topic "..." \
  *     --writer-fixture-dir DIR --reviewer-fixture-dir DIR             # fully offline, see README
  */
@@ -83,7 +87,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { buildRetrievalContext, insertSuggestedLinks } from './retrieval-layer.js';
+import { buildRetrievalContext, insertSuggestedLinks, CONTRAST_RELATIONS } from './retrieval-layer.js';
 import { buildReviewPrompt, parseReviewResponse, summarizeReview, openAIReviewer, fixtureReviewer } from './coverage-reviewer.js';
 import { nextArg } from './cli-args.js';
 import { callOpenAIChat } from './openai-client.js';
@@ -95,7 +99,18 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_WRITER_MODEL = 'gpt-4o'; // generation task — worth the stronger tier (§6)
 const DEFAULT_REVIEWER_MODEL = 'gpt-4o-mini'; // judgment task — "can be the same or a cheaper model than the writer" (§5)
 const MAX_RETRIES_ALLOWED = 1; // §5: "Cap auto-repair at 1 retry" — not a tunable-up-forever knob
-const MAX_TOKENS = 6000; // a full article body (title+summary+body_text JSON) — the largest single-call budget in this directory; headroom over the site's real max article length (10,523 chars ≈ 2,630 tokens of body alone, per admin/knowledge-graph.json) — re-tune from real data.completion_tokens usage (see callOpenAIChat) rather than guessing further
+const MAX_TOKENS = 8000; // a full article body (title+summary+body_text JSON) — the largest single-call budget in this directory; headroom over the new 10-minute-read target (TARGET_BODY_WORD_COUNT_EN = 2,200 words ≈ 2,900 tokens of body alone at ~1.3 tokens/word, plus JSON envelope/heading-marker/inline-emphasis overhead and margin for the repair pass expanding further) — re-tune from real data.completion_tokens usage (see callOpenAIChat) rather than guessing further
+
+// extra-md-files/article-length-expansion.md: a "10-minute read" target — ~2,200-2,500 words of
+// English body_text at ~230 wpm reading speed. A SOFT target only (owner decision, 2026-08-21):
+// never blocks Save-as-Draft/Publish, informational the same way reviewCoverageFailed/
+// offTopicSections already are below — see generateArticleWithReview()'s wordCount/
+// meetsLengthTarget return fields. Chinese (zh) bodies are produced separately, by the translate*
+// functions elsewhere (never generated fresh by this pipeline), so there is no separate zh target
+// constant here — see that doc's "Open questions" section for the reading-speed assumption this is
+// based on, and its own note that a CJK-adjusted target is a separate, not-yet-built concern for
+// whichever pass eventually generates/checks zh body length.
+const TARGET_BODY_WORD_COUNT_EN = 2200;
 
 // extra-md-files/automated-article-scheduler.md component 2 ("Chart auto-generation"):
 // the writer must also return 2-5 short imperative-style labels summarizing the
@@ -189,6 +204,19 @@ function formatChecklistForWriter(checklist) {
   return formatChecklistItems(checklist);
 }
 
+/** Rough word count of a draft body_text, for comparing against
+ *  TARGET_BODY_WORD_COUNT_EN. Strips "## "-prefixed heading-marker lines'
+ *  own "## " prefix (so the literal "##" characters don't get counted as an
+ *  extra word) before splitting on whitespace — inline <strong>/<em>/<u>
+ *  tags are left as-is since they never introduce extra whitespace-separated
+ *  tokens. Deliberately simple (no locale-aware tokenization) — it only
+ *  needs to be consistent enough to compare against a target, not exact to
+ *  the word. */
+export function countBodyWords(bodyText) {
+  const stripped = bodyText.replace(/^##\s+/gm, '');
+  return stripped.trim().split(/\s+/).filter(Boolean).length;
+}
+
 // ---------------------------------------------------------------------------
 // Writer prompt construction (Phase 3)
 // ---------------------------------------------------------------------------
@@ -230,13 +258,41 @@ export function buildWriterPrompt({ topic, checklist, mustIncludeFacts, articleS
     'restating the same ground.\n\n' +
     'You are given a CHECKLIST of entities/facts this article should cover -- cover every item ' +
     'somewhere in the article, substantively (not just a passing mention); a separate reviewer will ' +
-    'check this afterward, so do not skip any. Must-include facts are non-negotiable and must appear ' +
-    'accurately, exactly as given -- never alter a number, date, or credential.\n\n' +
+    'check this afterward, so do not skip any. Each item\'s reason (after the dash) tells you HOW it ' +
+    'relates to the topic: items marked "directly matches the topic" are core to this article; items ' +
+    'marked "related to the topic via: ..." are only loosely/indirectly connected -- cover those in ' +
+    'proportion to their actual relevance (a clarifying sentence, or a short paragraph distinguishing ' +
+    'them from the main topic, folded into a section that IS about the main topic, is enough) and do ' +
+    'NOT give a loosely-related item its own dedicated section -- specifically, never title a section ' +
+    'heading after the loosely-related item itself or frame a heading as "distinguishing"/"comparing" ' +
+    'the main topic against it, even briefly -- unless it is genuinely central to the specific angle ' +
+    'the topic asks for. A tangential entity padded into its own section, or given a heading built ' +
+    'around its name, reads as off-topic to readers even though it is technically "covered". Must-' +
+    'include facts are non-negotiable and must appear accurately, exactly as given -- never alter a ' +
+    'number, date, or credential.\n\n' +
+    'This article should be a genuinely in-depth, 10-minute-plus read: treat 2,200 words of body_text ' +
+    'as a MINIMUM, not a suggestion (well beyond this site\'s older short-form articles). Reach that ' +
+    'length by explaining each CENTRAL sub-topic more deeply -- more real-world examples, more step-' +
+    'by-step mechanics, more context on WHY something matters -- never by padding with repetition or ' +
+    'filler, and never by adding a section about a loosely-related checklist item just to add length ' +
+    '(see the loosely-related-item guidance above -- that failure mode gets WORSE, not better, the ' +
+    'more length you need to fill). Give each section 3-4 substantial paragraphs with real ' +
+    'explanation, concrete examples, and actionable detail; do not stop as soon as a checklist item ' +
+    'has been technically mentioned once -- a short article that merely name-checks each item reads ' +
+    'as thin and unfinished next to the depth this site now expects.\n\n' +
     'Structure body_text into logical sections: on its own line immediately before each section\'s ' +
     'first paragraph, write a short heading prefixed with "## " (two hash characters, one space, ' +
-    'then the heading text -- e.g. "## Understanding Time Decay"). Include at least 2 such section ' +
-    'headings for a normal-length article. Only real section-heading lines get the "## " prefix -- ' +
-    'never an ordinary paragraph. Also identify SUGGESTED GRAPH STEPS: 2-5 short imperative-style ' +
+    'then the heading text -- e.g. "## Understanding Time Decay"). Include 6-8 such section headings, ' +
+    'each covering a distinct sub-topic that is genuinely CENTRAL to the topic\'s specific angle, in ' +
+    'real depth (3-4 paragraphs) -- this is what actually gets body_text to the 2,200+ word target ' +
+    'above, far more reliably than trying to hit a word count directly. If you need more headings\' ' +
+    'worth of material, go deeper on an existing central sub-topic instead of adding a heading for a ' +
+    'loosely-related checklist item. Only real section-heading lines get the "## " prefix -- ' +
+    'never an ordinary paragraph. Also use inline formatting to keep the article readable and break ' +
+    'up long stretches of plain paragraphs: wrap a key term or important point in <strong>...</strong> ' +
+    'for bold, <em>...</em> for italic, or <u>...</u> for underline -- sparingly (a handful of times ' +
+    'across the whole article), never an entire paragraph or a heading, and never nest one inside ' +
+    'another. Also identify SUGGESTED GRAPH STEPS: 2-5 short imperative-style ' +
     'labels (e.g. "Identify the setup", "Confirm the signal", "Manage the position") summarizing ' +
     'this article\'s own core process or sequence -- ground every label strictly in what your draft ' +
     'itself already says, never inventing a claim the article does not cover; these labels feed an ' +
@@ -252,8 +308,9 @@ export function buildWriterPrompt({ topic, checklist, mustIncludeFacts, articleS
       : '') +
     'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
     '{"title":"...","summary":"<1-2 sentence summary>","body_text":"<the full article body as plain ' +
-    'paragraphs separated by blank lines, with \\"## \\"-prefixed section-heading lines -- no other ' +
-    'HTML/markdown>","suggestedGraphSteps":["<2-5 short imperative-style labels>"]}';
+    'paragraphs separated by blank lines, with \\"## \\"-prefixed section-heading lines and occasional ' +
+    'inline <strong>/<em>/<u> emphasis -- no other HTML/markdown>","suggestedGraphSteps":["<2-5 short ' +
+    'imperative-style labels>"]}';
 
   const userParts = [`Topic: ${topic}`];
   userParts.push(`\nChecklist (${checklist.length} item(s)) -- cover every one substantively:\n${formatChecklistForWriter(checklist)}`);
@@ -296,24 +353,56 @@ export function buildWriterPrompt({ topic, checklist, mustIncludeFacts, articleS
  *  targeted revision rather than a from-scratch rewrite — "keep everything
  *  that already works" is what keeps this a repair, not a second Phase 3 call
  *  that happens to throw away the first draft's good parts. */
-export function buildRepairPrompt({ topic, checklist, draft, missing, partial }) {
+export function buildRepairPrompt({ topic, checklist, draft, missing, partial, offTopicSections = [], expandTarget = null }) {
   const system =
-    'You are revising a draft article to fix specific coverage gaps a separate reviewer flagged. ' +
+    'You are revising a draft article to fix specific gaps a separate review pass flagged. ' +
     'Keep everything that already works in the draft -- do not rewrite the whole article from ' +
-    'scratch, only extend or adjust it so every listed gap is substantively covered. Do not remove ' +
+    'scratch, only extend or adjust it so every listed gap is fixed. Do not remove ' +
     'or contradict anything already correct in the draft.\n\n' +
-    'The draft\'s "## "-prefixed section-heading lines and its suggestedGraphSteps (shown below) ' +
-    'should be kept as-is unless the fix genuinely requires changing them -- re-emit the full body ' +
-    'text (with its "## " headings preserved) and a suggestedGraphSteps array (still 2-5 short ' +
-    'imperative-style labels, still grounded only in what the revised draft itself says) either way.\n\n' +
+    (offTopicSections.length
+      ? 'Some gaps below are OFF-TOPIC SECTION flags, not missing coverage: a section heading was ' +
+        'built around an entity that should be DISTINGUISHED FROM the main topic (not folded into ' +
+        'it) -- for each one, remove that section heading and fold a brief distinguishing mention ' +
+        '(a sentence, or part of an existing paragraph in a section that IS about the main topic) in ' +
+        'its place instead. Do not simply rename the heading -- the entity must no longer have its ' +
+        'own dedicated heading at all.\n\n'
+      : '') +
+    (expandTarget
+      ? 'Another gap below is a LENGTH gap: the current draft is only about ' + expandTarget.currentWords + ' words, ' +
+        'well under this site\'s ' + expandTarget.targetWords + '-word target for a genuinely in-depth, 10-minute-' +
+        'plus read. Expand the draft substantially -- add more real explanation, more concrete examples, more ' +
+        'step-by-step mechanics, and more context on WHY something matters to sections that are ALREADY central ' +
+        'to the topic. Do NOT reach the target by padding with repetition or filler, and do NOT add a new ' +
+        'section headlined around a loosely-related checklist item just to add length -- that reproduces a ' +
+        'known failure mode this pipeline already guards against (see the off-topic-section instructions above, ' +
+        'if any). A new section is fine ONLY if it covers a genuinely central sub-topic the current draft is ' +
+        'missing.\n\n'
+      : '') +
+    'The draft\'s "## "-prefixed section-heading lines, its inline <strong>/<em>/<u> emphasis, and its ' +
+    'suggestedGraphSteps (shown below) should be kept as-is unless the fix genuinely requires ' +
+    'changing them -- re-emit the full body text (with its "## " headings and inline emphasis ' +
+    'preserved) and a suggestedGraphSteps array (still 2-5 short imperative-style labels, still ' +
+    'grounded only in what the revised draft itself says) either way.\n\n' +
     'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
     '{"title":"...","summary":"...","body_text":"<the full REVISED article body, plain paragraphs ' +
-    'with "## "-prefixed section-heading lines, no other HTML/markdown>","suggestedGraphSteps":' +
-    '["<2-5 short imperative-style labels>"]}';
+    'with "## "-prefixed section-heading lines and occasional inline <strong>/<em>/<u> emphasis, no ' +
+    'other HTML/markdown>","suggestedGraphSteps":["<2-5 short imperative-style labels>"]}';
 
   const gapLines = [
     ...missing.map((i) => `- MISSING entirely: "${i.name}"`),
     ...partial.map((i) => `- Only PARTIALLY covered: "${i.name}" (current evidence: "${i.evidence || '(none)'}")`),
+    ...offTopicSections.map(
+      (s) =>
+        `- OFF-TOPIC SECTION: heading "${s.heading}" is built around "${s.entity}", which should be ` +
+        `distinguished FROM the main topic, not headlined -- remove this heading and fold a brief ` +
+        `distinguishing mention into a section about the main topic instead`
+    ),
+    ...(expandTarget
+      ? [
+          `- LENGTH: draft is only ~${expandTarget.currentWords} words; expand to at least ` +
+            `${expandTarget.targetWords} words with genuine depth, not padding or a new tangential section`,
+        ]
+      : []),
   ];
 
   const user =
@@ -321,7 +410,7 @@ export function buildRepairPrompt({ topic, checklist, draft, missing, partial })
     `Current draft title: ${draft.title}\n` +
     `Current draft body text:\n${draft.body_text}\n\n` +
     `Current draft's suggested graph steps: ${JSON.stringify(draft.suggestedGraphSteps ?? [])}\n\n` +
-    `Coverage gaps to fix (from a separate reviewer pass):\n${gapLines.join('\n')}\n\n` +
+    `Gaps to fix (from a separate review pass):\n${gapLines.join('\n')}\n\n` +
     `Full checklist for reference (${checklist.length} item(s)):\n${formatChecklistForWriter(checklist)}`;
 
   return { system, user };
@@ -373,6 +462,71 @@ export function parseWriterResponse(rawText) {
     body_text: bodyText,
     suggestedGraphSteps: parsed.suggestedGraphSteps.map((s) => s.trim()),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Off-topic section detection — a deterministic backstop for the
+// "Distinguishing Call Warrants..." incident (admin-ai-article-creator-test-run
+// memory, 2026-08-20 addendum). The writer prompt now ASKS the model not to
+// headline a CONTRAST-relation checklist item (see CONTRAST_RELATIONS in
+// retrieval-layer.js), but a real generation run reproduced the exact same
+// defect ("The Role of Call Warrants" as its own "## " heading) even with
+// that instruction in place — prose instructions alone are not reliable
+// enough to promise this won't happen, since the writer is a stochastic LLM.
+// This function is the code-level check that catches what the prompt missed,
+// feeding a targeted fix back through the SAME <=1-retry repair loop
+// generateArticleWithReview() already uses for missing/partial coverage
+// gaps, rather than a new separate pass.
+// ---------------------------------------------------------------------------
+
+/** Word-boundary-safe, case-insensitive "does this heading contain this
+ *  entity name" check — deliberately simple (no stemming/fuzzy match) so
+ *  false negatives (an off-topic section this misses) are more likely than
+ *  false positives (flagging a heading that merely shares a common word). */
+function headingMentionsEntity(headingText, entityName) {
+  const escaped = entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Trailing "s" / "'s" is optional and NOT excluded by the lookahead -- a heading naturally
+  // pluralizes/possessivizes an entity name ("Call Warrant" -> "...Call Warrants" or
+  // "...Call Warrant's mechanics") far more often than not; a strict word boundary right after
+  // the bare entity name misses that real-world form entirely (a real generation run produced
+  // exactly "The Role of Call Warrants" -- caught this in this function's own validate-* tests).
+  const pattern = new RegExp(`(?<![a-z0-9])${escaped}('s|s)?(?![a-z0-9])`, 'i');
+  return pattern.test(headingText);
+}
+
+/**
+ * Scans `bodyText`'s "## "-prefixed section headings for ones built around a
+ * checklist item whose graph relation is a CONTRAST relation
+ * (`distinguished_from`/`contradicts` — see retrieval-layer.js) rather than a
+ * composing one (`part_of`/`prerequisite_of`/`updates`). Those relations mean
+ * "the topic is distinguished FROM this entity", so a section headlined
+ * around the entity itself reads as a topic digression even though the
+ * entity is a legitimate checklist item the article must still mention.
+ *
+ * Only checklist items carrying a `relation` field are considered (must-
+ * include facts and hop-0 seed entities have `relation: null`/undefined and
+ * are never flagged — the seed topic itself can obviously headline its own
+ * article). Returns `[]` when nothing is flagged.
+ *
+ * @param {string} bodyText - the writer draft's plain-text body (with "## " heading lines)
+ * @param {Array<{name: string, relation?: string|null}>} checklist
+ * @returns {Array<{heading: string, entity: string, relation: string}>}
+ */
+export function detectOffTopicSections(bodyText, checklist) {
+  const contrastItems = checklist.filter((c) => c.relation && CONTRAST_RELATIONS.has(c.relation));
+  if (!contrastItems.length) return [];
+
+  const headings = [...bodyText.matchAll(/^##\s+(\S.*)$/gm)].map((m) => m[1].trim());
+  const flagged = [];
+  for (const heading of headings) {
+    for (const item of contrastItems) {
+      if (headingMentionsEntity(heading, item.name)) {
+        flagged.push({ heading, entity: item.name, relation: item.relation });
+        break; // one flag per heading is enough for the repair prompt below
+      }
+    }
+  }
+  return flagged;
 }
 
 // ---------------------------------------------------------------------------
@@ -449,11 +603,19 @@ export function fixtureReviewerByTopic(promptObj, { fixtureDir, topic, attempt }
  * @param {Function} args.reviewer - (promptObj, opts) => string|Promise<string>
  * @param {object} [args.reviewerOpts]
  * @param {number} [args.maxRetries=1] - capped at MAX_RETRIES_ALLOWED (§5)
+ * @param {number} [args.targetWordCount=TARGET_BODY_WORD_COUNT_EN] - extra-md-files/article-
+ *   length-expansion.md's soft 10-minute-read floor; exposed as a param (not just the module
+ *   constant) purely so validate-generate-article.js's pre-existing fixture scenarios — whose
+ *   tiny placeholder bodies are far under any real target — can pass 0 to opt out and keep testing
+ *   coverage/off-topic behavior in isolation, the way they did before this param existed.
  * @returns {Promise<object>} On a reviewer/repair-stage failure, `review`/`summary` come back
  *   `null` and `reviewCoverageFailed`/`reviewCoverageFailedMessage` are set instead of throwing —
  *   the draft (and internal-link insertion against it) is still returned rather than discarded.
  *   A failure on the initial writer call still throws uncaught (mirrors
- *   admin/index.html's generateArticleWithReviewBrowser()).
+ *   admin/index.html's generateArticleWithReviewBrowser()). Also returns `wordCount` (the final
+ *   draft's countBodyWords()), `targetWordCount`, and `meetsLengthTarget` — informational only,
+ *   same "never blocks" pattern as reviewCoverageFailed/offTopicSections (owner decision,
+ *   2026-08-21: a soft target, not a publish-blocking gate).
  */
 export async function generateArticleWithReview({
   db,
@@ -467,6 +629,7 @@ export async function generateArticleWithReview({
   reviewer,
   reviewerOpts = {},
   maxRetries = MAX_RETRIES_ALLOWED,
+  targetWordCount = TARGET_BODY_WORD_COUNT_EN,
 }) {
   if (maxRetries > MAX_RETRIES_ALLOWED) {
     throw new Error(`maxRetries cannot exceed ${MAX_RETRIES_ALLOWED} — §5 explicitly caps auto-repair at 1 retry.`);
@@ -487,6 +650,14 @@ export async function generateArticleWithReview({
     candidateSourceArticles: retrievalContext.candidateSourceArticles,
   });
   let draft = parseWriterResponse(await writer(writerPrompt, { ...writerOpts, topic, attempt: 'initial' }));
+
+  // Deterministic backstop alongside the reviewer's coverage check (see detectOffTopicSections'
+  // own doc comment) — a pure text/checklist scan, independent of the reviewer LLM call below, so
+  // it's computed here and recomputed after any repair rather than living inside the try/catch.
+  let offTopicSections = detectOffTopicSections(draft.body_text, checklist);
+  // Same treatment for the length target (article-length-expansion.md) — a pure word-count
+  // check, independent of the reviewer LLM call, computed here and recomputed after any repair.
+  let wordCount = countBodyWords(draft.body_text);
 
   // Step 5-6: reviewer call (a SEPARATE LLM call, never the writer self-checking) plus the
   // <=1 auto-repair retry. Wrapped in try/catch per admin/index.html's
@@ -510,10 +681,28 @@ export async function generateArticleWithReview({
     );
     summary = summarizeReview(review);
 
-    // Step 6: <=1 auto-repair retry, only if there's an actual checklist to have gaps against.
-    if (!summary.allCovered && checklist.length && retryCount < maxRetries) {
-      const repairPrompt = buildRepairPrompt({ topic, checklist, draft, missing: summary.missing, partial: summary.partial });
+    // Step 6: <=1 auto-repair retry. Fires on any of three independent gaps — missing/partial
+    // coverage, an off-topic section, or a still-under-target word count (article-length-
+    // expansion.md) — sharing the SAME single retry budget rather than adding a second one,
+    // matching §5's explicit "cap auto-repair at 1 retry" (not a tunable-up-forever knob).
+    // Coverage/off-topic gaps additionally require an actual checklist to have gaps against;
+    // the length gap does not (it fires purely off wordCount, even for a topic that matched no
+    // graph entities — a thin article is a real gap either way).
+    const needsCoverageRepair = checklist.length > 0 && (!summary.allCovered || offTopicSections.length > 0);
+    const needsLengthExpansion = wordCount < targetWordCount;
+    if ((needsCoverageRepair || needsLengthExpansion) && retryCount < maxRetries) {
+      const repairPrompt = buildRepairPrompt({
+        topic,
+        checklist,
+        draft,
+        missing: summary.missing,
+        partial: summary.partial,
+        offTopicSections,
+        expandTarget: needsLengthExpansion ? { currentWords: wordCount, targetWords: targetWordCount } : null,
+      });
       draft = parseWriterResponse(await writer(repairPrompt, { ...writerOpts, topic, attempt: 'repair' }));
+      offTopicSections = detectOffTopicSections(draft.body_text, checklist);
+      wordCount = countBodyWords(draft.body_text);
       review = parseReviewResponse(
         await reviewer(buildReviewPrompt({ checklist, draftText: draft.body_text }), { ...reviewerOpts, topic, attempt: 'repair' })
       );
@@ -533,8 +722,20 @@ export async function generateArticleWithReview({
   const linkResult = insertSuggestedLinks(draft.body_text, retrievalContext.suggestedLinks);
   draft = { ...draft, body_text: linkResult.bodyText };
   const internalLinks = { inserted: linkResult.inserted, skipped: linkResult.skipped };
+  // Recomputed against the FINAL (post-link-insertion) body text — link-wrapping an existing
+  // mention in an <a> tag never adds a real word, but this keeps wordCount honestly describing
+  // whatever body_text this function is actually about to return, not a pre-link snapshot.
+  wordCount = countBodyWords(draft.body_text);
 
   // Step 8: hand off to Phase 8 with the coverage result + link report attached — this function does not publish.
+  // `offTopicSections`: whatever detectOffTopicSections() still finds after the repair attempt
+  // above (empty if none were ever found, or if the repair pass fixed them) — surfaced
+  // uncollapsed, same "never auto-blocks, informational" pattern as everything else Phase 8's
+  // human reviews, since a still-non-empty array here means the repair attempt didn't fully
+  // resolve it and a human pass (per admin-ai-article-creator-test-run memory) is required.
+  // `wordCount`/`targetWordCount`/`meetsLengthTarget`: same informational pattern, for the
+  // article-length-expansion.md soft 10-minute-read target — a still-short body after the repair
+  // attempt is surfaced, never auto-blocked or silently re-tried past the §5 retry cap.
   return {
     topic,
     retrievalContext,
@@ -544,8 +745,12 @@ export async function generateArticleWithReview({
     summary,
     retryCount,
     internalLinks,
+    offTopicSections,
     reviewCoverageFailed,
     reviewCoverageFailedMessage,
+    wordCount,
+    targetWordCount,
+    meetsLengthTarget: wordCount >= targetWordCount,
   };
 }
 
@@ -564,6 +769,7 @@ function parseArgs(argv) {
     sourceKeyword: null,
     sourceCategory: null,
     maxRetries: MAX_RETRIES_ALLOWED,
+    targetWordCount: TARGET_BODY_WORD_COUNT_EN,
     writerFixtureDir: null,
     reviewerFixtureDir: null,
     json: false,
@@ -604,6 +810,15 @@ function parseArgs(argv) {
         opts.maxRetries = n;
         break;
       }
+      case '--target-words': {
+        // A soft target (article-length-expansion.md — never blocks), so unlike --max-retries
+        // above this has no §5-style upper cap; 0 disables the length-expansion pass entirely
+        // (useful for a quick/cheap test run).
+        const n = Number(nextArg(argv, ++i, '--target-words'));
+        if (!Number.isInteger(n) || n < 0) throw new Error('--target-words must be a non-negative integer');
+        opts.targetWordCount = n;
+        break;
+      }
       case '--writer-fixture-dir':
         opts.writerFixtureDir = path.resolve(nextArg(argv, ++i, '--writer-fixture-dir'));
         break;
@@ -636,7 +851,11 @@ function printHuman(result) {
   console.log(`Title: ${result.draft.title}`);
   console.log(`Summary: ${result.draft.summary}`);
   console.log(`Body (${result.draft.body_text.length} chars): ${result.draft.body_text.slice(0, 200)}${result.draft.body_text.length > 200 ? '…' : ''}`);
-  console.log(`Suggested graph steps (${result.draft.suggestedGraphSteps.length}): ${result.draft.suggestedGraphSteps.join(' -> ')}\n`);
+  console.log(`Suggested graph steps (${result.draft.suggestedGraphSteps.length}): ${result.draft.suggestedGraphSteps.join(' -> ')}`);
+  console.log(
+    `Length: ${result.wordCount} word(s) — ${result.meetsLengthTarget ? 'meets' : 'under'} the ${result.targetWordCount}-word ` +
+      `10-minute-read target (soft target, informational only)\n`
+  );
 
   if (result.reviewCoverageFailed) {
     console.log(`--- Coverage ---`);
@@ -650,6 +869,13 @@ function printHuman(result) {
     }
     if (result.summary.missing.length || result.summary.partial.length) {
       console.log(`\n! Gaps remain after the retry cap — handing off to Phase 8 (human review) as-is, nothing auto-inserted.`);
+    }
+  }
+
+  if (result.offTopicSections.length) {
+    console.log(`\n--- Off-topic sections (still present after any repair attempt) ---`);
+    for (const s of result.offTopicSections) {
+      console.log(`  - heading "${s.heading}" is built around "${s.entity}" (${s.relation}) -- review manually before publishing`);
     }
   }
 
@@ -695,6 +921,7 @@ async function main() {
       reviewer,
       reviewerOpts: { model: opts.reviewerModel },
       maxRetries: opts.maxRetries,
+      targetWordCount: opts.targetWordCount,
     });
   } finally {
     db.close();

@@ -282,7 +282,8 @@
     .ai-draft-review__summary { font-size: 0.85rem; color: #444; margin-bottom: 12px; line-height: 1.5; }
     .ai-draft-review__actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
-    /* Insert Graph panel (extra-md-files/admin-graph-insertion.md, MVP: Flow (steps) only) */
+    /* Insert Graph panel — AI-generated (all 7 catalog types) plus the original MVP manual
+       Flow-only builder (extra-md-files/admin-graph-insertion.md) tucked behind <details> */
     .graph-panel { margin: 4px 20px 20px; padding: 18px 20px; background: #fff7ed; border: 1px solid #fed7aa; border-left: 5px solid var(--na4); border-radius: 0 10px 10px 0; }
     .graph-panel__header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .graph-panel__title { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
@@ -290,6 +291,9 @@
     .graph-panel__hint { font-size: 0.8rem; color: #9a3412; margin: 8px 0 16px; line-height: 1.4; }
     .graph-panel .form-grid { padding: 0 0 4px; }
     .graph-panel .preview-toolbar { padding: 10px 0; flex-wrap: wrap; }
+    .graph-panel__manual { margin-top: 18px; border-top: 1px dashed #fed7aa; padding-top: 14px; }
+    .graph-panel__manual summary { cursor: pointer; font-weight: 700; font-size: 0.85rem; color: #9a3412; margin-bottom: 4px; }
+    .graph-ai-preview__title-row { font-size: 0.88rem; color: #1a1a2e; padding: 2px 2px 8px; }
     .graph-step-row { display: grid; grid-template-columns: 26px 1fr 1fr 32px; gap: 10px; align-items: center; margin-bottom: 10px; }
     .graph-step-row--header { margin-bottom: 6px; }
     .graph-step-row--header label { font-size: 0.8rem; font-weight: 600; color: #444; }
@@ -433,6 +437,10 @@
       <button class="lang-tab active" data-lang="en" onclick="switchTab('en')">English</button>
       <button class="lang-tab" data-lang="zh" onclick="switchTab('zh')">中文 Chinese</button>
     </div>
+    <div class="form-field na-translate-row" style="padding: 4px 20px 20px;">
+      <button type="button" class="btn-translate" onclick="translateArticleContent()">&#127760; Translate Content with AI (fills whichever language side is empty)</button>
+      <span class="field-hint" id="articleTranslateStatus"></span>
+    </div>
 
     <!-- EN editors -->
     <div id="editorsEn">
@@ -537,6 +545,7 @@
         <div class="form-field">
           <label>Must-include facts <span class="field-hint">(optional — one per line)</span></label>
           <textarea id="aiMustIncludeFactsInput" rows="2" placeholder="e.g. Warren Mak has 32 years of market experience"></textarea>
+          <span class="field-hint">Strongly recommended for broad topics: use these to pin the article angle and prevent weak graph associations from steering the draft.</span>
         </div>
         <div class="form-field">
           <label>Source text <span class="field-hint">(optional — a reference article/column to draw ideas from, never copied verbatim)</span></label>
@@ -670,6 +679,10 @@
         <button type="button" class="lang-tab active" data-lang="en" onclick="switchNaTab('en')">English</button>
         <button type="button" class="lang-tab" data-lang="zh" onclick="switchNaTab('zh')">中文 Chinese</button>
       </div>
+      <div class="form-field na-translate-row" style="padding: 4px 0 16px;">
+        <button type="button" class="btn-translate" onclick="translateNaBody()">&#127760; Translate Body with AI (fills whichever language side is empty)</button>
+        <span class="field-hint" id="naTranslateStatusBody"></span>
+      </div>
       <div id="naBodyEn">
         <div class="editor-container"><div id="naBodyEditorEn"></div></div>
       </div>
@@ -683,47 +696,65 @@
         <input type="text" id="readingTimeOverride" placeholder="e.g. 8 min read">
       </div>
 
-      <!-- Insert Graph panel (extra-md-files/admin-graph-insertion.md, MVP: Flow (steps) only) -->
+      <!-- Insert Graph panel — AI-generated (all 7 catalog types, see extra-md-files/
+           done/07-knowledge-graph-visual-learning.md) plus the original MVP manual Flow-only
+           builder (extra-md-files/admin-graph-insertion.md), now tucked behind <details> since
+           the AI path is the primary way to add graphs. Browser-only feature, no scripts/*.js
+           Node counterpart (same reasoning as suggestGraphZh()/suggestMissingBasicFields() below
+           — an interactive, click-per-graph, avoid-what's-already-covered flow has no unattended
+           equivalent), so out of scope for scripts/validate-admin-mirror-sync.js. -->
       <div class="graph-panel">
         <div class="graph-panel__header">
           <span class="graph-panel__title">&#128202; Insert Graph</span>
+        </div>
+        <p class="graph-panel__hint">Every article should carry at least 3 graphs covering its most important, distinct ideas. Click "Generate Graph with AI" once per graph — each click analyzes the article and picks whichever important concept isn't visualized yet (choosing whichever of the 7 graph types best fits it), so repeated clicks build up a varied set instead of repeating the same idea. You decide how many to add; keep clicking until the article feels well covered.</p>
+
+        <div class="preview-toolbar">
+          <button type="button" class="btn-secondary" id="graphAiGenerateBtn" onclick="generateGraphWithAi()">&#129302; Generate Graph with AI</button>
+          <span class="field-hint">Reads the current title + English body, skips topics already covered by the graphs listed below, and drafts both the English and Chinese labels grounded only in the article's own text. Review before inserting — nothing is added automatically.</span>
+        </div>
+        <p class="coverage-panel__note" id="graphAiStatus"></p>
+        <div class="coverage-panel hidden" id="graphAiPreview"></div>
+
+        <details class="graph-panel__manual">
+          <summary>Manual graph builder (Flow / Steps only)</summary>
           <span class="graph-panel__type-badge">Flow (Steps)</span>
-        </div>
-        <p class="graph-panel__hint">MVP: only the Flow (Steps) graph type is available for now — more types are coming in a later pass. Inserting a graph adds it to both the English and Chinese bodies at the current cursor position.</p>
+          <p class="graph-panel__hint">Build a Flow (Steps) graph by hand instead of using AI. The other 6 catalog types (Concept Map, Decision Tree, Comparison, Risk Ladder, Pyramid, plus the Timeline/Cause-Effect/Cycle Flow variants) are only available via "Generate Graph with AI" above for now.</p>
 
-        <div class="form-grid">
-          <div class="form-field">
-            <label>Graph Title (English) <span class="req">*</span></label>
-            <input type="text" id="graphTitleEn" placeholder="e.g. Trading Workflow">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Graph Title (English) <span class="req">*</span></label>
+              <input type="text" id="graphTitleEn" placeholder="e.g. Trading Workflow">
+            </div>
+            <div class="form-field">
+              <label>Graph Title (Chinese) <span class="req">*</span></label>
+              <input type="text" id="graphTitleZh" placeholder="e.g. 交易流程">
+            </div>
           </div>
-          <div class="form-field">
-            <label>Graph Title (Chinese) <span class="req">*</span></label>
-            <input type="text" id="graphTitleZh" placeholder="e.g. 交易流程">
+
+          <div class="preview-toolbar">
+            <button type="button" class="btn-secondary" onclick="suggestGraphZh()">&#10024; Suggest ZH</button>
+            <span class="field-hint">Suggests Chinese translations for the graph title and the step labels below from their English text and fills the Chinese fields — review and edit before inserting the graph.</span>
           </div>
-        </div>
+          <p class="coverage-panel__note" id="graphZhSuggestStatus"></p>
 
-        <div class="preview-toolbar">
-          <button type="button" class="btn-secondary" onclick="suggestGraphZh()">&#10024; Suggest ZH</button>
-          <span class="field-hint">Suggests Chinese translations for the graph title and the step labels below from their English text and fills the Chinese fields — review and edit before inserting the graph.</span>
-        </div>
-        <p class="coverage-panel__note" id="graphZhSuggestStatus"></p>
+          <div class="graph-step-row graph-step-row--header">
+            <div></div>
+            <label>Step Label (English) <span class="req">*</span></label>
+            <label>Step Label (Chinese) <span class="req">*</span></label>
+            <div></div>
+          </div>
+          <div id="graphStepRows"></div>
 
-        <div class="graph-step-row graph-step-row--header">
-          <div></div>
-          <label>Step Label (English) <span class="req">*</span></label>
-          <label>Step Label (Chinese) <span class="req">*</span></label>
-          <div></div>
-        </div>
-        <div id="graphStepRows"></div>
+          <div class="preview-toolbar">
+            <button type="button" class="btn-secondary" id="addGraphStepBtn" onclick="addGraphStep()">+ Add Step</button>
+            <span class="field-hint">2–5 steps required, English &amp; Chinese labels both required.</span>
+          </div>
 
-        <div class="preview-toolbar">
-          <button type="button" class="btn-secondary" id="addGraphStepBtn" onclick="addGraphStep()">+ Add Step</button>
-          <span class="field-hint">2–5 steps required, English &amp; Chinese labels both required.</span>
-        </div>
-
-        <div class="preview-toolbar">
-          <button type="button" class="btn-secondary" onclick="insertGraphAtCursor()">Insert Graph at Cursor</button>
-        </div>
+          <div class="preview-toolbar">
+            <button type="button" class="btn-secondary" onclick="insertGraphAtCursor()">Insert Graph at Cursor</button>
+          </div>
+        </details>
 
         <div id="graphInsertedList"></div>
       </div>
@@ -970,6 +1001,13 @@
   let naGraphBlocks = [];
   let naGraphIdCounter = 1;
   let naGraphSteps = [{ en: '', zh: '' }, { en: '', zh: '' }]; // current draft, 2–5 rows
+
+  // AI-generated graph panel state (see "INSERT GRAPH: AI GENERATION" below). Holds the most
+  // recent successful generateGraphWithAi() result — a candidate graph of any of the 7 catalog
+  // types, bilingual, not yet inserted — so insertAiGeneratedGraph()/discardAiGraph() have
+  // something to act on after renderAiGraphPreview() draws it. Mirrors naAiDraftResult's role
+  // for the "Generate with AI" article panel just below, one candidate at a time.
+  let naAiGraphResult = null;
 
   // "Generate with AI" panel state (extra-md-files/ai-draft-article.md §5-§8). aiGenerationController
   // is non-null exactly while a generateArticleWithReviewBrowser() run is in flight — both the
@@ -1250,7 +1288,7 @@
   };
 
   // ===================== OPEN ARTICLE =====================
-  async function openArticle(filename) {
+  window.openArticle = async function openArticle(filename) {
     currentFile = filename;
     $('listScreen').classList.add('hidden');
     $('editorScreen').classList.remove('hidden');
@@ -2025,9 +2063,9 @@
     $('addGraphStepBtn').disabled = naGraphSteps.length >= 5;
 
     $('graphInsertedList').innerHTML = naGraphBlocks.length ? naGraphBlocks.map(function(b) {
-      return '<div class="graph-block-chip"><span>&#128202; ' + escapeHtml(b.titleEn) + ' <span class="graph-block-chip__id">(' + b.id + ')</span></span>' +
+      return '<div class="graph-block-chip"><span>&#128202; ' + escapeHtml(b.titleEn) + ' <span class="graph-block-chip__id">(' + escapeHtml(graphTypeLabelForKey(b.type)) + ' &middot; ' + b.id + ')</span></span>' +
         '<button type="button" class="btn-secondary" onclick="removeGraphBlock(\'' + b.id + '\')">Remove</button></div>';
-    }).join('') : '<p class="field-hint">No graphs inserted yet.</p>';
+    }).join('') : '<p class="field-hint">No graphs inserted yet — aim for at least 3 covering different ideas.</p>';
   }
 
   window.updateGraphStep = function(i, field, value) {
@@ -2203,6 +2241,431 @@
     naGraphBlocks = naGraphBlocks.filter(function(b) { return b.id !== id; });
     renderGraphPanel();
     naHasUnsavedChanges = true;
+  };
+
+  // ===================== INSERT GRAPH: AI GENERATION (all 7 catalog types) =====================
+  // Fulfils the "AI-assisted/auto-suggested graph content generation from the draft text" item
+  // extra-md-files/done/admin-graph-insertion.md explicitly deferred as a non-goal when the
+  // manual Flow-only MVP shipped, plus extends the manual builder's single type to the full
+  // 7-type catalog documented in extra-md-files/done/07-knowledge-graph-visual-learning.md
+  // ("Supported Graph Types" / "HTML/CSS Component Catalog"). One click designs ONE graph —
+  // whichever real, important concept in the article isn't already covered by an existing graph
+  // (manual or AI-generated, tracked via naGraphBlocks) — using whichever of the 7 types best
+  // fits that concept's shape. The admin controls the final count entirely by how many times they
+  // click "Generate Graph with AI"; each click is told what's already covered so it keeps
+  // choosing different material instead of repeating itself. Same "suggest, never auto-apply"
+  // boundary as every other AI panel in this file: a generated graph only reaches naGraphBlocks
+  // (and the live document) once "Insert This Graph" is clicked.
+  //
+  // Browser-only — no scripts/*.js Node counterpart. scripts/graph-blocks.js's
+  // buildFlowGraphHtml() mirror stays exactly as-is (still MVP Flow-only, still driven by the
+  // automated pipeline's single writer-produced suggestedGraphSteps field); this interactive,
+  // avoid-what's-already-covered, admin-clicks-N-times flow has no unattended equivalent to
+  // mirror, the same reasoning already documented above suggestGraphZh() and at
+  // suggestMissingBasicFields(). Out of scope for scripts/validate-admin-mirror-sync.js.
+
+  var GRAPH_TYPE_LABELS = {
+    'flow-steps': 'Flow (Steps)',
+    'flow-timeline': 'Flow (Timeline)',
+    'flow-cause-effect': 'Flow (Cause → Effect)',
+    'flow-cycle': 'Cycle',
+    'concept': 'Concept Map',
+    'decision': 'Decision Tree',
+    'compare': 'Comparison',
+    'risk-ladder': 'Risk Ladder',
+    'pyramid': 'Pyramid'
+  };
+
+  function graphTypeLabelForKey(typeKey) {
+    return GRAPH_TYPE_LABELS[typeKey] || typeKey;
+  }
+
+  // naGraphBlocks.type storage key for a parsed AI result — 'flow' collapses its 4 flowVariant
+  // values into 'flow-<variant>' so the chip list / coverage summary can tell them apart, same
+  // granularity graphTypeLabelForKey()'s lookup table above expects.
+  function graphTypeKeyForResult(result) {
+    return result.type === 'flow' ? ('flow-' + result.flowVariant) : result.type;
+  }
+
+  // Suggestions the admin has seen and moved past (via Discard, or by clicking "Generate a
+  // Different Graph" instead of inserting) without ever inserting — kept separately from
+  // naGraphBlocks (which only tracks graphs actually in the document) so the very next
+  // generateGraphWithAi() call still knows to avoid re-proposing the same idea. Session-scoped;
+  // reset alongside naGraphBlocks in resetNewArticleForm().
+  let naAiGraphRejectedSummaries = [];
+
+  // ---- HTML builders for the 6 wrapper classes (.graph-block--concept/flow/compare/decision/
+  // risk-ladder/pyramid) already live in assets/css/style.css — no new CSS, verified against the
+  // exact markup already hand-authored in articles/*.html (e.g. graph-block--decision in
+  // bottom-fishing-structured-warrants-malaysia.html, graph-block--risk-ladder in
+  // leverage-strategies-structured-warrants-malaysia.html, graph-block--pyramid in
+  // best-stock-trading-course-malaysia.html). Each takes single-language args — called once for
+  // en, once for zh, exactly like buildFlowGraphHtml(title, steps) already does for the manual
+  // Flow form. Cycle reuses the graph-block--flow wrapper and the graph-flow--steps numbering
+  // (there is no graph-block--cycle class) with a final unnumbered "repeat" node appended, per
+  // the real precedent in why-90-percent-warrant-traders-lose-money-malaysia.html.
+
+  function graphFigureOpen(wrapperModifier, title) {
+    return '<!-- graph block: hand-authored, do not edit via admin WYSIWYG -->' +
+      '<figure class="graph-block graph-block--' + wrapperModifier + '"><figcaption class="graph-block__title">' + escapeHtml(title) + '</figcaption>';
+  }
+
+  var GRAPH_FLOW_REPEAT_LABEL = { en: '↻ Repeat', zh: '↻ 重复' };
+
+  function buildFlowTypeGraphHtml(title, steps, variant, lang) {
+    var listVariant = variant === 'cycle' ? 'steps' : variant;
+    var itemsHtml = steps.map(function(s) { return '<li class="graph-flow__step">' + escapeHtml(s) + '</li>'; }).join('');
+    if (variant === 'cycle') {
+      itemsHtml += '<li class="graph-flow__step graph-flow__step--repeat">' + escapeHtml(GRAPH_FLOW_REPEAT_LABEL[lang] || GRAPH_FLOW_REPEAT_LABEL.en) + '</li>';
+    }
+    return graphFigureOpen('flow', title) +
+      '<ol class="graph-flow graph-flow--' + listVariant + '">' + itemsHtml + '</ol></figure>';
+  }
+
+  function buildConceptGraphHtml(title, hub, spokes) {
+    var spokesHtml = spokes.map(function(s) { return '<li>' + escapeHtml(s) + '</li>'; }).join('');
+    return graphFigureOpen('concept', title) +
+      '<div class="graph-concept"><div class="graph-concept__hub">' + escapeHtml(hub) + '</div>' +
+      '<ul class="graph-concept__spokes">' + spokesHtml + '</ul></div></figure>';
+  }
+
+  function buildDecisionGraphHtml(title, question, branches) {
+    var branchesHtml = branches.map(function(b) {
+      return '<div class="graph-decision__branch"><span class="graph-decision__label">' + escapeHtml(b.label) + '</span>' + escapeHtml(b.text) + '</div>';
+    }).join('');
+    return graphFigureOpen('decision', title) +
+      '<div class="graph-decision"><div class="graph-decision__question">' + escapeHtml(question) + '</div>' +
+      '<div class="graph-decision__branches">' + branchesHtml + '</div></div></figure>';
+  }
+
+  function buildCompareGraphHtml(title, columns) {
+    var toneClass = { accent: ' graph-compare__col--accent', negative: ' graph-compare__col--negative' };
+    var colsHtml = columns.map(function(c) {
+      var itemsHtml = c.items.map(function(i) { return '<li>' + escapeHtml(i) + '</li>'; }).join('');
+      return '<div class="graph-compare__col' + (toneClass[c.tone] || '') + '"><h4>' + escapeHtml(c.heading) + '</h4><ul>' + itemsHtml + '</ul></div>';
+    }).join('');
+    var wrapperClass = columns.length >= 3 ? 'graph-compare graph-compare--3col' : 'graph-compare';
+    return graphFigureOpen('compare', title) + '<div class="' + wrapperClass + '">' + colsHtml + '</div></figure>';
+  }
+
+  var GRAPH_RISK_LEVEL_CLASS = { low: 'is-low', medium: 'is-medium', high: 'is-high', veryhigh: 'is-veryhigh' };
+
+  function buildRiskLadderGraphHtml(title, rungs) {
+    var itemsHtml = rungs.map(function(r) {
+      return '<li class="graph-risk-ladder__rung ' + GRAPH_RISK_LEVEL_CLASS[r.level] + '">' + escapeHtml(r.label) + '</li>';
+    }).join('');
+    return graphFigureOpen('risk-ladder', title) + '<ol class="graph-risk-ladder">' + itemsHtml + '</ol></figure>';
+  }
+
+  function buildPyramidGraphHtml(title, tiers) {
+    var itemsHtml = tiers.map(function(t, i) {
+      var cls = 'graph-pyramid__tier';
+      if (i === 0) cls += ' graph-pyramid__tier--base';
+      else if (i === tiers.length - 1) cls += ' graph-pyramid__tier--top';
+      return '<li class="' + cls + '">' + escapeHtml(t) + '</li>';
+    }).join('');
+    return graphFigureOpen('pyramid', title) + '<ol class="graph-pyramid">' + itemsHtml + '</ol></figure>';
+  }
+
+  function buildGraphHtmlForResult(result, lang) {
+    var title = lang === 'zh' ? result.titleZh : result.titleEn;
+    var p = lang === 'zh' ? result.payloadZh : result.payloadEn;
+    switch (result.type) {
+      case 'flow': return buildFlowTypeGraphHtml(title, p.steps, result.flowVariant, lang);
+      case 'concept': return buildConceptGraphHtml(title, p.hub, p.spokes);
+      case 'decision': return buildDecisionGraphHtml(title, p.question, p.branches);
+      case 'compare': return buildCompareGraphHtml(title, p.columns);
+      case 'risk-ladder': return buildRiskLadderGraphHtml(title, p.rungs);
+      case 'pyramid': return buildPyramidGraphHtml(title, p.tiers);
+      default: throw new Error('Unknown graph type: ' + result.type);
+    }
+  }
+
+  // ---- Prompt + response parsing ----
+
+  function buildGraphGenPromptBrowser(articleTitle, bodyText, existingSummaries) {
+    var system =
+      'You design simple, educational HTML/CSS knowledge graphs (diagrams) for articles on a Malaysian ' +
+      'trading-education website (structured warrants, short-term trading on Bursa Malaysia). Given one ' +
+      'article\'s title and body text, pick the SINGLE most important concept, relationship, sequence, or ' +
+      'comparison in that text that is not already covered by an existing graph, and design one graph that ' +
+      'visualizes it clearly.\n\n' +
+      'Choose exactly one graph type from this catalog, matching whichever type\'s shape fits the content — ' +
+      'never force a type that doesn\'t fit:\n' +
+      '- "flow" with flowVariant "steps": a numbered sequence of 2-5 actions/stages (a process or checklist).\n' +
+      '- "flow" with flowVariant "timeline": the same shape, labeled with time/session markers instead of step numbers.\n' +
+      '- "flow" with flowVariant "cause-effect": 2-3 nodes framed as "X leads to Y leads to Z".\n' +
+      '- "flow" with flowVariant "cycle": 3-6 steps that loop back to the start (a habit/review loop) — do NOT ' +
+      'include the final "repeat" node yourself, it is added automatically.\n' +
+      '- "concept": one hub label with 3-7 short spoke labels — an overview of "N parts/factors/criteria of X".\n' +
+      '- "decision": one root either/or question branching into 2-3 outcomes.\n' +
+      '- "compare": 2-3 side-by-side columns (e.g. instrument vs instrument, before vs after, habit A vs habit B), each with 2-5 checklist items.\n' +
+      '- "risk-ladder": 3-5 rungs ranked low to high severity/risk/aggressiveness, each using one of the levels ' +
+      '"low", "medium", "high", "veryhigh" (no repeats, listed in ascending order).\n' +
+      '- "pyramid": 2-4 tiers of a learning/skill/course progression, foundation first (base-to-top order).\n\n' +
+      'Rules (do not break these):\n' +
+      '1. Every label and every fact in the graph must already be stated in the article body text below — ' +
+      'never invent an example, statistic, step, or relationship that isn\'t there.\n' +
+      '2. Keep every label short: 1-5 words per node — the surrounding article prose still carries the detail.\n' +
+      '3. The graph must be understandable within 5-10 seconds of looking at it.\n' +
+      '4. Pick whichever real relationship in the article is currently most important AND not yet visualized — ' +
+      'see "Already-visualized topics" below and choose a genuinely different concept (and prefer a different ' +
+      'graph type too, if more than one type would fit your chosen concept equally well).\n' +
+      '5. If nothing in "Already-visualized topics" overlaps with your strongest candidate concept, that ' +
+      'candidate wins outright — do not force a weaker, more tenuous concept just to seem different.\n' +
+      '6. Provide both an English and a Chinese (Simplified, matching this site\'s existing zh content) version ' +
+      'of every label — natural, accurate translations, not literal/machine ones.\n\n' +
+      'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape (include only ' +
+      'the ONE type-specific key matching "type" — e.g. only "flow" when type is "flow" — omit the rest):\n' +
+      '{"type":"flow|concept|decision|compare|risk-ladder|pyramid",' +
+      '"flowVariant":"steps|timeline|cause-effect|cycle",' +
+      '"reasoning":"one sentence: which concept this covers and why it is the most important one not yet visualized",' +
+      '"titleEn":"...","titleZh":"...",' +
+      '"flow":{"stepsEn":["..."],"stepsZh":["..."]},' +
+      '"concept":{"hubEn":"...","hubZh":"...","spokesEn":["..."],"spokesZh":["..."]},' +
+      '"decision":{"questionEn":"...","questionZh":"...","branches":[{"labelEn":"...","labelZh":"...","textEn":"...","textZh":"..."}]},' +
+      '"compare":{"columns":[{"headingEn":"...","headingZh":"...","tone":"neutral|accent|negative","itemsEn":["..."],"itemsZh":["..."]}]},' +
+      '"riskLadder":{"rungs":[{"level":"low|medium|high|veryhigh","labelEn":"...","labelZh":"..."}]},' +
+      '"pyramid":{"tiersEn":["..."],"tiersZh":["..."]}}';
+
+    var existingText = existingSummaries.length
+      ? existingSummaries.map(function(s) { return '- [' + graphTypeLabelForKey(s.type) + '] ' + s.summary; }).join('\n')
+      : '(none yet — this is the first graph for this article)';
+
+    var user = 'Article title: ' + articleTitle + '\n\n' +
+      'Already-visualized topics (do not repeat these — pick a different concept):\n' + existingText + '\n\n' +
+      'Article body text:\n' + bodyText;
+
+    return { system: system, user: user };
+  }
+
+  var GRAPH_GEN_VALID_TYPES = ['flow', 'concept', 'decision', 'compare', 'risk-ladder', 'pyramid'];
+  var GRAPH_GEN_FLOW_VARIANTS = ['steps', 'timeline', 'cause-effect', 'cycle'];
+  var GRAPH_GEN_RISK_LEVELS = ['low', 'medium', 'high', 'veryhigh'];
+
+  function graphGenRequireString(v, label) {
+    if (typeof v !== 'string' || !v.trim()) throw new Error('Graph response missing non-empty string "' + label + '"');
+    return v.trim();
+  }
+
+  function graphGenRequireStringArray(v, label, min, max) {
+    if (!Array.isArray(v) || v.length < min || v.length > max) {
+      throw new Error('Graph response field "' + label + '" must be an array of ' + min + '-' + max + ' items');
+    }
+    return v.map(function(s, i) { return graphGenRequireString(s, label + '[' + i + ']'); });
+  }
+
+  // Validates + normalizes one JSON response from buildGraphGenPromptBrowser() into
+  // { type, flowVariant, titleEn, titleZh, reasoning, payloadEn, payloadZh } — payloadEn/payloadZh
+  // are already reshaped to whatever buildGraphHtmlForResult()'s per-type builder above expects
+  // (e.g. { steps: [...] } for flow, { hub, spokes } for concept), so the caller never has to
+  // know the raw wire shape.
+  function parseGraphGenResponseBrowser(rawText) {
+    var parsed;
+    try { parsed = JSON.parse(rawText); } catch (e) { throw new Error('Graph response was not valid JSON: ' + e.message); }
+    if (!parsed || typeof parsed !== 'object') throw new Error('Graph response is not an object.');
+    if (GRAPH_GEN_VALID_TYPES.indexOf(parsed.type) === -1) throw new Error('Graph response has an unrecognized "type": ' + parsed.type);
+
+    var result = {
+      type: parsed.type,
+      titleEn: graphGenRequireString(parsed.titleEn, 'titleEn'),
+      titleZh: graphGenRequireString(parsed.titleZh, 'titleZh'),
+      reasoning: (typeof parsed.reasoning === 'string' ? parsed.reasoning.trim() : ''),
+      payloadEn: null,
+      payloadZh: null
+    };
+
+    if (parsed.type === 'flow') {
+      if (GRAPH_GEN_FLOW_VARIANTS.indexOf(parsed.flowVariant) === -1) throw new Error('Graph response has an unrecognized "flowVariant": ' + parsed.flowVariant);
+      result.flowVariant = parsed.flowVariant;
+      var f = parsed.flow || {};
+      var stepsEn = graphGenRequireStringArray(f.stepsEn, 'flow.stepsEn', 2, 6);
+      var stepsZh = graphGenRequireStringArray(f.stepsZh, 'flow.stepsZh', 2, 6);
+      if (stepsEn.length !== stepsZh.length) throw new Error('flow.stepsEn and flow.stepsZh must have the same length.');
+      result.payloadEn = { steps: stepsEn };
+      result.payloadZh = { steps: stepsZh };
+    } else if (parsed.type === 'concept') {
+      var c = parsed.concept || {};
+      var spokesEn = graphGenRequireStringArray(c.spokesEn, 'concept.spokesEn', 3, 7);
+      var spokesZh = graphGenRequireStringArray(c.spokesZh, 'concept.spokesZh', 3, 7);
+      if (spokesEn.length !== spokesZh.length) throw new Error('concept.spokesEn and concept.spokesZh must have the same length.');
+      result.payloadEn = { hub: graphGenRequireString(c.hubEn, 'concept.hubEn'), spokes: spokesEn };
+      result.payloadZh = { hub: graphGenRequireString(c.hubZh, 'concept.hubZh'), spokes: spokesZh };
+    } else if (parsed.type === 'decision') {
+      var d = parsed.decision || {};
+      var questionEn = graphGenRequireString(d.questionEn, 'decision.questionEn');
+      var questionZh = graphGenRequireString(d.questionZh, 'decision.questionZh');
+      if (!Array.isArray(d.branches) || d.branches.length < 2 || d.branches.length > 3) throw new Error('decision.branches must be an array of 2-3 items.');
+      var branchesEn = [], branchesZh = [];
+      d.branches.forEach(function(b, i) {
+        branchesEn.push({ label: graphGenRequireString(b && b.labelEn, 'decision.branches[' + i + '].labelEn'), text: graphGenRequireString(b && b.textEn, 'decision.branches[' + i + '].textEn') });
+        branchesZh.push({ label: graphGenRequireString(b && b.labelZh, 'decision.branches[' + i + '].labelZh'), text: graphGenRequireString(b && b.textZh, 'decision.branches[' + i + '].textZh') });
+      });
+      result.payloadEn = { question: questionEn, branches: branchesEn };
+      result.payloadZh = { question: questionZh, branches: branchesZh };
+    } else if (parsed.type === 'compare') {
+      var cols = parsed.compare && parsed.compare.columns;
+      if (!Array.isArray(cols) || cols.length < 2 || cols.length > 3) throw new Error('compare.columns must be an array of 2-3 items.');
+      var colsEn = [], colsZh = [];
+      cols.forEach(function(col, i) {
+        var tone = ['neutral', 'accent', 'negative'].indexOf(col && col.tone) !== -1 ? col.tone : 'neutral';
+        var itemsEn = graphGenRequireStringArray(col && col.itemsEn, 'compare.columns[' + i + '].itemsEn', 2, 6);
+        var itemsZh = graphGenRequireStringArray(col && col.itemsZh, 'compare.columns[' + i + '].itemsZh', 2, 6);
+        if (itemsEn.length !== itemsZh.length) throw new Error('compare.columns[' + i + '] itemsEn/itemsZh must have the same length.');
+        colsEn.push({ heading: graphGenRequireString(col && col.headingEn, 'compare.columns[' + i + '].headingEn'), items: itemsEn, tone: tone });
+        colsZh.push({ heading: graphGenRequireString(col && col.headingZh, 'compare.columns[' + i + '].headingZh'), items: itemsZh, tone: tone });
+      });
+      result.payloadEn = { columns: colsEn };
+      result.payloadZh = { columns: colsZh };
+    } else if (parsed.type === 'risk-ladder') {
+      var rungs = parsed.riskLadder && parsed.riskLadder.rungs;
+      if (!Array.isArray(rungs) || rungs.length < 3 || rungs.length > 5) throw new Error('riskLadder.rungs must be an array of 3-5 items.');
+      var seenLevels = {};
+      var rungsEn = [], rungsZh = [];
+      rungs.forEach(function(r, i) {
+        if (!r || GRAPH_GEN_RISK_LEVELS.indexOf(r.level) === -1) throw new Error('riskLadder.rungs[' + i + '].level is invalid: ' + (r && r.level));
+        if (seenLevels[r.level]) throw new Error('riskLadder.rungs has a duplicate level: ' + r.level);
+        seenLevels[r.level] = true;
+        rungsEn.push({ level: r.level, label: graphGenRequireString(r.labelEn, 'riskLadder.rungs[' + i + '].labelEn') });
+        rungsZh.push({ level: r.level, label: graphGenRequireString(r.labelZh, 'riskLadder.rungs[' + i + '].labelZh') });
+      });
+      result.payloadEn = { rungs: rungsEn };
+      result.payloadZh = { rungs: rungsZh };
+    } else if (parsed.type === 'pyramid') {
+      var p = parsed.pyramid || {};
+      var tiersEn = graphGenRequireStringArray(p.tiersEn, 'pyramid.tiersEn', 2, 4);
+      var tiersZh = graphGenRequireStringArray(p.tiersZh, 'pyramid.tiersZh', 2, 4);
+      if (tiersEn.length !== tiersZh.length) throw new Error('pyramid.tiersEn and pyramid.tiersZh must have the same length.');
+      result.payloadEn = { tiers: tiersEn };
+      result.payloadZh = { tiers: tiersZh };
+    }
+
+    return result;
+  }
+
+  // ---- Preview rendering + insert/discard ----
+
+  function renderGraphContentPreviewHtml(result) {
+    var p = result.payloadEn;
+    function item(dot, text) { return '<div class="coverage-item"><span class="dot">' + dot + '</span><span>' + text + '</span></div>'; }
+    if (result.type === 'flow') {
+      var steps = result.flowVariant === 'cycle' ? p.steps.concat([GRAPH_FLOW_REPEAT_LABEL.en]) : p.steps;
+      return steps.map(function(s) { return item('&bull;', escapeHtml(s)); }).join('');
+    }
+    if (result.type === 'concept') {
+      return item('&#9673;', '<span class="name">' + escapeHtml(p.hub) + '</span>') +
+        p.spokes.map(function(s) { return item('&bull;', escapeHtml(s)); }).join('');
+    }
+    if (result.type === 'decision') {
+      return item('?', escapeHtml(p.question)) +
+        p.branches.map(function(b) { return item('&rarr;', '<span class="name">' + escapeHtml(b.label) + ':</span> ' + escapeHtml(b.text)); }).join('');
+    }
+    if (result.type === 'compare') {
+      return p.columns.map(function(c) { return item('&bull;', '<span class="name">' + escapeHtml(c.heading) + ':</span> ' + c.items.map(escapeHtml).join(', ')); }).join('');
+    }
+    if (result.type === 'risk-ladder') {
+      return p.rungs.map(function(r) { return item('&bull;', escapeHtml(r.level) + ' — ' + escapeHtml(r.label)); }).join('');
+    }
+    if (result.type === 'pyramid') {
+      return p.tiers.map(function(t, i) { return item(i === 0 ? 'base' : (i === p.tiers.length - 1 ? 'top' : '&bull;'), escapeHtml(t)); }).join('');
+    }
+    return '';
+  }
+
+  function renderAiGraphPreview(result) {
+    var panel = $('graphAiPreview');
+    var html = '<div class="coverage-panel__header"><span class="coverage-panel__title">' + escapeHtml(graphTypeLabelForKey(graphTypeKeyForResult(result))) + '</span></div>';
+    if (result.reasoning) html += '<p class="graph-panel__hint">' + escapeHtml(result.reasoning) + '</p>';
+    html += '<div class="graph-ai-preview__title-row"><strong>' + escapeHtml(result.titleEn) + '</strong> / ' + escapeHtml(result.titleZh) + '</div>';
+    html += renderGraphContentPreviewHtml(result);
+    html += '<div class="preview-toolbar">';
+    html += '<button type="button" class="btn-save" onclick="insertAiGeneratedGraph()">&#8595; Insert This Graph</button>';
+    html += '<button type="button" class="btn-secondary" onclick="generateGraphWithAi()">&#128260; Generate a Different Graph</button>';
+    html += '<button type="button" class="btn-secondary btn-danger" onclick="discardAiGraph()">Discard</button>';
+    html += '</div>';
+    panel.innerHTML = html;
+    panel.classList.remove('hidden');
+  }
+
+  // Summarizes a not-yet-inserted AI result the same way graphBlockPlainText() summarizes an
+  // already-inserted naGraphBlocks entry, by building its real HTML and reusing that function —
+  // used to record a discarded/superseded suggestion into naAiGraphRejectedSummaries so the next
+  // generation call still knows to avoid it, even though it never reached naGraphBlocks.
+  function graphGenResultSummary(result) {
+    return { type: graphTypeKeyForResult(result), summary: graphBlockPlainText({ titleEn: result.titleEn, htmlEn: buildGraphHtmlForResult(result, 'en') }, 'en') };
+  }
+
+  window.generateGraphWithAi = function() {
+    var status = $('graphAiStatus');
+    // A pending, not-yet-inserted suggestion is being abandoned by this click (whether the admin
+    // came from "Generate a Different Graph" or called this directly) — record it so the model
+    // doesn't just hand back the same idea again.
+    if (naAiGraphResult) naAiGraphRejectedSummaries.push(graphGenResultSummary(naAiGraphResult));
+    $('graphAiPreview').classList.add('hidden');
+    $('graphAiPreview').innerHTML = '';
+    naAiGraphResult = null;
+
+    if (!openaiApiKey) {
+      status.innerHTML = 'OpenAI key not configured for this admin session — AI graph generation is unavailable (see extra-md-files/ai-article-pipeline.md §6/§8). You can still add a Flow graph manually below.';
+      return;
+    }
+    var titleEn = naVal('naTitleEn');
+    var bodyText = naQuillBodyEn ? substituteGraphPlaceholdersPlainText(naQuillBodyEn.getText(), 'en').trim() : '';
+    if (!titleEn || !bodyText) {
+      status.innerHTML = 'Fill in the article title and write some English body content first — the AI needs real article text to build a graph from.';
+      return;
+    }
+
+    var existingSummaries = naGraphBlocks.map(function(b) { return { type: b.type, summary: graphBlockPlainText(b, 'en') }; }).concat(naAiGraphRejectedSummaries);
+
+    status.textContent = 'Analyzing the article and designing a graph…';
+    $('graphAiGenerateBtn').disabled = true;
+
+    callOpenAIJson(
+      buildGraphGenPromptBrowser(titleEn, bodyText, existingSummaries),
+      { model: 'gpt-4o', temperature: 0.4, maxTokens: 1500 }
+    ).then(function(raw) {
+      var result = parseGraphGenResponseBrowser(raw);
+      naAiGraphResult = result;
+      status.textContent = '';
+      renderAiGraphPreview(result);
+    }).catch(function(err) {
+      status.innerHTML = '<span style="color:#dc2626;">Graph generation failed: ' + escapeHtml(err.message) + '</span>';
+    }).finally(function() {
+      $('graphAiGenerateBtn').disabled = false;
+    });
+  };
+
+  window.insertAiGeneratedGraph = function() {
+    if (!naAiGraphResult) return;
+    var result = naAiGraphResult;
+    var id = 'graph-' + (naGraphIdCounter++);
+    naGraphBlocks.push({
+      id: id,
+      type: graphTypeKeyForResult(result),
+      titleEn: result.titleEn,
+      titleZh: result.titleZh,
+      htmlEn: buildGraphHtmlForResult(result, 'en'),
+      htmlZh: buildGraphHtmlForResult(result, 'zh')
+    });
+
+    insertGraphPlaceholder(naQuillBodyEn, 'en', id);
+    insertGraphPlaceholder(naQuillBodyZh, 'zh', id);
+
+    naAiGraphResult = null;
+    $('graphAiPreview').classList.add('hidden');
+    $('graphAiPreview').innerHTML = '';
+    $('graphAiStatus').innerHTML = '&#10003; Inserted “' + escapeHtml(result.titleEn) + '” at the cursor in both language bodies. Click “Generate Graph with AI” again for another — it will automatically pick a different, still-uncovered topic.';
+    renderGraphPanel();
+    naHasUnsavedChanges = true;
+    refreshValidation();
+  };
+
+  window.discardAiGraph = function() {
+    if (naAiGraphResult) naAiGraphRejectedSummaries.push(graphGenResultSummary(naAiGraphResult));
+    naAiGraphResult = null;
+    $('graphAiPreview').classList.add('hidden');
+    $('graphAiPreview').innerHTML = '';
   };
 
   // ===================== NEW ARTICLE: SOURCE METHOD (write / upload / paste) =====================
@@ -2447,6 +2910,151 @@
       naHasUnsavedChanges = true;
       refreshValidation();
       statusEl.innerHTML = 'Translated — review and edit before publishing.';
+    }).catch(function(err) {
+      statusEl.innerHTML = '<span style="color:#dc2626;">Translation failed: ' + escapeHtml(err.message) + '</span>';
+    });
+  };
+
+  // ===================== ARTICLE CONTENT (BODY) TRANSLATION =====================
+  // Same "fill whichever side is empty" contract as translateNaPair() above, extended to
+  // full Quill innerHTML rather than a single plain-text field, so it needs its own prompt:
+  // the model is told the payload is HTML and must preserve tags/structure exactly, and must
+  // pass through any [[...]] placeholder token byte-for-byte untouched -- both graph-block
+  // encodings used across the two editors that call this (the new-article wizard's
+  // [[GRAPH:id]] markers from insertGraphPlaceholder(), and the existing-article editor's
+  // [[GRAPHBLOCK_n_PRESERVED]] markers from extractGraphBlocks() above) match that same
+  // generic [[...]] shape, so one prompt covers both without needing to know which is in play.
+  function buildBodyTranslatePromptBrowser(html, direction) {
+    var sourceLang = direction === 'en2zh' ? 'English' : 'Simplified Chinese';
+    var targetLang = direction === 'en2zh' ? 'Simplified Chinese' : 'English';
+    var system =
+      'You are a bilingual (English/Simplified Chinese) editor for a Malaysian trading education site ' +
+      '(structured warrants, short-term trading on Bursa Malaysia, trading educator Warren Mak). You will be ' +
+      'given the innerHTML of an article body rich-text editor. Translate ONLY the human-readable text from ' +
+      sourceLang + ' into natural, fluent ' + targetLang + ' suitable for a trading-education audience, while ' +
+      'leaving every HTML tag, attribute, and the overall structure (paragraphs, headings, lists, links) exactly ' +
+      'as given -- do not add, remove, or reorder tags, and do not change href attributes. Any text that looks ' +
+      'like a placeholder token in the form [[...]] (e.g. [[GRAPH:graph-3]] or [[GRAPHBLOCK_2_PRESERVED]]) is ' +
+      'NOT content to translate -- copy it through byte-for-byte, unchanged, on its own line exactly as given. ' +
+      'Do not add commentary or any content that was not in the source.\n\n' +
+      'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape: ' +
+      '{"translatedHtml":"..."}';
+    var user = 'Article body HTML to translate (' + sourceLang + ' -> ' + targetLang + '):\n' + html;
+    return { system: system, user: user };
+  }
+
+  function parseBodyTranslateResponseBrowser(rawText) {
+    var parsed;
+    try { parsed = JSON.parse(rawText); } catch (e) { throw new Error('Response was not valid JSON: ' + e.message); }
+    if (!parsed || typeof parsed.translatedHtml !== 'string' || !parsed.translatedHtml.trim()) throw new Error('Response missing a non-empty "translatedHtml" string.');
+    return parsed.translatedHtml.trim();
+  }
+
+  // gpt-4o (not the OPENAI_DEFAULT_MODEL gpt-4o-mini used for the short field translations
+  // above) and maxTokens 8000 mirror generateArticleWithReviewBrowser()'s writer call -- same
+  // headroom rationale (KC_TARGET_BODY_WORD_COUNT_EN = 2,200 words, article-length-expansion.md)
+  // since a full-body translation response is comparable in size. Bumped alongside that target
+  // (was 6000, tuned against the old ~900-word minimum) so a translation of one of the new
+  // longer EN bodies doesn't get silently truncated -- length expansion must not cost the ZH
+  // side translation quality.
+  var BODY_TRANSLATE_MODEL_OPTS = { model: 'gpt-4o', temperature: 0.3, maxTokens: 8000 };
+
+  // Existing-article editor: translates Hero (title+subtitle) and Body independently -- each
+  // only if that pair has exactly one language filled -- so one click catches up whichever
+  // piece(s) still need a translation without disturbing a piece that's already bilingual.
+  window.translateArticleContent = function() {
+    var statusEl = $('articleTranslateStatus');
+    if (!openaiApiKey) {
+      statusEl.innerHTML = 'OpenAI key not configured for this admin session — translation is unavailable (see extra-md-files/ai-article-pipeline.md §6/§8).';
+      return;
+    }
+    if (!quillHeroEn || !quillHeroZh || !quillBodyEn || !quillBodyZh) {
+      statusEl.innerHTML = 'Editors are not ready yet.';
+      return;
+    }
+
+    var heroEnFilled = quillHeroEn.getText().trim().length > 0;
+    var heroZhFilled = quillHeroZh.getText().trim().length > 0;
+    var bodyEnFilled = quillBodyEn.getText().trim().length > 0;
+    var bodyZhFilled = quillBodyZh.getText().trim().length > 0;
+
+    var jobs = [];
+    if (heroEnFilled !== heroZhFilled) {
+      jobs.push({
+        label: 'hero',
+        source: heroEnFilled ? quillHeroEn : quillHeroZh,
+        target: heroEnFilled ? quillHeroZh : quillHeroEn,
+        direction: heroEnFilled ? 'en2zh' : 'zh2en'
+      });
+    }
+    if (bodyEnFilled !== bodyZhFilled) {
+      jobs.push({
+        label: 'body',
+        source: bodyEnFilled ? quillBodyEn : quillBodyZh,
+        target: bodyEnFilled ? quillBodyZh : quillBodyEn,
+        direction: bodyEnFilled ? 'en2zh' : 'zh2en'
+      });
+    }
+    if (!jobs.length) {
+      statusEl.innerHTML = (heroEnFilled || heroZhFilled || bodyEnFilled || bodyZhFilled)
+        ? 'Both languages already have content in every section — clear the section(s) you want re-translated first.'
+        : 'Write the hero and/or body content in at least one language first.';
+      return;
+    }
+
+    statusEl.innerHTML = 'Translating ' + jobs.map(function(j) { return j.label; }).join(' + ') + '… this may take a moment for longer articles.';
+    var chain = Promise.resolve();
+    jobs.forEach(function(job) {
+      chain = chain.then(function() {
+        return callOpenAIJson(buildBodyTranslatePromptBrowser(job.source.root.innerHTML, job.direction), BODY_TRANSLATE_MODEL_OPTS).then(function(raw) {
+          var translated = parseBodyTranslateResponseBrowser(raw);
+          job.target.setText('');
+          job.target.clipboard.dangerouslyPasteHTML(translated);
+        });
+      });
+    });
+    chain.then(function() {
+      statusEl.innerHTML = 'Translated ' + jobs.map(function(j) { return j.label; }).join(' + ') + ' — review formatting and graph placeholders before saving.';
+    }).catch(function(err) {
+      statusEl.innerHTML = '<span style="color:#dc2626;">Translation failed: ' + escapeHtml(err.message) + '</span>';
+    });
+  };
+
+  // New-article wizard Step 4: same "fill whichever side is empty" contract, scoped to just
+  // the body (the wizard's title/subtitle/category already have translateNaPair() above).
+  window.translateNaBody = function() {
+    var statusEl = $('naTranslateStatusBody');
+    if (!openaiApiKey) {
+      statusEl.innerHTML = 'OpenAI key not configured for this admin session — translation is unavailable (see extra-md-files/ai-article-pipeline.md §6/§8).';
+      return;
+    }
+    if (!naQuillBodyEn || !naQuillBodyZh) {
+      statusEl.innerHTML = 'Editors are not ready yet.';
+      return;
+    }
+    var enFilled = naQuillBodyEn.getText().trim().length > 0;
+    var zhFilled = naQuillBodyZh.getText().trim().length > 0;
+    if (enFilled && zhFilled) {
+      statusEl.innerHTML = 'Both languages already have body content — clear the side you want re-translated first.';
+      return;
+    }
+    if (!enFilled && !zhFilled) {
+      statusEl.innerHTML = 'Write the article body in at least one language first.';
+      return;
+    }
+    var direction = enFilled ? 'en2zh' : 'zh2en';
+    var sourceQuill = enFilled ? naQuillBodyEn : naQuillBodyZh;
+    var targetQuill = enFilled ? naQuillBodyZh : naQuillBodyEn;
+
+    statusEl.innerHTML = 'Translating body content… this may take a moment for longer articles.';
+    callOpenAIJson(buildBodyTranslatePromptBrowser(sourceQuill.root.innerHTML, direction), BODY_TRANSLATE_MODEL_OPTS).then(function(raw) {
+      var translated = parseBodyTranslateResponseBrowser(raw);
+      targetQuill.setText('');
+      targetQuill.clipboard.dangerouslyPasteHTML(translated);
+      naHasUnsavedChanges = true;
+      recalcReadingTime();
+      refreshValidation();
+      statusEl.innerHTML = 'Translated — review formatting and graph placeholders before publishing.';
     }).catch(function(err) {
       statusEl.innerHTML = '<span style="color:#dc2626;">Translation failed: ' + escapeHtml(err.message) + '</span>';
     });
@@ -2897,11 +3505,12 @@
   }
 
   // Plain-text sibling of substituteGraphPlaceholders(), for text handed to OpenAI (Knowledge
-  // Coverage / SEO Suggestions) rather than to the published document. Those callers read
+  // Coverage / SEO Suggestions / the "already-visualized topics" list in
+  // buildGraphGenPromptBrowser()) rather than to the published document. Those callers read
   // naQuillBodyEn.getText(), which still contains the literal "[[GRAPH:id]]" marker Quill
   // inserted (insertGraphPlaceholder() writes it as plain text) — sending that literal marker
   // to the model would just look like inert noise. This swaps each marker for the graph's
-  // title + step labels instead, so the model sees what the graph actually communicates.
+  // title + node labels instead, so the model sees what the graph actually communicates.
   function graphBlockPlainText(block, lang) {
     var title = lang === 'zh' ? block.titleZh : block.titleEn;
     var html = lang === 'zh' ? block.htmlZh : block.htmlEn;
@@ -2910,7 +3519,15 @@
     var steps = Array.prototype.map.call(container.querySelectorAll('.graph-flow__step'), function(li) {
       return li.textContent.trim();
     }).filter(Boolean);
-    return steps.length ? title + ': ' + steps.join(' → ') : title;
+    if (steps.length) return title + ': ' + steps.join(' → ');
+    // Generic fallback for the other 5 graph types (concept/decision/compare/risk-ladder/pyramid,
+    // added by the "Generate Graph with AI" feature) — same idea as the flow case above, just not
+    // node-by-node: strip the figcaption (title is already prefixed) and flatten the rest of the
+    // figure's text so the model still sees every label, not just the graph's title.
+    var figcaption = container.querySelector('.graph-block__title');
+    if (figcaption) figcaption.remove();
+    var text = container.textContent.replace(/\s+/g, ' ').trim();
+    return text ? title + ': ' + text : title;
   }
 
   function substituteGraphPlaceholdersPlainText(text, lang) {
@@ -3449,7 +4066,9 @@
       rows + ksMoreNote(matches.length, shown.length) + '</div>';
   }
 
-  var KC_STOPWORDS = ['the', 'and', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'are', 'how', 'what', 'into', 'about', 'when', 'why', 'can', 'a', 'an', 'to', 'of', 'in', 'on', 'is', 'it', 'as', 'or', 'be', 'by', 'not'];
+  var KC_STOPWORDS = ['the', 'and', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'are', 'how', 'what', 'into', 'about', 'when', 'why', 'can', 'a', 'an', 'to', 'of', 'in', 'on', 'is', 'it', 'as', 'or', 'be', 'by', 'not', 'trading', 'trade', 'trader', 'traders', 'stock', 'stocks', 'course', 'courses'];
+  var KC_WEAK_RELATIONS = { related_to: true };
+  var KC_CONTRAST_RELATIONS = { distinguished_from: true, contradicts: true };
 
   // mirrors scripts/retrieval-layer.js's tokenize()
   function kcTokenize(text) {
@@ -3486,23 +4105,37 @@
   // real `idx_entities_name` UNIQUE index (case-insensitive, matching that lookup) — but any
   // future writer against this db still needs to go through that same lookup-before-insert
   // path (or let the unique-index write fail loudly) rather than assuming it for free.
-  function kcExpandRelatedEntities(graph, seedEntities, maxHops) {
+  function kcExpandRelatedEntities(graph, seedEntities, maxHops, includeWeakRelations) {
     maxHops = maxHops || 1;
+    includeWeakRelations = includeWeakRelations === true;
     var entityByName = {};
     graph.entities.forEach(function(e) { entityByName[e.name] = e; });
     var byName = {};
-    seedEntities.forEach(function(e) { byName[e.name] = { name: e.name, type: e.type, hop: 0, via: e.reason || 'topic match' }; });
+    seedEntities.forEach(function(e) { byName[e.name] = { name: e.name, type: e.type, hop: 0, via: e.reason || 'topic match', relation: null }; });
     var frontier = seedEntities.map(function(e) { return e.name; });
+    var skippedWeakEdges = [];
     for (var hop = 1; hop <= maxHops && frontier.length; hop++) {
       var frontierSet = {};
       frontier.forEach(function(n) { frontierSet[n] = true; });
       var next = [];
       graph.edges.forEach(function(edge) {
         var phrase = edge.source + ' --[' + edge.relation + ']--> ' + edge.target;
+        if (!includeWeakRelations && KC_WEAK_RELATIONS[edge.relation]) {
+          if (frontierSet[edge.source] || frontierSet[edge.target]) {
+            skippedWeakEdges.push({
+              source: edge.source,
+              relation: edge.relation,
+              target: edge.target,
+              hop: hop,
+              reason: 'weak generic relation excluded from required topic expansion'
+            });
+          }
+          return;
+        }
         [{ from: edge.source, to: edge.target }, { from: edge.target, to: edge.source }].forEach(function(c) {
           if (frontierSet[c.from] && !byName[c.to]) {
             var entity = entityByName[c.to];
-            byName[c.to] = { name: c.to, type: entity ? entity.type : null, hop: hop, via: phrase };
+            byName[c.to] = { name: c.to, type: entity ? entity.type : null, hop: hop, via: phrase, relation: edge.relation };
             next.push(c.to);
           }
         });
@@ -3511,20 +4144,26 @@
     }
     var out = [];
     for (var name in byName) if (Object.prototype.hasOwnProperty.call(byName, name)) out.push(byName[name]);
+    out.skippedWeakEdges = skippedWeakEdges;
     return out;
   }
 
   // mirrors scripts/retrieval-layer.js's buildChecklist()
   function kcBuildChecklist(relatedEntities) {
     return relatedEntities.map(function(e) {
-      return { name: e.name, type: e.type, why: e.hop === 0 ? (e.via || 'directly matches the topic') : ('related to the topic via: ' + e.via) };
+      return {
+        name: e.name,
+        type: e.type,
+        why: e.hop === 0 ? (e.via || 'directly matches the topic') : ('related to the topic via: ' + e.via),
+        relation: e.relation || null
+      };
     });
   }
 
   function buildChecklistFromGraph(graph, topic) {
     var seedEntities = kcFindSeedEntities(graph, topic, 8);
     if (!seedEntities.length) return [];
-    return kcBuildChecklist(kcExpandRelatedEntities(graph, seedEntities, 1));
+    return kcBuildChecklist(kcExpandRelatedEntities(graph, seedEntities, 1, false));
   }
 
   // mirrors scripts/retrieval-layer.js's getArticleSummariesForEntities() — reads
@@ -3598,6 +4237,7 @@
   function suggestInternalLinksBrowser(articleSummaries, seedEntities, opts) {
     opts = opts || {};
     var max = typeof opts.max === 'number' ? opts.max : 3;
+    var minRelevance = typeof opts.minRelevance === 'number' ? opts.minRelevance : 0.6;
     var suggestions = [];
     var usedSlugs = {};
 
@@ -3608,6 +4248,7 @@
       articleSummaries.forEach(function(article) {
         if (usedSlugs[article.slug]) return;
         var match = article.matchedEntities.filter(function(m) { return m.name === seed.name; })[0];
+        if (match && match.relevance_score < minRelevance) return;
         if (match && (!best || match.relevance_score > best.relevance_score)) {
           best = { article: article, relevance_score: match.relevance_score };
         }
@@ -3790,6 +4431,23 @@
     return formatChecklistItemsBrowser(checklist);
   }
 
+  // mirrors scripts/generate-article.js's countBodyWords() — a rough word count of a draft
+  // body_text, for comparing against KC_TARGET_BODY_WORD_COUNT_EN below (article-length-
+  // expansion.md). Strips "## "-prefixed heading-marker lines' own "## " prefix before splitting
+  // on whitespace; inline <strong>/<em>/<u> tags are left as-is since they never introduce extra
+  // whitespace-separated tokens.
+  function countBodyWordsBrowser(bodyText) {
+    var stripped = bodyText.replace(/^##\s+/gm, '');
+    var trimmed = stripped.trim();
+    if (!trimmed) return 0;
+    return trimmed.split(/\s+/).length;
+  }
+
+  // mirrors scripts/generate-article.js's TARGET_BODY_WORD_COUNT_EN — see that constant's own
+  // doc comment for the reading-speed assumption and the "soft target, never blocks" decision
+  // (owner, 2026-08-21).
+  var KC_TARGET_BODY_WORD_COUNT_EN = 2200;
+
   // mirrors scripts/generate-article.js's buildWriterPrompt({topic, checklist, mustIncludeFacts,
   // articleSummaries, nearDuplicates, sourceText})
   //
@@ -3818,13 +4476,41 @@
       'restating the same ground.\n\n' +
       'You are given a CHECKLIST of entities/facts this article should cover -- cover every item ' +
       'somewhere in the article, substantively (not just a passing mention); a separate reviewer will ' +
-      'check this afterward, so do not skip any. Must-include facts are non-negotiable and must appear ' +
-      'accurately, exactly as given -- never alter a number, date, or credential.\n\n' +
+      'check this afterward, so do not skip any. Each item\'s reason (after the dash) tells you HOW it ' +
+      'relates to the topic: items marked "directly matches the topic" are core to this article; items ' +
+      'marked "related to the topic via: ..." are only loosely/indirectly connected -- cover those in ' +
+      'proportion to their actual relevance (a clarifying sentence, or a short paragraph distinguishing ' +
+      'them from the main topic, folded into a section that IS about the main topic, is enough) and do ' +
+      'NOT give a loosely-related item its own dedicated section -- specifically, never title a section ' +
+      'heading after the loosely-related item itself or frame a heading as "distinguishing"/"comparing" ' +
+      'the main topic against it, even briefly -- unless it is genuinely central to the specific angle ' +
+      'the topic asks for. A tangential entity padded into its own section, or given a heading built ' +
+      'around its name, reads as off-topic to readers even though it is technically "covered". Must-' +
+      'include facts are non-negotiable and must appear accurately, exactly as given -- never alter a ' +
+      'number, date, or credential.\n\n' +
+      'This article should be a genuinely in-depth, 10-minute-plus read: treat 2,200 words of body_text ' +
+      'as a MINIMUM, not a suggestion (well beyond this site\'s older short-form articles). Reach that ' +
+      'length by explaining each CENTRAL sub-topic more deeply -- more real-world examples, more step-' +
+      'by-step mechanics, more context on WHY something matters -- never by padding with repetition or ' +
+      'filler, and never by adding a section about a loosely-related checklist item just to add length ' +
+      '(see the loosely-related-item guidance above -- that failure mode gets WORSE, not better, the ' +
+      'more length you need to fill). Give each section 3-4 substantial paragraphs with real ' +
+      'explanation, concrete examples, and actionable detail; do not stop as soon as a checklist item ' +
+      'has been technically mentioned once -- a short article that merely name-checks each item reads ' +
+      'as thin and unfinished next to the depth this site now expects.\n\n' +
       'Structure body_text into logical sections: on its own line immediately before each section\'s ' +
       'first paragraph, write a short heading prefixed with "## " (two hash characters, one space, ' +
-      'then the heading text -- e.g. "## Understanding Time Decay"). Include at least 2 such section ' +
-      'headings for a normal-length article. Only real section-heading lines get the "## " prefix -- ' +
-      'never an ordinary paragraph. Also identify SUGGESTED GRAPH STEPS: 2-5 short imperative-style ' +
+      'then the heading text -- e.g. "## Understanding Time Decay"). Include 6-8 such section headings, ' +
+      'each covering a distinct sub-topic that is genuinely CENTRAL to the topic\'s specific angle, in ' +
+      'real depth (3-4 paragraphs) -- this is what actually gets body_text to the 2,200+ word target ' +
+      'above, far more reliably than trying to hit a word count directly. If you need more headings\' ' +
+      'worth of material, go deeper on an existing central sub-topic instead of adding a heading for a ' +
+      'loosely-related checklist item. Only real section-heading lines get the "## " prefix -- ' +
+      'never an ordinary paragraph. Also use inline formatting to keep the article readable and break ' +
+      'up long stretches of plain paragraphs: wrap a key term or important point in <strong>...</strong> ' +
+      'for bold, <em>...</em> for italic, or <u>...</u> for underline -- sparingly (a handful of times ' +
+      'across the whole article), never an entire paragraph or a heading, and never nest one inside ' +
+      'another. Also identify SUGGESTED GRAPH STEPS: 2-5 short imperative-style ' +
       'labels (e.g. "Identify the setup", "Confirm the signal", "Manage the position") summarizing ' +
       'this article\'s own core process or sequence -- ground every label strictly in what your draft ' +
       'itself already says, never inventing a claim the article does not cover; these labels feed an ' +
@@ -3835,8 +4521,9 @@
         : '') +
       'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
       '{"title":"...","summary":"<1-2 sentence summary>","body_text":"<the full article body as plain ' +
-      'paragraphs separated by blank lines, with \\"## \\"-prefixed section-heading lines -- no other ' +
-      'HTML/markdown>","suggestedGraphSteps":["<2-5 short imperative-style labels>"]}';
+      'paragraphs separated by blank lines, with \\"## \\"-prefixed section-heading lines and occasional ' +
+      'inline <strong>/<em>/<u> emphasis -- no other HTML/markdown>","suggestedGraphSteps":["<2-5 short ' +
+      'imperative-style labels>"]}';
 
     var userParts = ['Topic: ' + topic];
     userParts.push('\nChecklist (' + checklist.length + ' item(s)) -- cover every one substantively:\n' + formatChecklistForWriterBrowser(checklist));
@@ -3862,31 +4549,64 @@
     return { system: system, user: userParts.join('\n') };
   }
 
-  // mirrors scripts/generate-article.js's buildRepairPrompt({topic, checklist, draft, missing, partial})
-  function buildRepairPromptBrowser(topic, checklist, draft, missing, partial) {
+  // mirrors scripts/generate-article.js's buildRepairPrompt({topic, checklist, draft, missing, partial, offTopicSections, expandTarget})
+  function buildRepairPromptBrowser(topic, checklist, draft, missing, partial, offTopicSections, expandTarget) {
+    offTopicSections = offTopicSections || [];
+    expandTarget = expandTarget || null;
     var system =
-      'You are revising a draft article to fix specific coverage gaps a separate reviewer flagged. ' +
+      'You are revising a draft article to fix specific gaps a separate review pass flagged. ' +
       'Keep everything that already works in the draft -- do not rewrite the whole article from ' +
-      'scratch, only extend or adjust it so every listed gap is substantively covered. Do not remove ' +
+      'scratch, only extend or adjust it so every listed gap is fixed. Do not remove ' +
       'or contradict anything already correct in the draft.\n\n' +
-      'The draft\'s "## "-prefixed section-heading lines and its suggestedGraphSteps (shown below) ' +
-      'should be kept as-is unless the fix genuinely requires changing them -- re-emit the full body ' +
-      'text (with its "## " headings preserved) and a suggestedGraphSteps array (still 2-5 short ' +
-      'imperative-style labels, still grounded only in what the revised draft itself says) either way.\n\n' +
+      (offTopicSections.length
+        ? 'Some gaps below are OFF-TOPIC SECTION flags, not missing coverage: a section heading was ' +
+          'built around an entity that should be DISTINGUISHED FROM the main topic (not folded into ' +
+          'it) -- for each one, remove that section heading and fold a brief distinguishing mention ' +
+          '(a sentence, or part of an existing paragraph in a section that IS about the main topic) in ' +
+          'its place instead. Do not simply rename the heading -- the entity must no longer have its ' +
+          'own dedicated heading at all.\n\n'
+        : '') +
+      (expandTarget
+        ? 'Another gap below is a LENGTH gap: the current draft is only about ' + expandTarget.currentWords + ' words, ' +
+          'well under this site\'s ' + expandTarget.targetWords + '-word target for a genuinely in-depth, 10-minute-' +
+          'plus read. Expand the draft substantially -- add more real explanation, more concrete examples, more ' +
+          'step-by-step mechanics, and more context on WHY something matters to sections that are ALREADY central ' +
+          'to the topic. Do NOT reach the target by padding with repetition or filler, and do NOT add a new ' +
+          'section headlined around a loosely-related checklist item just to add length -- that reproduces a ' +
+          'known failure mode this pipeline already guards against (see the off-topic-section instructions above, ' +
+          'if any). A new section is fine ONLY if it covers a genuinely central sub-topic the current draft is ' +
+          'missing.\n\n'
+        : '') +
+      'The draft\'s "## "-prefixed section-heading lines, its inline <strong>/<em>/<u> emphasis, and its ' +
+      'suggestedGraphSteps (shown below) should be kept as-is unless the fix genuinely requires ' +
+      'changing them -- re-emit the full body text (with its "## " headings and inline emphasis ' +
+      'preserved) and a suggestedGraphSteps array (still 2-5 short imperative-style labels, still ' +
+      'grounded only in what the revised draft itself says) either way.\n\n' +
       'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
       '{"title":"...","summary":"...","body_text":"<the full REVISED article body, plain paragraphs ' +
-      'with "## "-prefixed section-heading lines, no other HTML/markdown>","suggestedGraphSteps":' +
-      '["<2-5 short imperative-style labels>"]}';
+      'with "## "-prefixed section-heading lines and occasional inline <strong>/<em>/<u> emphasis, no ' +
+      'other HTML/markdown>","suggestedGraphSteps":["<2-5 short imperative-style labels>"]}';
 
     var gapLines = missing.map(function(i) { return '- MISSING entirely: "' + i.name + '"'; })
-      .concat(partial.map(function(i) { return '- Only PARTIALLY covered: "' + i.name + '" (current evidence: "' + (i.evidence || '(none)') + '")'; }));
+      .concat(partial.map(function(i) { return '- Only PARTIALLY covered: "' + i.name + '" (current evidence: "' + (i.evidence || '(none)') + '")'; }))
+      .concat(offTopicSections.map(function(s) {
+        return '- OFF-TOPIC SECTION: heading "' + s.heading + '" is built around "' + s.entity + '", which should be ' +
+          'distinguished FROM the main topic, not headlined -- remove this heading and fold a brief ' +
+          'distinguishing mention into a section about the main topic instead';
+      }));
+    if (expandTarget) {
+      gapLines = gapLines.concat([
+        '- LENGTH: draft is only ~' + expandTarget.currentWords + ' words; expand to at least ' +
+          expandTarget.targetWords + ' words with genuine depth, not padding or a new tangential section'
+      ]);
+    }
 
     var user =
       'Topic: ' + topic + '\n\n' +
       'Current draft title: ' + draft.title + '\n' +
       'Current draft body text:\n' + draft.body_text + '\n\n' +
       'Current draft\'s suggested graph steps: ' + JSON.stringify(draft.suggestedGraphSteps || []) + '\n\n' +
-      'Coverage gaps to fix (from a separate reviewer pass):\n' + gapLines.join('\n') + '\n\n' +
+      'Gaps to fix (from a separate review pass):\n' + gapLines.join('\n') + '\n\n' +
       'Full checklist for reference (' + checklist.length + ' item(s)):\n' + formatChecklistForWriterBrowser(checklist);
 
     return { system: system, user: user };
@@ -3913,6 +4633,38 @@
       throw new Error('Writer response missing non-empty "title"/"summary"/"body_text": ' + JSON.stringify(parsed));
     }
     return { title: parsed.title.trim(), summary: parsed.summary.trim(), body_text: parsed.body_text.trim() };
+  }
+
+  // mirrors scripts/generate-article.js's detectOffTopicSections() — see that function's own doc
+  // comment for the full rationale (admin-ai-article-creator-test-run memory, 2026-08-20
+  // addendum: a real generation run gave a `distinguished_from` checklist item its own dedicated
+  // section even with prompt-level guidance against it, so this deterministic scan is the backstop).
+  // Trailing "s" / "'s" is optional and NOT excluded by the lookahead -- see
+  // scripts/generate-article.js's headingMentionsEntity() doc comment for why
+  // (a real generation run produced "The Role of Call Warrants", the plural
+  // of the "Call Warrant" checklist entity name).
+  function kcHeadingMentionsEntity(headingText, entityName) {
+    var escaped = entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    var pattern = new RegExp('(?<![a-z0-9])' + escaped + '(\'s|s)?(?![a-z0-9])', 'i');
+    return pattern.test(headingText);
+  }
+  function kcDetectOffTopicSections(bodyText, checklist) {
+    var contrastItems = checklist.filter(function(c) { return c.relation && KC_CONTRAST_RELATIONS[c.relation]; });
+    if (!contrastItems.length) return [];
+    var headings = [];
+    var re = /^##\s+(\S.*)$/gm;
+    var m;
+    while ((m = re.exec(bodyText)) !== null) headings.push(m[1].trim());
+    var flagged = [];
+    headings.forEach(function(heading) {
+      for (var i = 0; i < contrastItems.length; i++) {
+        if (kcHeadingMentionsEntity(heading, contrastItems[i].name)) {
+          flagged.push({ heading: heading, entity: contrastItems[i].name, relation: contrastItems[i].relation });
+          break;
+        }
+      }
+    });
+    return flagged;
   }
 
   // mirrors scripts/coverage-reviewer.js's formatChecklist() + buildReviewPrompt()
@@ -3987,20 +4739,41 @@
     checkAborted();
     var graph = await loadKnowledgeGraphJson(signal); // already cached after first call
     var seedEntities = kcFindSeedEntities(graph, topic, 8);
-    var relatedEntities = kcExpandRelatedEntities(graph, seedEntities, 1);
+    var relatedEntities = kcExpandRelatedEntities(graph, seedEntities, 1, false);
+    var weakRelationWarnings = relatedEntities.skippedWeakEdges || [];
     var entityChecklist = kcBuildChecklist(relatedEntities);
     var articleSummaries = kcGetArticleSummariesForEntities(graph, relatedEntities);
     var nearDuplicates = kcFlagNearDuplicateCoverage(articleSummaries, seedEntities);
     var suggestedLinks = suggestInternalLinksBrowser(articleSummaries, seedEntities, { max: 3 });
     var checklist = buildFullChecklistBrowser(entityChecklist, mustIncludeFacts);
+    if (!mustIncludeFacts.length && weakRelationWarnings.length) {
+      onProgress(
+        'retrieval',
+        'Weak generic related_to edges were excluded from the required checklist. Add must-include facts when this topic needs a specific angle.'
+      );
+    }
+    if (!mustIncludeFacts.length && !seedEntities.length) {
+      onProgress(
+        'retrieval',
+        'No graph entity matched this topic. Add must-include facts or source text to keep the draft anchored.'
+      );
+    }
 
     checkAborted();
     onProgress('writer', 'Writing the first draft…');
     var writerRaw = await callOpenAIJson(
       buildWriterPromptBrowser(topic, checklist, mustIncludeFacts, articleSummaries, nearDuplicates, sourceText),
-      { model: 'gpt-4o', temperature: 0.7, maxTokens: 6000, signal: signal } // headroom over the site's real max article length (10,523 chars ≈ 2,630 tokens of body alone) — mirrors scripts/generate-article.js's MAX_TOKENS
+      { model: 'gpt-4o', temperature: 0.7, maxTokens: 8000, signal: signal } // headroom over the 10-minute-read target (KC_TARGET_BODY_WORD_COUNT_EN = 2,200 words) — mirrors scripts/generate-article.js's MAX_TOKENS
     );
     var draft = parseWriterResponseBrowser(writerRaw);
+    // Deterministic backstop alongside the reviewer's coverage check — see
+    // kcDetectOffTopicSections' own doc comment (admin-ai-article-creator-test-run memory,
+    // 2026-08-20 addendum). Computed here (and recomputed after any repair) independent of the
+    // reviewer LLM call below, same as generate-article.js's mirror.
+    var offTopicSections = kcDetectOffTopicSections(draft.body_text, checklist);
+    // Same treatment for the length target (article-length-expansion.md) — a pure word-count
+    // check, independent of the reviewer LLM call, computed here and recomputed after any repair.
+    var wordCount = countBodyWordsBrowser(draft.body_text);
 
     var review = null;
     var coverageSummary = null;
@@ -4018,14 +4791,25 @@
       review = parseReviewResponseBrowser(reviewRaw);
       coverageSummary = summarizeReviewBrowser(review);
 
-      if (!coverageSummary.allCovered && checklist.length) {
+      // Fires on any of three independent gaps — missing/partial coverage, an off-topic section,
+      // or a still-under-target word count — sharing the SAME single repair retry rather than
+      // adding a second one, mirrors generate-article.js's generateArticleWithReview(). The
+      // length gap does not require a non-empty checklist (a thin article is a real gap even for
+      // a topic that matched no graph entities).
+      var needsCoverageRepair = checklist.length > 0 && (!coverageSummary.allCovered || offTopicSections.length > 0);
+      var needsLengthExpansion = wordCount < KC_TARGET_BODY_WORD_COUNT_EN;
+      if (needsCoverageRepair || needsLengthExpansion) {
         checkAborted();
-        onProgress('repair', 'Filling in ' + (coverageSummary.missing.length + coverageSummary.partial.length) + ' gap(s)…');
+        var expandTarget = needsLengthExpansion ? { currentWords: wordCount, targetWords: KC_TARGET_BODY_WORD_COUNT_EN } : null;
+        var gapCount = coverageSummary.missing.length + coverageSummary.partial.length + offTopicSections.length + (needsLengthExpansion ? 1 : 0);
+        onProgress('repair', 'Filling in ' + gapCount + ' gap(s)…');
         var repairRaw = await callOpenAIJson(
-          buildRepairPromptBrowser(topic, checklist, draft, coverageSummary.missing, coverageSummary.partial),
-          { model: 'gpt-4o', temperature: 0.7, maxTokens: 6000, signal: signal } // mirrors scripts/generate-article.js's MAX_TOKENS
+          buildRepairPromptBrowser(topic, checklist, draft, coverageSummary.missing, coverageSummary.partial, offTopicSections, expandTarget),
+          { model: 'gpt-4o', temperature: 0.7, maxTokens: 8000, signal: signal } // mirrors scripts/generate-article.js's MAX_TOKENS
         );
         draft = parseWriterResponseBrowser(repairRaw);
+        offTopicSections = kcDetectOffTopicSections(draft.body_text, checklist);
+        wordCount = countBodyWordsBrowser(draft.body_text);
 
         checkAborted();
         onProgress('re-review', 'Re-checking coverage…');
@@ -4049,8 +4833,17 @@
     var linkResult = insertSuggestedLinksBrowser(draft.body_text, suggestedLinks);
     draft = { title: draft.title, summary: draft.summary, body_text: linkResult.bodyText };
     var internalLinks = { inserted: linkResult.inserted, skipped: linkResult.skipped };
+    // Recomputed against the FINAL (post-link-insertion) body text — same reasoning as
+    // generate-article.js's mirror: link-wrapping an existing mention never adds a real word, but
+    // this keeps wordCount honestly describing the body_text actually returned.
+    wordCount = countBodyWordsBrowser(draft.body_text);
 
     onProgress('done', 'Draft ready.');
+    // offTopicSections: whatever kcDetectOffTopicSections() still finds after the repair
+    // attempt above — surfaced uncollapsed (never auto-blocking), same informational pattern as
+    // reviewCoverageFailed, so the admin UI (or a human eyeballing the draft) can see when a
+    // repair attempt didn't fully resolve it. wordCount/targetWordCount/meetsLengthTarget: same
+    // informational pattern, for the article-length-expansion.md soft 10-minute-read target.
     return {
       topic: topic,
       checklist: checklist,
@@ -4059,8 +4852,12 @@
       summary: coverageSummary,
       retryCount: retryCount,
       internalLinks: internalLinks,
+      offTopicSections: offTopicSections,
       reviewCoverageFailed: reviewCoverageFailed,
-      reviewCoverageFailedMessage: reviewCoverageFailedMessage
+      reviewCoverageFailedMessage: reviewCoverageFailedMessage,
+      wordCount: wordCount,
+      targetWordCount: KC_TARGET_BODY_WORD_COUNT_EN,
+      meetsLengthTarget: wordCount >= KC_TARGET_BODY_WORD_COUNT_EN
     };
   }
 
@@ -4280,23 +5077,32 @@
 
   // Exactly insertSuggestedLinksBrowser's own anchor output shape (§2 above: <a href="slug.html">
   // mention</a>, no other attributes) — kept in sync with it deliberately, so the plain-text→HTML
-  // converter below can recognize an already-safe anchor span and never re-escape it.
-  var AI_ANCHOR_RE = /<a href="[a-z0-9-]+\.html">[^<]*<\/a>/gi;
+  // converter below can recognize an already-safe anchor span and never re-escape it. Alongside it,
+  // the individual open/close tags for the inline emphasis markup buildWriterPromptBrowser's writer
+  // prompt now allows (<strong>/<em>/<u>) are recognized as their own bare tokens rather than whole
+  // matched elements -- unlike the anchor, which is always self-contained with plain-text content,
+  // an emphasis span can end up wrapping (or being wrapped by) an anchor §2's link insertion put
+  // INSIDE it, e.g. "<strong><a href="...">Time Decay</a></strong>". Tokenizing each piece (open tag,
+  // anchor element, close tag) independently means any combination/nesting of the two still passes
+  // through untouched below instead of being HTML-escaped. Quill recognizes these same tags natively
+  // via dangerouslyPasteHTML, so they land as real bold/italic/underline formatting in the editor.
+  var AI_SAFE_INLINE_RE = /<a href="[a-z0-9-]+\.html">[^<]*<\/a>|<\/?(?:strong|em|u)>/gi;
 
   // Converts the writer's plain-paragraph body text (with possible already-safe <a> anchors from
-  // §2's link insertion) into paragraph HTML Quill can take, without double-escaping those anchors.
-  // Tokenizes around each anchor rather than escaping-then-unescaping, so an entity mention that
-  // happens to contain "&"/"<" after being anchor-wrapped is never at risk of being escaped twice.
+  // §2's link insertion and inline <strong>/<em>/<u> emphasis from the writer itself) into paragraph
+  // HTML Quill can take, without double-escaping either. Tokenizes around each recognized element
+  // rather than escaping-then-unescaping, so an entity mention that happens to contain "&"/"<" after
+  // being anchor-wrapped is never at risk of being escaped twice.
   function plainTextWithAnchorsToParagraphHtml(text) {
     var paragraphs = text.split(/\n\s*\n/).map(function(p) { return p.trim(); }).filter(Boolean);
     return paragraphs.map(function(para) {
       var lastIndex = 0;
       var out = '';
       var m;
-      AI_ANCHOR_RE.lastIndex = 0;
-      while ((m = AI_ANCHOR_RE.exec(para))) {
+      AI_SAFE_INLINE_RE.lastIndex = 0;
+      while ((m = AI_SAFE_INLINE_RE.exec(para))) {
         out += escapeHtml(para.slice(lastIndex, m.index)).replace(/\n/g, '<br>');
-        out += m[0]; // the anchor itself — already-safe markup, left untouched
+        out += m[0]; // the anchor/emphasis tag itself — already-safe markup, left untouched
         lastIndex = m.index + m[0].length;
       }
       out += escapeHtml(para.slice(lastIndex)).replace(/\n/g, '<br>');
@@ -4332,6 +5138,24 @@
     html += '<div class="ai-draft-review__summary">' + escapeHtml(draft.summary) + '</div>';
     if (result.reviewCoverageFailed) {
       html += '<p class="coverage-panel__note" style="color:#dc2626;">Coverage check couldn\'t complete: ' + escapeHtml(result.reviewCoverageFailedMessage || 'unknown error') + ' — review the draft manually before inserting. This never blocks inserting or publishing.</p>';
+    }
+    if (result.offTopicSections && result.offTopicSections.length) {
+      html += '<p class="coverage-panel__note" style="color:#b45309;">&#9888; ' + result.offTopicSections.length + ' section heading' + (result.offTopicSections.length === 1 ? '' : 's') + ' still read' + (result.offTopicSections.length === 1 ? 's' : '') + ' as centered on a tangential topic even after an automatic repair attempt — check before publishing:</p>';
+      html += '<ul class="coverage-panel__note" style="margin:0 0 12px 20px; color:#b45309;">';
+      result.offTopicSections.forEach(function(s) {
+        html += '<li>"' + escapeHtml(s.heading) + '" (built around "' + escapeHtml(s.entity) + '")</li>';
+      });
+      html += '</ul>';
+    }
+    if (typeof result.wordCount === 'number') {
+      // Soft target only (article-length-expansion.md, owner decision 2026-08-21) — never blocks
+      // Insert/Publish, informational the same way the notes above are.
+      var lengthOk = result.meetsLengthTarget;
+      html += '<p class="coverage-panel__note" style="color:' + (lengthOk ? '#15803d' : '#b45309') + ';">' +
+        (lengthOk ? '&#10003; ' : '&#9888; ') + result.wordCount + ' word(s) — ' +
+        (lengthOk ? 'meets' : 'under') + ' the ' + result.targetWordCount + '-word 10-minute-read target' +
+        (lengthOk ? '' : ' even after an automatic expansion attempt — consider expanding manually before publishing') +
+        '.</p>';
     }
     html += '<div class="coverage-panel" id="aiCoveragePanel"></div>';
     html += '<div id="aiInternalLinksReport"></div>';
@@ -4651,6 +5475,12 @@
     $('graphTitleEn').value = '';
     $('graphTitleZh').value = '';
     $('graphZhSuggestStatus').innerHTML = '';
+    naAiGraphResult = null;
+    naAiGraphRejectedSummaries = [];
+    $('graphAiStatus').innerHTML = '';
+    $('graphAiPreview').classList.add('hidden');
+    $('graphAiPreview').innerHTML = '';
+    $('graphAiGenerateBtn').disabled = false;
     renderGraphPanel();
     $('publishSuccess').classList.add('hidden');
     $('newArticleForm').classList.remove('hidden');
@@ -4878,6 +5708,11 @@
       'entity, not two). Only invent a new entity name when the concept genuinely is not in that list.\n\n' +
       'relevance_score is 0.0-1.0: how central the entity is to THIS article (a passing mention is ' +
       'low, e.g. 0.2-0.4; the main subject is high, e.g. 0.8-1.0).\n\n' +
+      'For edges, prefer the most specific supported relation. Use "related_to" only when the article ' +
+      'explicitly explains a meaningful connection between the two entities but none of the specific ' +
+      'relations fits. Do NOT use "related_to" as a fallback for loose co-occurrence, same-section ' +
+      'mentions, or low confidence. If the relationship is not clearly supported by the article text, ' +
+      'omit the edge.\n\n' +
       'Every edge\'s "source" and "target" MUST each be a name that also appears in your own ' +
       '"entities" list in this response — do not reference an entity you did not include.\n\n' +
       'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +

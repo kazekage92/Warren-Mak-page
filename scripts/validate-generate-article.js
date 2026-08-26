@@ -58,13 +58,14 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { buildRetrievalContext, insertSuggestedLinks } from './retrieval-layer.js';
+import { buildRetrievalContext, insertSuggestedLinks, CONTRAST_RELATIONS } from './retrieval-layer.js';
 import { buildReviewPrompt } from './coverage-reviewer.js';
 import {
   buildFullChecklist,
   buildWriterPrompt,
   buildRepairPrompt,
   parseWriterResponse,
+  detectOffTopicSections,
   generateArticleWithReview,
   fixtureWriter,
   fixtureReviewerByTopic,
@@ -113,6 +114,76 @@ function reviewJson(items) {
 /** Builds one fully-deterministic scenario's fixtures from the checklist
  *  buildRetrievalContext() actually returns for `topic` against the real
  *  sample db — no hardcoded assumption about entity names. */
+
+/** Scenario F's fixtures: a checklist that is FULLY covered from the first draft (no
+ *  missing/partial item at all — isolating that the repair pass fires solely because of an
+ *  off-topic section, the new behavior added after the real "Call Warrant" incident), but the
+ *  initial draft gives one CONTRAST_RELATIONS checklist item its own dedicated section heading.
+ *  Reads the checklist from the real sample db (like writeScenarioFixtures above) rather than
+ *  hardcoding an entity name, so it stays correct if the sample db's edges ever change — but
+ *  throws a clear error if no CONTRAST_RELATIONS item exists for `topic`, rather than silently
+ *  testing nothing. */
+function writeOffTopicScenarioFixtures(db, topic) {
+  const context = buildRetrievalContext(db, topic);
+  const checklist = buildFullChecklist(context.checklist, MUST_INCLUDE_FACTS);
+  const contrastItem = checklist.find((c) => c.relation && CONTRAST_RELATIONS.has(c.relation));
+  if (!contrastItem) {
+    throw new Error(`Topic "${topic}" has no CONTRAST_RELATIONS checklist item in the sample db — pick a different fixture topic for the off-topic-section scenario.`);
+  }
+  const key = slugifyTopic(topic);
+  const otherItems = checklist.filter((c) => c !== contrastItem);
+  const mention = (items) => items.map((c) => `This section discusses ${c.name} in detail.`).join(' ');
+
+  // Initial draft: every other item mentioned in section 1; contrastItem gets its OWN heading
+  // (the exact defect a real generation run produced for "Call Warrant") — mentioned there too,
+  // so a coverage reviewer marks it "covered", not "missing".
+  const initialBody =
+    `## Understanding ${topic}\n\n${mention(otherItems)}\n\n` + `## ${contrastItem.name} Considerations\n\n${mention([contrastItem])}`;
+  writeFileSync(path.join(WRITER_FIXTURE_DIR, `${key}.json`), draftJson(`Article about ${topic}`, initialBody), 'utf-8');
+
+  // Initial reviewer response: EVERYTHING covered, including contrastItem — coverage alone gives
+  // no reason to repair; only detectOffTopicSections should trigger the retry.
+  const fullyCoveredReview = checklist.map((c) => ({ name: c.name, status: 'covered', evidence: `This section discusses ${c.name} in detail.` }));
+  writeFileSync(path.join(REVIEWER_FIXTURE_DIR, `${key}.json`), reviewJson(fullyCoveredReview), 'utf-8');
+
+  // Repair draft: contrastItem's mention folded into section 1's paragraph instead — no heading
+  // built around it anymore.
+  const repairBody = `## Understanding ${topic}\n\n${mention(otherItems)} ${contrastItem.name} should be distinguished from ${topic}, briefly.`;
+  writeFileSync(path.join(WRITER_FIXTURE_DIR, `${key}.repair.json`), draftJson(`Article about ${topic}`, repairBody), 'utf-8');
+  writeFileSync(path.join(REVIEWER_FIXTURE_DIR, `${key}.repair.json`), reviewJson(fullyCoveredReview), 'utf-8');
+}
+
+/** article-length-expansion.md's fixtures: a checklist that is (or can be made) FULLY covered
+ *  from a deliberately SHORT initial draft (isolating the length gap from coverage gaps), plus a
+ *  repair draft that's either padded well past a real 2,200-word target (`repairStaysShort:
+ *  false`, the default) or left exactly as short (`repairStaysShort: true`, for the retry-cap
+ *  scenario). Reads the checklist from the real sample db like the helpers above, rather than
+ *  hardcoding an entity count, so it stays correct if the sample db's entities ever change. */
+function writeLengthScenarioFixtures(db, topic, { mustIncludeFacts = [], longFillerWords = 2300, repairStaysShort = false } = {}) {
+  const context = buildRetrievalContext(db, topic);
+  const checklist = buildFullChecklist(context.checklist, mustIncludeFacts);
+  if (!checklist.length) {
+    throw new Error(`Topic "${topic}" matched no entities in the sample db — pick a different fixture topic for the length scenario.`);
+  }
+  const key = slugifyTopic(topic);
+  const mention = checklist.map((c) => `This section discusses ${c.name} in detail.`).join(' ');
+
+  // Initial draft: SHORT — every checklist item mentioned (fully covered), no padding at all.
+  writeFileSync(path.join(WRITER_FIXTURE_DIR, `${key}.json`), draftJson(`Article about ${topic}`, mention), 'utf-8');
+
+  const fullyCoveredReview = checklist.map((c) => ({ name: c.name, status: 'covered', evidence: `This section discusses ${c.name} in detail.` }));
+  writeFileSync(path.join(REVIEWER_FIXTURE_DIR, `${key}.json`), reviewJson(fullyCoveredReview), 'utf-8');
+
+  // Repair draft: either padded well past the real 2,200-word default target, or left exactly as
+  // short as the initial draft (repairStaysShort) to exercise the "retry cap holds even though
+  // the gap remains" path.
+  const repairBodyText = repairStaysShort ? mention : `${mention} ${Array(longFillerWords).fill('filler').join(' ')}`;
+  writeFileSync(path.join(WRITER_FIXTURE_DIR, `${key}.repair.json`), draftJson(`Article about ${topic}`, repairBodyText), 'utf-8');
+  writeFileSync(path.join(REVIEWER_FIXTURE_DIR, `${key}.repair.json`), reviewJson(fullyCoveredReview), 'utf-8');
+
+  return checklist;
+}
+
 function writeScenarioFixtures(db, topic, { omitFirstItem, repairStillPartial }) {
   const context = buildRetrievalContext(db, topic);
   const checklist = buildFullChecklist(context.checklist, MUST_INCLUDE_FACTS);
@@ -314,12 +385,14 @@ function runLinkInsertionCheck() {
 
 // ---------------------------------------------------------------------------
 // Part 0.6 — buildWriterPrompt() / buildRepairPrompt() actually instruct for
-// "## " section breaks + suggestedGraphSteps (extra-md-files/automated-
-// article-scheduler.md component 2). Pure function, no db/fixtures needed.
+// "## " section breaks + inline <strong>/<em>/<u> emphasis + suggestedGraphSteps
+// (extra-md-files/automated-article-scheduler.md component 2; the inline-
+// emphasis instruction is a readability addition on top of that). Pure
+// function, no db/fixtures needed.
 // ---------------------------------------------------------------------------
 
 function runGraphStepsPromptCheck() {
-  console.log('\n=== Part 0.6: buildWriterPrompt() / buildRepairPrompt() section-break + suggestedGraphSteps instructions ===\n');
+  console.log('\n=== Part 0.6: buildWriterPrompt() / buildRepairPrompt() section-break + inline emphasis + suggestedGraphSteps instructions ===\n');
   const checks = [];
 
   const writerPrompt = buildWriterPrompt({
@@ -331,6 +404,7 @@ function runGraphStepsPromptCheck() {
     sourceText: null,
   });
   checks.push(['writer system prompt instructs "## " section headings', writerPrompt.system.includes('"## "')]);
+  checks.push(['writer system prompt instructs inline <strong>/<em>/<u> emphasis', writerPrompt.system.includes('<strong>...</strong>') && writerPrompt.system.includes('<em>...</em>') && writerPrompt.system.includes('<u>...</u>')]);
   checks.push(['writer system prompt asks for suggestedGraphSteps', writerPrompt.system.includes('SUGGESTED GRAPH STEPS')]);
   checks.push(['writer system prompt\'s JSON response shape includes suggestedGraphSteps', writerPrompt.system.trim().endsWith('"suggestedGraphSteps":["<2-5 short imperative-style labels>"]}')]);
 
@@ -343,6 +417,7 @@ function runGraphStepsPromptCheck() {
     partial: [],
   });
   checks.push(['repair system prompt instructs keeping "## " headings', repairPrompt.system.includes('"## "')]);
+  checks.push(['repair system prompt instructs keeping inline <strong>/<em>/<u> emphasis', repairPrompt.system.includes('<strong>/<em>/<u>')]);
   checks.push(['repair system prompt asks for a (re-emitted) suggestedGraphSteps array', repairPrompt.system.includes('suggestedGraphSteps')]);
   checks.push(['repair user prompt shows the CURRENT draft\'s suggested graph steps', repairPrompt.user.includes('Step one') && repairPrompt.user.includes('Step two')]);
 
@@ -398,6 +473,62 @@ function runCandidateSourceArticlesPromptCheck() {
 }
 
 // ---------------------------------------------------------------------------
+// Part 0.8 — detectOffTopicSections(): the deterministic backstop added
+// after a real generation run gave a `distinguished_from` checklist item its
+// own section even with prompt-level guidance against it (admin-ai-article-
+// creator-test-run memory, 2026-08-20 addendum). Pure function, no db/
+// fixtures needed.
+// ---------------------------------------------------------------------------
+
+function runOffTopicSectionCheck() {
+  console.log('\n=== Part 0.8: detectOffTopicSections() ===\n');
+  const checks = [];
+
+  const checklist = [
+    { name: 'Stock Trading Course', type: 'product', why: 'directly matches the topic', relation: null },
+    {
+      name: 'Call Warrant',
+      type: 'product',
+      why: 'related to the topic via: Stock Trading Course --[distinguished_from]--> Call Warrant',
+      relation: 'distinguished_from',
+    },
+    {
+      name: 'Risk Management',
+      type: 'concept',
+      why: 'related to the topic via: Risk Management --[prerequisite_of]--> Stock Trading Course',
+      relation: 'prerequisite_of',
+    },
+  ];
+
+  const bodyWithOffTopicHeading =
+    '## Understanding Stock Trading Courses\n\nBody text.\n\n' +
+    '## The Role of Call Warrants\n\nCall Warrants are a different product.\n\n' + // real incident's exact heading (plural)
+    '## The Importance of Risk Management\n\nRisk Management is a prerequisite.';
+  const flaggedPlural = detectOffTopicSections(bodyWithOffTopicHeading, checklist);
+  checks.push(['flags exactly one section (the distinguished_from one), not the prerequisite_of one', flaggedPlural.length === 1]);
+  checks.push(['flags the plural real-incident heading text exactly', flaggedPlural[0]?.heading === 'The Role of Call Warrants']);
+  checks.push(['flag carries the entity name', flaggedPlural[0]?.entity === 'Call Warrant']);
+  checks.push(['flag carries the raw relation type', flaggedPlural[0]?.relation === 'distinguished_from']);
+
+  const bodyWithSingularMention =
+    '## Understanding Stock Trading Courses\n\nA course is different from a Call Warrant, briefly.\n\n' +
+    '## The Importance of Risk Management\n\nRisk Management is a prerequisite.';
+  checks.push(['a brief in-paragraph mention (no dedicated heading) is not flagged', detectOffTopicSections(bodyWithSingularMention, checklist).length === 0]);
+
+  checks.push(['empty checklist -> never flags anything', detectOffTopicSections(bodyWithOffTopicHeading, []).length === 0]);
+  checks.push(['no "## " headings at all -> never flags anything', detectOffTopicSections('Plain paragraph mentioning Call Warrant.', checklist).length === 0]);
+
+  const bodyWithWeaklyRelatedHeading = '## Related: Call Warrant Basics\n\nSome text.';
+  const weakChecklist = [{ name: 'Call Warrant', type: 'product', why: 'related to the topic via: Stock Trading Course --[related_to]--> Call Warrant', relation: 'related_to' }];
+  checks.push(['a related_to relation (not a CONTRAST_RELATIONS member) is never flagged', detectOffTopicSections(bodyWithWeaklyRelatedHeading, weakChecklist).length === 0]);
+
+  const seedOnlyChecklist = [{ name: 'Stock Trading Course', type: 'product', why: 'directly matches the topic', relation: null }];
+  checks.push(['a hop-0 seed item (relation: null) is never flagged even if it heads its own section', detectOffTopicSections('## Understanding Stock Trading Courses\n\ntext', seedOnlyChecklist).length === 0]);
+
+  return checks;
+}
+
+// ---------------------------------------------------------------------------
 // Part 1 — function-level: generateArticleWithReview() against the real db,
 // with call-counted fixture writer/reviewer.
 // ---------------------------------------------------------------------------
@@ -419,6 +550,7 @@ async function runPart1() {
       writer: writerA,
       reviewer: reviewerA,
       maxRetries: 1,
+      targetWordCount: 0, // pre-existing scenario: opt out of the length-expansion trigger (article-length-expansion.md) so it keeps isolating coverage/off-topic behavior only
     });
 
     checks.push(['scenario A: writer called exactly twice (initial + repair)', writerA.calls === 2]);
@@ -458,6 +590,7 @@ async function runPart1() {
       writer: writerB,
       reviewer: reviewerB,
       maxRetries: 1,
+      targetWordCount: 0, // pre-existing scenario: opt out of the length-expansion trigger (article-length-expansion.md) so it keeps isolating coverage/off-topic behavior only
     });
 
     checks.push(['scenario B (retry cap): writer STILL called only twice, not a third time', writerB.calls === 2]);
@@ -477,6 +610,7 @@ async function runPart1() {
       writer: writerC,
       reviewer: reviewerC,
       maxRetries: 1,
+      targetWordCount: 0, // pre-existing scenario: opt out of the length-expansion trigger (article-length-expansion.md) so it keeps isolating coverage/off-topic behavior only
     });
 
     checks.push(['scenario C (clean): writer called exactly once — no repair attempted', writerC.calls === 1]);
@@ -517,6 +651,7 @@ async function runPart1() {
       writer: writerE,
       reviewer: reviewerE,
       maxRetries: 1,
+      targetWordCount: 0, // pre-existing scenario: opt out of the length-expansion trigger (article-length-expansion.md) so it keeps isolating coverage/off-topic behavior only
     });
 
     checks.push(['scenario E (reviewer throws): does not reject — returns the salvaged result instead', resultE !== undefined]);
@@ -529,6 +664,98 @@ async function runPart1() {
     checks.push(['scenario E (reviewer throws): retryCount stays 0', resultE.retryCount === 0]);
     checks.push(['scenario E (reviewer throws): the writer draft itself is still returned, not discarded', resultE.draft.title === 'Article about Time Decay']);
     checks.push(['scenario E (reviewer throws): internal-link insertion still ran against the salvaged draft (step 7 has no dependency on review)', Array.isArray(resultE.internalLinks.inserted) && Array.isArray(resultE.internalLinks.skipped)]);
+
+    // --- Scenario F: fully covered from the first draft, but one section is built around a
+    // CONTRAST_RELATIONS checklist item — proves detectOffTopicSections() alone (not coverage)
+    // triggers the single repair retry, and that the retry actually clears the flag. This is the
+    // real "Call Warrant" incident's shape (admin-ai-article-creator-test-run memory).
+    writeOffTopicScenarioFixtures(db, TOPIC_GAP);
+    const writerF = countCalls((promptObj, opts) => fixtureWriter(promptObj, { fixtureDir: WRITER_FIXTURE_DIR, topic: opts.topic, attempt: opts.attempt }));
+    const reviewerF = countCalls((promptObj, opts) => fixtureReviewerByTopic(promptObj, { fixtureDir: REVIEWER_FIXTURE_DIR, topic: opts.topic, attempt: opts.attempt }));
+    const resultF = await generateArticleWithReview({
+      db,
+      topic: TOPIC_GAP,
+      mustIncludeFacts: MUST_INCLUDE_FACTS,
+      writer: writerF,
+      reviewer: reviewerF,
+      maxRetries: 1,
+      targetWordCount: 0, // pre-existing scenario: opt out of the length-expansion trigger (article-length-expansion.md) so it keeps isolating coverage/off-topic behavior only
+    });
+
+    checks.push(['scenario F (off-topic section): writer called twice — repair fired despite full coverage', writerF.calls === 2]);
+    checks.push(['scenario F (off-topic section): reviewer called twice', reviewerF.calls === 2]);
+    checks.push(['scenario F (off-topic section): retryCount === 1', resultF.retryCount === 1]);
+    checks.push(['scenario F (off-topic section): coverage was ALREADY fully covered on the first pass (repair was not a coverage fix)', resultF.summary.allCovered === true]);
+    checks.push(['scenario F (off-topic section): final offTopicSections is empty — the repair actually removed the dedicated heading', resultF.offTopicSections.length === 0]);
+    checks.push(['scenario F (off-topic section): final draft body_text has no leftover "## " heading built around the tangential entity', /^##.*Considerations$/m.test(resultF.draft.body_text) === false]);
+
+    // --- Scenario G (article-length-expansion.md): fully covered from the first draft, but the
+    // body itself is far under the REAL default 2,200-word target — proves wordCount alone (not
+    // coverage, not checklist.length) can trigger the shared repair retry, and that the repair
+    // fixture's padded body clears the target afterward. targetWordCount is NOT overridden here,
+    // so this exercises the actual production default.
+    writeLengthScenarioFixtures(db, TOPIC_CLEAN, { mustIncludeFacts: [] });
+    const writerG = countCalls((promptObj, opts) => fixtureWriter(promptObj, { fixtureDir: WRITER_FIXTURE_DIR, topic: opts.topic, attempt: opts.attempt }));
+    const reviewerG = countCalls((promptObj, opts) => fixtureReviewerByTopic(promptObj, { fixtureDir: REVIEWER_FIXTURE_DIR, topic: opts.topic, attempt: opts.attempt }));
+    const resultG = await generateArticleWithReview({
+      db,
+      topic: TOPIC_CLEAN,
+      mustIncludeFacts: [],
+      writer: writerG,
+      reviewer: reviewerG,
+      maxRetries: 1,
+    });
+
+    checks.push(['scenario G (length only): uses the real default target (2,200)', resultG.targetWordCount === 2200]);
+    checks.push(['scenario G (length only): writer called twice — repair fired purely for length', writerG.calls === 2]);
+    checks.push(['scenario G (length only): reviewer called twice', reviewerG.calls === 2]);
+    checks.push(['scenario G (length only): retryCount === 1', resultG.retryCount === 1]);
+    checks.push(['scenario G (length only): coverage was ALREADY fully covered on the first pass (repair was not a coverage fix)', resultG.summary.allCovered === true]);
+    checks.push(['scenario G (length only): final wordCount clears the real 2,200-word target', resultG.wordCount >= 2200]);
+    checks.push(['scenario G (length only): meetsLengthTarget is true', resultG.meetsLengthTarget === true]);
+
+    // --- Scenario H (retry cap, length side): the repair draft is left exactly as short as the
+    // initial one — proves the length gap does NOT get a second retry attempt just because it's
+    // still unmet (soft target, never blocks, matches the §5 "cap at 1 retry" architecture).
+    writeLengthScenarioFixtures(db, TOPIC_CLEAN, { mustIncludeFacts: [], repairStaysShort: true });
+    const writerH = countCalls((promptObj, opts) => fixtureWriter(promptObj, { fixtureDir: WRITER_FIXTURE_DIR, topic: opts.topic, attempt: opts.attempt }));
+    const reviewerH = countCalls((promptObj, opts) => fixtureReviewerByTopic(promptObj, { fixtureDir: REVIEWER_FIXTURE_DIR, topic: opts.topic, attempt: opts.attempt }));
+    const resultH = await generateArticleWithReview({
+      db,
+      topic: TOPIC_CLEAN,
+      mustIncludeFacts: [],
+      writer: writerH,
+      reviewer: reviewerH,
+      maxRetries: 1,
+    });
+
+    checks.push(['scenario H (length retry cap): writer STILL called only twice, not a third time', writerH.calls === 2]);
+    checks.push(['scenario H (length retry cap): reviewer STILL called only twice, not a third time', reviewerH.calls === 2]);
+    checks.push(['scenario H (length retry cap): retryCount caps at 1', resultH.retryCount === 1]);
+    checks.push(['scenario H (length retry cap): meetsLengthTarget stays false — not force-retried past the cap', resultH.meetsLengthTarget === false]);
+    checks.push(['scenario H (length retry cap): result still returns normally (a soft target never blocks/throws)', resultH !== undefined && resultH.draft.title === `Article about ${TOPIC_CLEAN}`]);
+
+    // --- Scenario I: BOTH a coverage gap AND a too-short body at once (real default target, not
+    // overridden) — proves the two gap types share the SAME single retry rather than costing two
+    // sequential ones, and that a still-open length gap after that one retry is surfaced
+    // informationally (meetsLengthTarget: false) rather than triggering a second attempt.
+    writeScenarioFixtures(db, TOPIC_GAP, { omitFirstItem: true, repairStillPartial: false });
+    const writerI = countCalls((promptObj, opts) => fixtureWriter(promptObj, { fixtureDir: WRITER_FIXTURE_DIR, topic: opts.topic, attempt: opts.attempt }));
+    const reviewerI = countCalls((promptObj, opts) => fixtureReviewerByTopic(promptObj, { fixtureDir: REVIEWER_FIXTURE_DIR, topic: opts.topic, attempt: opts.attempt }));
+    const resultI = await generateArticleWithReview({
+      db,
+      topic: TOPIC_GAP,
+      mustIncludeFacts: MUST_INCLUDE_FACTS,
+      writer: writerI,
+      reviewer: reviewerI,
+      maxRetries: 1,
+    });
+
+    checks.push(['scenario I (combined coverage+length gap): writer called exactly twice — ONE shared retry, not two separate ones', writerI.calls === 2]);
+    checks.push(['scenario I (combined coverage+length gap): reviewer called exactly twice', reviewerI.calls === 2]);
+    checks.push(['scenario I (combined coverage+length gap): retryCount caps at 1', resultI.retryCount === 1]);
+    checks.push(['scenario I (combined coverage+length gap): coverage gap WAS fixed by the shared repair', resultI.summary.allCovered === true]);
+    checks.push(['scenario I (combined coverage+length gap): length gap remains after the retry cap (tiny fixture bodies can\'t clear 2,200 words) — surfaced informationally, not retried again', resultI.meetsLengthTarget === false]);
   } finally {
     db.close();
   }
@@ -580,6 +807,37 @@ function runPart2(db) {
   checks.push(['CLI: --json output carries an internalLinks report (§4 Phase 5)', Array.isArray(parsed?.internalLinks?.inserted) && Array.isArray(parsed?.internalLinks?.skipped)]);
   checks.push(['CLI: --json output draft carries suggestedGraphSteps (2-5 labels)', Array.isArray(parsed?.draft?.suggestedGraphSteps) && parsed.draft.suggestedGraphSteps.length >= 2 && parsed.draft.suggestedGraphSteps.length <= 5]);
   checks.push(['CLI: --json output draft body_text carries a "## " section-heading line', /^## .+$/m.test(parsed?.draft?.body_text ?? '')]);
+  checks.push(['CLI: --json output carries a numeric wordCount (article-length-expansion.md)', typeof parsed?.wordCount === 'number' && parsed.wordCount > 0]);
+  checks.push(['CLI: --json output targetWordCount defaults to 2,200 when --target-words is not passed', parsed?.targetWordCount === 2200]);
+  checks.push(['CLI: --json output meetsLengthTarget is a boolean', typeof parsed?.meetsLengthTarget === 'boolean']);
+
+  // --target-words end-to-end: the length-only fixture scenario (fully covered, short initial
+  // draft, padded repair draft), run through the real CLI with an explicit override so the test
+  // stays cheap/fast rather than needing ~2,200 words of real padding.
+  // TOPIC_CLEAN's real checklist mention-only body already runs ~44 words (varies with the
+  // sample db's real entity count for this topic) — 60 sits comfortably above that (so the SHORT
+  // initial draft still triggers a repair) and comfortably below the ~94-word padded repair draft
+  // (mention + 50 filler words), so the repair reliably clears it.
+  writeLengthScenarioFixtures(db, TOPIC_CLEAN, { mustIncludeFacts: [], longFillerWords: 50 });
+  const targetWordsRun = runCli(['--topic', TOPIC_CLEAN, '--target-words', '60', '--json']);
+  let targetWordsParsed = null;
+  try {
+    targetWordsParsed = JSON.parse(targetWordsRun.stdout);
+  } catch {
+    // leave targetWordsParsed null — the next assertion fails and reports it
+  }
+  checks.push(['CLI: --target-words exits 0', targetWordsRun.exitCode === 0]);
+  checks.push(['CLI: --target-words overrides targetWordCount in the output', targetWordsParsed?.targetWordCount === 60]);
+  checks.push(['CLI: --target-words 60 — the short initial draft triggers a repair retry', targetWordsParsed?.retryCount === 1]);
+  checks.push(['CLI: --target-words 60 — the padded repair draft clears the override target', targetWordsParsed?.meetsLengthTarget === true]);
+
+  const targetWordsHumanRun = runCli(['--topic', TOPIC_CLEAN, '--target-words', '60']);
+  checks.push(['CLI: human-readable output reports the length target line', /10-minute-read target/.test(targetWordsHumanRun.stdout)]);
+
+  // --target-words rejects a negative override (unlike --max-retries, there is no upper cap since
+  // this is a soft target, not a §5-style hard limit).
+  const negativeTargetRun = runCli(['--topic', TOPIC_CLEAN, '--target-words', '-1']);
+  checks.push(['CLI: --target-words -1 exits non-zero', negativeTargetRun.exitCode !== 0]);
 
   // --max-retries above the §5 cap must fail loudly at the CLI too.
   const capRun = runCli(['--topic', TOPIC_CLEAN, '--max-retries', '2']);
@@ -647,6 +905,7 @@ async function main() {
     ...runLinkInsertionCheck(),
     ...runGraphStepsPromptCheck(),
     ...runCandidateSourceArticlesPromptCheck(),
+    ...runOffTopicSectionCheck(),
     ...(await runPart1()),
   ];
 
