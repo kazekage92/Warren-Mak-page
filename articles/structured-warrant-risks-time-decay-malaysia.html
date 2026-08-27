@@ -2,12 +2,21 @@
 <html lang="en">
 <head>
   <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9H2NEZCD20"></script>
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-9H2NEZCD20');
+    (function(){
+      if (location.hostname !== 'www.warrenmak.asia') return;
+
+      var script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=G-9H2NEZCD20';
+      document.head.appendChild(script);
+
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = gtag;
+      gtag('js', new Date());
+      gtag('config', 'G-9H2NEZCD20');
+    })();
   </script>
   <meta charset="UTF-8">
   <script>
@@ -69,7 +78,7 @@
   <!-- Navigation -->
   <nav class="navbar">
     <div class="container">
-      <a href="../index.html" class="navbar__logo"><img src="../assets/images/logo/favicon.png" alt="Warren Mak" width="84" height="46"> Warren <span>Mak</span></a>
+      <a href="../" class="navbar__logo"><img src="../assets/images/logo/favicon.png" alt="Warren Mak" width="84" height="46"> Warren <span>Mak</span></a>
       <ul class="navbar__menu" id="navMenu">
         <li class="navbar__dropdown">
           <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">
@@ -115,13 +124,13 @@
   <section class="course-hero">
     <div class="container">
       <div data-lang="en">
-        <div class="article-breadcrumb"><a href="../index.html">Home</a> <span>›</span> <a href="../articles.html">Articles</a> <span>›</span> Warrant Risks & Time Decay</div>
+        <div class="article-breadcrumb"><a href="../">Home</a> <span>›</span> <a href="../articles.html">Articles</a> <span>›</span> Warrant Risks & Time Decay</div>
         <span class="tag">Risk Management</span>
         <h1>Structured Warrant Risks Malaysia: Time Decay, Leverage & How Not to Lose Money</h1>
         <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">Before you trade structured warrants on Bursa Malaysia, understand these critical risks that cause most traders to lose money.</p>
       </div>
       <div data-lang="zh" style="display:none;" aria-hidden="true">
-        <div class="article-breadcrumb"><a href="../index.html">首页</a> <span>›</span> <a href="../articles.html">文章</a> <span>›</span> 凭单风险与时间损耗</div>
+        <div class="article-breadcrumb"><a href="../">首页</a> <span>›</span> <a href="../articles.html">文章</a> <span>›</span> 凭单风险与时间损耗</div>
         <span class="tag">风险管理</span>
         <h2>马来西亚结构性凭单风险：时间损耗、杠杆与避免亏损指南</h2>
         <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">在马来西亚交易所交易结构性凭单之前，务必了解这些导致大多数交易者亏损的关键风险。</p>
@@ -495,6 +504,7 @@
             <li><a href="how-to-trade-structured-warrants-bursa-malaysia.html"><span data-lang="en">How to Trade Structured Warrants: Step-by-Step</span><span data-lang="zh" style="display:none;">如何交易结构性凭单：分步指南</span></a></li>
             <li><a href="hedging-with-put-warrants-malaysia.html"><span data-lang="en">How to Hedge with Put Warrants</span><span data-lang="zh" style="display:none;">如何用认沽凭单进行对冲</span></a></li>
             <li><a href="why-90-percent-warrant-traders-lose-money-malaysia.html"><span data-lang="en">Why 90% of Warrant Traders Lose Money</span><span data-lang="zh" style="display:none;">为什么90%的凭单交易者亏钱</span></a></li>
+            <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term &amp; Intraday Trading Course</span><span data-lang="zh" style="display:none;">短线与日内交易课程</span></a></li>
             <li><a href="../structured-warrants.html"><span data-lang="en">← Back to Structured Warrants Course</span><span data-lang="zh" style="display:none;">← 返回结构性凭单课程</span></a></li>
           </ul>
         </div>
@@ -575,7 +585,7 @@
         <div>
           <h4><span data-lang="en">Pages</span><span data-lang="zh" style="display:none;">页面</span></h4>
           <ul class="footer__links">
-            <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
+            <li><a href="../"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
             <li><a href="../about.html"><span data-lang="en">About Warren</span><span data-lang="zh" style="display:none;">关于Warren</span></a></li>
             <li><a href="../ted-optimus.html">TED Optimus</a></li>
             <li><a href="../articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>
