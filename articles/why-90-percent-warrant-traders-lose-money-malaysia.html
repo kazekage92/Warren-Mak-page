@@ -2,12 +2,21 @@
 <html lang="en">
 <head>
   <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9H2NEZCD20"></script>
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-9H2NEZCD20');
+    (function(){
+      if (location.hostname !== 'www.warrenmak.asia') return;
+
+      var script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=G-9H2NEZCD20';
+      document.head.appendChild(script);
+
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = gtag;
+      gtag('js', new Date());
+      gtag('config', 'G-9H2NEZCD20');
+    })();
   </script>
   <meta charset="UTF-8">
   <script>
@@ -69,7 +78,7 @@
   <!-- Navigation -->
   <nav class="navbar">
     <div class="container">
-      <a href="../index.html" class="navbar__logo"><img src="../assets/images/logo/favicon.png" alt="Warren Mak" width="84" height="46"> Warren <span>Mak</span></a>
+      <a href="../" class="navbar__logo"><img src="../assets/images/logo/favicon.png" alt="Warren Mak" width="84" height="46"> Warren <span>Mak</span></a>
       <ul class="navbar__menu" id="navMenu">
         <li class="navbar__dropdown">
           <button type="button" class="navbar__dropdown-trigger" aria-haspopup="true" aria-expanded="false">
@@ -115,13 +124,13 @@
   <section class="course-hero">
     <div class="container">
       <div data-lang="en">
-        <div class="article-breadcrumb"><a href="../index.html">Home</a> <span>›</span> <a href="../articles.html">Articles</a> <span>›</span> Why 90% Lose Money</div>
+        <div class="article-breadcrumb"><a href="../">Home</a> <span>›</span> <a href="../articles.html">Articles</a> <span>›</span> Why 90% Lose Money</div>
         <span class="tag">Trading Psychology</span>
         <h1>Why 90% of Structured Warrant Traders Lose Money in Malaysia (And How to Be in the 10%)</h1>
         <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">The brutal truth about why most warrant traders fail on Bursa Malaysia — and the specific changes that put you in the profitable minority.</p>
       </div>
       <div data-lang="zh" style="display:none;" aria-hidden="true">
-        <div class="article-breadcrumb"><a href="../index.html">首页</a> <span>›</span> <a href="../articles.html">文章</a> <span>›</span> 为什么90%亏钱</div>
+        <div class="article-breadcrumb"><a href="../">首页</a> <span>›</span> <a href="../articles.html">文章</a> <span>›</span> 为什么90%亏钱</div>
         <span class="tag">交易心理</span>
         <h2>为什么马来西亚90%的结构性凭单交易者亏钱（以及如何成为盈利的10%）</h2>
         <p style="color:rgba(255,255,255,0.7);max-width:700px;margin-top:12px;">大多数凭单交易者在马来西亚交易所失败的残酷真相——以及让你跻身盈利少数的具体改变。</p>
@@ -523,6 +532,7 @@
             <li><a href="structured-warrant-risks-time-decay-malaysia.html"><span data-lang="en">Structured Warrant Risks & Time Decay</span><span data-lang="zh" style="display:none;">结构性凭单风险与时间损耗</span></a></li>
             <li><a href="how-to-choose-best-structured-warrants-malaysia.html"><span data-lang="en">How to Choose the Best Structured Warrants</span><span data-lang="zh" style="display:none;">如何选择最佳结构性凭单</span></a></li>
             <li><a href="how-to-trade-structured-warrants-bursa-malaysia.html"><span data-lang="en">How to Trade Structured Warrants: Step-by-Step</span><span data-lang="zh" style="display:none;">如何交易结构性凭单：分步指南</span></a></li>
+            <li><a href="../short-term-trading.html"><span data-lang="en">Short-Term &amp; Intraday Trading Course</span><span data-lang="zh" style="display:none;">短线与日内交易课程</span></a></li>
             <li><a href="../structured-warrants.html"><span data-lang="en">← Back to Structured Warrants Course</span><span data-lang="zh" style="display:none;">← 返回结构性凭单课程</span></a></li>
           </ul>
         </div>
@@ -603,7 +613,7 @@
         <div>
           <h4><span data-lang="en">Pages</span><span data-lang="zh" style="display:none;">页面</span></h4>
           <ul class="footer__links">
-            <li><a href="../index.html"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
+            <li><a href="../"><span data-lang="en">Home</span><span data-lang="zh" style="display:none;">首页</span></a></li>
             <li><a href="../about.html"><span data-lang="en">About Warren</span><span data-lang="zh" style="display:none;">关于Warren</span></a></li>
             <li><a href="../ted-optimus.html">TED Optimus</a></li>
             <li><a href="../articles.html"><span data-lang="en">Articles</span><span data-lang="zh" style="display:none;">文章</span></a></li>

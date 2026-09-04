@@ -166,6 +166,11 @@ export function buildExtractionPrompt({ article, existingEntities }) {
     'entity, not two). Only invent a new entity name when the concept genuinely is not in that list.\n\n' +
     'relevance_score is 0.0-1.0: how central the entity is to THIS article (a passing mention is ' +
     'low, e.g. 0.2-0.4; the main subject is high, e.g. 0.8-1.0).\n\n' +
+    'For edges, prefer the most specific supported relation. Use "related_to" only when the article ' +
+    'explicitly explains a meaningful connection between the two entities but none of the specific ' +
+    'relations fits. Do NOT use "related_to" as a fallback for loose co-occurrence, same-section ' +
+    'mentions, or low confidence. If the relationship is not clearly supported by the article text, ' +
+    'omit the edge.\n\n' +
     'Every edge\'s "source" and "target" MUST each be a name that also appears in your own ' +
     '"entities" list in this response — do not reference an entity you did not include.\n\n' +
     'Respond with ONLY strict JSON, no prose, no markdown fences, matching exactly this shape:\n' +
@@ -216,6 +221,11 @@ export function buildBatchExtractionPrompt({ articles, existingEntities }) {
     'relevance_score is 0.0-1.0: how central the entity is to THAT SPECIFIC article (a passing ' +
     'mention is low, e.g. 0.2-0.4; the main subject is high, e.g. 0.8-1.0) — the same entity name ' +
     'can have a different relevance_score in different articles\' blocks.\n\n' +
+    'For edges, prefer the most specific supported relation. Use "related_to" only when that article ' +
+    'explicitly explains a meaningful connection between the two entities but none of the specific ' +
+    'relations fits. Do NOT use "related_to" as a fallback for loose co-occurrence, same-section ' +
+    'mentions, or low confidence. If the relationship is not clearly supported by that article text, ' +
+    'omit the edge.\n\n' +
     'Every edge\'s "source" and "target" MUST each be a name that also appears in that SAME ' +
     'article\'s own "entities" list in this response — do not reference an entity from a different ' +
     'article\'s block, or one you did not include.\n\n' +

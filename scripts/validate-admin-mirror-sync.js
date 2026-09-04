@@ -20,17 +20,17 @@
  *
  * Scope is deliberately the PROMPT-BUILDING functions (the ones that return a
  * literal string or {system,user} object baked directly into an LLM call) plus
- * the small formatting helpers spliced directly into those prompts — not every
- * mirrored function in admin/index.html. Response-PARSING mirrors
+ * the small formatting helpers spliced directly into those prompts, PLUS the
+ * two deterministic HTML-assembly functions extra-md-files/automated-article-
+ * scheduler.md explicitly calls out as carrying the same sync obligation
+ * (buildFlowGraphHtml, buildArticleDocument) — not every mirrored function in
+ * admin/index.html. Response-PARSING mirrors
  * (parseReviewResponseBrowser, parseSeoResponseBrowser, kgParseExtractionResponse,
- * kgParseJudgeResponse) and the checklist-retrieval mirrors (kcTokenize/
- * kcFindSeedEntities/kcExpandRelatedEntities/kcBuildChecklist) are out of scope:
- * the parsers' shapes already diverge slightly by necessity (the browser
- * versions also do the DOM-safe escaping their render step needs), and the
- * retrieval mirrors run against a materially different data source (the JSON
- * graph mirror vs. a live SQLite `db` handle via .prepare().all()), so a
- * literal string/deep-equal diff isn't the right tool for either — see
- * retrieval-layer.js's own README section on that db-vs-JSON split.
+ * kgParseJudgeResponse) are out of scope: the parsers' shapes already diverge
+ * slightly by necessity (the browser versions also do the DOM-safe escaping
+ * their render step needs). Retrieval mirrors run against a materially
+ * different data source (JSON graph vs. SQLite), so this script checks their
+ * behavior with small fixtures rather than byte-for-byte output.
  *
  * Covers:
  *   - coverage-reviewer.js:      formatChecklist   <-> kcFormatChecklist
@@ -41,6 +41,8 @@
  *   - fact-retention-checker.js: buildJudgePrompt  <-> kgBuildJudgePrompt
  *   - generate-article.js:       buildWriterPrompt <-> buildWriterPromptBrowser
  *   - generate-article.js:       buildRepairPrompt <-> buildRepairPromptBrowser
+ *   - graph-blocks.js:           buildFlowGraphHtml <-> buildFlowGraphHtml (same name both sides)
+ *   - build-article-document.js: buildArticleDocument <-> buildArticleDocument (same name both sides)
  *
  * Usage: node validate-admin-mirror-sync.js
  * Exits non-zero if any pair's output diverges.
@@ -55,7 +57,9 @@ import { buildReviewPrompt, formatChecklist } from './coverage-reviewer.js';
 import { buildSeoPrompt } from './seo-optimizer.js';
 import { buildExtractionPrompt } from './extract-entities.js';
 import { buildJudgePrompt, formatState } from './fact-retention-checker.js';
-import { buildWriterPrompt, buildRepairPrompt } from './generate-article.js';
+import { buildWriterPrompt, buildRepairPrompt, detectOffTopicSections, countBodyWords } from './generate-article.js';
+import { buildFlowGraphHtml } from './graph-blocks.js';
+import { buildArticleDocument } from './build-article-document.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -155,12 +159,54 @@ function extractVarDecl(html, name) {
   return m[0];
 }
 
+/** General-purpose sibling of extractVarDecl above, for `var <name> = <expr>;`
+ *  declarations extractVarDecl's single-line-array-literal regex can't handle:
+ *  NAV_HTML/FOOTER_HTML (an array literal followed by `.join('\n')`) and
+ *  CTA_PRESETS (a multi-line object literal whose own values are themselves
+ *  `.join('\n')`-ed array literals). Scans from just after `=`, bracket/brace/
+ *  paren-depth- and string-aware (same spirit as extractBalancedBlock above,
+ *  generalized to all three opener characters since `.join(...)` calls appear
+ *  inside these expressions), stopping at the first top-level `;`. */
+function extractVarStatementSource(html, name) {
+  const re = new RegExp(`var\\s+${name}\\s*=\\s*`);
+  const m = re.exec(html);
+  if (!m) throw new Error(`Could not find "var ${name} = ..." in admin/index.html`);
+  const exprStart = m.index + m[0].length;
+
+  let depth = 0;
+  let inString = null;
+  let i = exprStart;
+  for (; i < html.length; i++) {
+    const c = html[i];
+    if (inString) {
+      if (c === '\\') {
+        i++;
+      } else if (c === inString) {
+        inString = null;
+      }
+      continue;
+    }
+    if (c === "'" || c === '"') {
+      inString = c;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') depth++;
+    else if (c === ')' || c === ']' || c === '}') depth--;
+    else if (c === ';' && depth === 0) break;
+  }
+  if (i >= html.length) throw new Error(`extractVarStatementSource: ran off the end of the file looking for "${name}"'s closing ";"`);
+  return html.slice(m.index, i + 1);
+}
+
 function loadAdminMirrors() {
   const html = readFileSync(ADMIN_HTML_PATH, 'utf-8');
 
   const moduleSrc = [
     extractVarDecl(html, 'KG_ENTITY_TYPES'),
     extractVarDecl(html, 'KG_RELATIONS'),
+    extractVarStatementSource(html, 'KC_STOPWORDS'),
+    extractVarStatementSource(html, 'KC_WEAK_RELATIONS'),
+    extractVarStatementSource(html, 'KC_CONTRAST_RELATIONS'),
     // formatChecklistItemsBrowser is a private helper both kcFormatChecklist and
     // formatChecklistForWriterBrowser call (mirrors scripts/checklist-format.js's
     // formatChecklistItems()) — not itself in this validator's target list (it's asserted
@@ -173,6 +219,16 @@ function loadAdminMirrors() {
     extractFunctionSource(html, 'kgFormatState'),
     extractFunctionSource(html, 'kgBuildJudgePrompt'),
     extractFunctionSource(html, 'kgBuildExtractionPrompt'),
+    extractFunctionSource(html, 'kcTokenize'),
+    extractFunctionSource(html, 'kcFindSeedEntities'),
+    extractFunctionSource(html, 'kcExpandRelatedEntities'),
+    extractFunctionSource(html, 'kcBuildChecklist'),
+    extractFunctionSource(html, 'suggestInternalLinksBrowser'),
+    // kcHeadingMentionsEntity is a private helper kcDetectOffTopicSections calls — not itself in
+    // this validator's target list (asserted transitively through kcDetectOffTopicSections), but
+    // must still be in-scope for the sandbox eval below to resolve the call.
+    extractFunctionSource(html, 'kcHeadingMentionsEntity'),
+    extractFunctionSource(html, 'kcDetectOffTopicSections'),
     // formatChecklistForWriterBrowser is a private helper buildWriterPromptBrowser/
     // buildRepairPromptBrowser both call — not itself in this validator's target list (it's
     // asserted transitively through those two), but it must still be in-scope for the sandbox
@@ -180,6 +236,48 @@ function loadAdminMirrors() {
     extractFunctionSource(html, 'formatChecklistForWriterBrowser'),
     extractFunctionSource(html, 'buildWriterPromptBrowser'),
     extractFunctionSource(html, 'buildRepairPromptBrowser'),
+    extractFunctionSource(html, 'countBodyWordsBrowser'),
+    // escapeHtml is a dependency of buildFlowGraphHtml below (the 5th pair) --
+    // not itself a validated pair, same "in-scope for the sandbox eval, not
+    // separately asserted" treatment as formatChecklistItemsBrowser above.
+    extractFunctionSource(html, 'escapeHtml'),
+    extractFunctionSource(html, 'buildFlowGraphHtml'),
+    // buildArticleDocument's own dependencies (6th pair) -- escapeAttr/
+    // jsonLdScript/truncateWords/truncateChars/formatMonthYear/
+    // formatMonthYearZh/readingTimeTextZh plus the three static-chrome
+    // constants and substituteGraphPlaceholders. naGraphBlocks is NOT
+    // extracted from admin's source (it's mutated all over that file as the
+    // wizard's live graph-panel state) -- it's synthesized below as an empty
+    // array instead, which is exactly the state buildArticleDocument sees for
+    // a document with no graph blocks inserted, the only case this validator
+    // needs (see build-article-document.js's own header comment on why its
+    // Node buildArticleDocument() expects already-final body HTML instead).
+    // escapeAttr is NOT run through extractFunctionSource: its body is
+    // `escapeHtml(str).replace(/"/g, '&quot;')` — that regex literal contains
+    // a bare `"`, which extractBalancedBlock's string/comment-aware scanner
+    // (deliberately regex-literal-blind per its own doc comment — "none of
+    // the target functions use ... regex literals", true until this one)
+    // misreads as the START of a string literal, then runs away consuming
+    // admin/index.html far past escapeAttr's real closing brace looking for a
+    // matching quote. escapeAttr is a two-line, effectively-frozen dependency
+    // (not itself a validated pair, same treatment as naGraphBlocks below),
+    // so it's simplest to inline its known-correct source verbatim here
+    // rather than teach the scanner to distinguish regex literals from
+    // division — re-copy this line if admin/index.html's escapeAttr ever
+    // changes.
+    "function escapeAttr(str) { return escapeHtml(str).replace(/\"/g, '&quot;'); }",
+    extractFunctionSource(html, 'jsonLdScript'),
+    extractFunctionSource(html, 'truncateWords'),
+    extractFunctionSource(html, 'truncateChars'),
+    extractFunctionSource(html, 'formatMonthYear'),
+    extractFunctionSource(html, 'formatMonthYearZh'),
+    extractFunctionSource(html, 'readingTimeTextZh'),
+    extractVarStatementSource(html, 'NAV_HTML'),
+    extractVarStatementSource(html, 'FOOTER_HTML'),
+    extractVarStatementSource(html, 'CTA_PRESETS'),
+    'var naGraphBlocks = [];',
+    extractFunctionSource(html, 'substituteGraphPlaceholders'),
+    extractFunctionSource(html, 'buildArticleDocument'),
     // Expose everything to the sandbox's global scope so the harness can read it back.
     [
       'globalThis.__mirrors__ = {',
@@ -189,8 +287,16 @@ function loadAdminMirrors() {
       '  kgFormatState: kgFormatState,',
       '  kgBuildJudgePrompt: kgBuildJudgePrompt,',
       '  kgBuildExtractionPrompt: kgBuildExtractionPrompt,',
+      '  kcFindSeedEntities: kcFindSeedEntities,',
+      '  kcExpandRelatedEntities: kcExpandRelatedEntities,',
+      '  kcBuildChecklist: kcBuildChecklist,',
+      '  suggestInternalLinksBrowser: suggestInternalLinksBrowser,',
+      '  kcDetectOffTopicSections: kcDetectOffTopicSections,',
       '  buildWriterPromptBrowser: buildWriterPromptBrowser,',
-      '  buildRepairPromptBrowser: buildRepairPromptBrowser',
+      '  buildRepairPromptBrowser: buildRepairPromptBrowser,',
+      '  countBodyWordsBrowser: countBodyWordsBrowser,',
+      '  buildFlowGraphHtml: buildFlowGraphHtml,',
+      '  buildArticleDocument: buildArticleDocument',
       '};',
     ].join('\n'),
   ].join('\n\n');
@@ -298,6 +404,30 @@ const REPAIR_PARTIAL_SAMPLE = [
   { name: 'Leverage', evidence: 'mentioned once but not explained' },
   { name: 'Time Decay (Theta)' }, // no `evidence` field -- exercises the "(none)" fallback
 ];
+const REPAIR_OFF_TOPIC_EMPTY = [];
+const REPAIR_OFF_TOPIC_SAMPLE = [
+  { heading: 'The Role of Call Warrants', entity: 'Call Warrant', relation: 'distinguished_from' },
+];
+
+const OFF_TOPIC_CHECKLIST_SAMPLE = [
+  { name: 'Stock Trading Course', type: 'product', why: 'directly matches the topic', relation: null },
+  {
+    name: 'Call Warrant',
+    type: 'product',
+    why: 'related to the topic via: Stock Trading Course --[distinguished_from]--> Call Warrant',
+    relation: 'distinguished_from',
+  },
+  {
+    name: 'Risk Management',
+    type: 'concept',
+    why: 'related to the topic via: Risk Management --[prerequisite_of]--> Stock Trading Course',
+    relation: 'prerequisite_of',
+  },
+];
+const OFF_TOPIC_BODY_TEXT_SAMPLE =
+  '## Understanding Stock Trading Courses\n\nBody text.\n\n' +
+  '## The Role of Call Warrants\n\nWhile some might confuse a course with Call Warrants...\n\n' +
+  '## The Importance of Risk Management\n\nRisk Management is a prerequisite...';
 
 // ---------------------------------------------------------------------------
 // Comparison harness
@@ -343,6 +473,82 @@ function comparePromptObjects(label, mirrorResult, originalResult) {
 
 console.log(`Extracting mirror functions from ${path.relative(REPO_ROOT, ADMIN_HTML_PATH)}...`);
 const mirrors = loadAdminMirrors();
+
+console.log('\nadmin retrieval mirrors — weak relation/link behavior');
+const RETRIEVAL_GRAPH_SAMPLE = {
+  entities: [
+    { name: 'Stock Trading Course', type: 'topic' },
+    { name: 'Gap Trading', type: 'strategy' },
+    { name: 'Course Selection Criteria', type: 'concept' },
+    { name: 'HSI Structured Warrants', type: 'product' },
+  ],
+  edges: [
+    { source: 'Stock Trading Course', relation: 'related_to', target: 'Gap Trading' },
+    { source: 'Stock Trading Course', relation: 'part_of', target: 'Course Selection Criteria' },
+    { source: 'Gap Trading', relation: 'related_to', target: 'HSI Structured Warrants' },
+  ],
+};
+const retrievalSeeds = mirrors.kcFindSeedEntities(RETRIEVAL_GRAPH_SAMPLE, 'Stock Trading Course', 8);
+const retrievalStrongOnly = mirrors.kcExpandRelatedEntities(RETRIEVAL_GRAPH_SAMPLE, retrievalSeeds, 1, false);
+const retrievalStrongOnlyNames = retrievalStrongOnly.map((e) => e.name);
+assertEqual('weak related_to edge excluded from browser required expansion', retrievalStrongOnlyNames.includes('Gap Trading'), false);
+assertEqual('specific relation still expands in browser required expansion', retrievalStrongOnlyNames.includes('Course Selection Criteria'), true);
+assertEqual('browser mirror reports skipped weak related_to edges', retrievalStrongOnly.skippedWeakEdges.some((e) => e.source === 'Stock Trading Course' && e.target === 'Gap Trading'), true);
+const retrievalWithWeak = mirrors.kcExpandRelatedEntities(RETRIEVAL_GRAPH_SAMPLE, retrievalSeeds, 1, true).map((e) => e.name);
+assertEqual('browser retrieval can still include weak relations when explicitly requested', retrievalWithWeak.includes('Gap Trading'), true);
+assertEqual(
+  'browser internal-link suggestions reject weak target-entity relevance',
+  mirrors.suggestInternalLinksBrowser(
+    [{ slug: 'hsi-structured-warrants-malaysia', title: 'HSI Structured Warrants Malaysia', matchedEntities: [{ name: 'Gap Trading', relevance_score: 0.3 }] }],
+    [{ name: 'Gap Trading', type: 'strategy', reason: 'test seed' }]
+  ).length,
+  0
+);
+assertEqual(
+  'browser internal-link suggestions keep strong target-entity relevance',
+  mirrors.suggestInternalLinksBrowser(
+    [{ slug: 'gap-trading-malaysia', title: 'Gap Trading Malaysia', matchedEntities: [{ name: 'Gap Trading', relevance_score: 0.85 }] }],
+    [{ name: 'Gap Trading', type: 'strategy', reason: 'test seed' }]
+  )[0]?.targetSlug,
+  'gap-trading-malaysia'
+);
+
+console.log('\nadmin retrieval mirrors — relation passthrough / off-topic section detection');
+// Same RETRIEVAL_GRAPH_SAMPLE as above, plus one distinguished_from edge (a CONTRAST relation)
+// to exercise the `relation` field expandRelatedEntities/buildChecklist now carry through, and
+// kcDetectOffTopicSections/detectOffTopicSections' own real-incident scenario (2026-08-20
+// addendum, admin-ai-article-creator-test-run memory).
+const RELATION_GRAPH_SAMPLE = {
+  entities: RETRIEVAL_GRAPH_SAMPLE.entities.concat([{ name: 'Call Warrant', type: 'product' }]),
+  edges: RETRIEVAL_GRAPH_SAMPLE.edges.concat([
+    { source: 'Stock Trading Course', relation: 'distinguished_from', target: 'Call Warrant' },
+  ]),
+};
+const relationSeeds = mirrors.kcFindSeedEntities(RELATION_GRAPH_SAMPLE, 'Stock Trading Course', 8);
+const relationExpanded = mirrors.kcExpandRelatedEntities(RELATION_GRAPH_SAMPLE, relationSeeds, 1, false);
+const relationSeedEntry = relationExpanded.find((e) => e.name === 'Stock Trading Course');
+const relationPartOfEntry = relationExpanded.find((e) => e.name === 'Course Selection Criteria');
+const relationContrastEntry = relationExpanded.find((e) => e.name === 'Call Warrant');
+assertEqual('browser expandRelatedEntities: hop-0 seed carries relation: null', relationSeedEntry?.relation, null);
+assertEqual('browser expandRelatedEntities: part_of hop-1 entity carries its raw relation type', relationPartOfEntry?.relation, 'part_of');
+assertEqual('browser expandRelatedEntities: distinguished_from hop-1 entity carries its raw relation type', relationContrastEntry?.relation, 'distinguished_from');
+const relationChecklist = mirrors.kcBuildChecklist(relationExpanded);
+const relationChecklistContrastItem = relationChecklist.find((c) => c.name === 'Call Warrant');
+assertEqual('browser buildChecklist: relation field passed through onto the checklist item', relationChecklistContrastItem?.relation, 'distinguished_from');
+
+assertEqual(
+  'browser kcDetectOffTopicSections <-> Node detectOffTopicSections — real-incident sample (empty checklist)',
+  JSON.stringify(mirrors.kcDetectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, [])),
+  JSON.stringify(detectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, []))
+);
+assertEqual(
+  'browser kcDetectOffTopicSections <-> Node detectOffTopicSections — real-incident sample',
+  JSON.stringify(mirrors.kcDetectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, OFF_TOPIC_CHECKLIST_SAMPLE)),
+  JSON.stringify(detectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, OFF_TOPIC_CHECKLIST_SAMPLE))
+);
+const offTopicFlags = detectOffTopicSections(OFF_TOPIC_BODY_TEXT_SAMPLE, OFF_TOPIC_CHECKLIST_SAMPLE);
+assertEqual('detectOffTopicSections flags exactly the distinguished_from heading, not the prerequisite_of one', offTopicFlags.length, 1);
+assertEqual('detectOffTopicSections flags the right heading', offTopicFlags[0]?.heading, 'The Role of Call Warrants');
 
 console.log('\ncoverage-reviewer.js formatChecklist <-> kcFormatChecklist');
 assertEqual('empty checklist', mirrors.kcFormatChecklist(CHECKLIST_EMPTY), formatChecklist(CHECKLIST_EMPTY));
@@ -456,14 +662,131 @@ comparePromptObjects(
   mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_SAMPLE, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_SAMPLE, REPAIR_PARTIAL_SAMPLE),
   buildRepairPrompt({ topic: 'Time Decay', checklist: CHECKLIST_SAMPLE, draft: REPAIR_DRAFT_SAMPLE, missing: REPAIR_MISSING_SAMPLE, partial: REPAIR_PARTIAL_SAMPLE })
 );
+comparePromptObjects(
+  'sample checklist/missing/partial, with offTopicSections',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_SAMPLE, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_SAMPLE, REPAIR_PARTIAL_SAMPLE, REPAIR_OFF_TOPIC_SAMPLE),
+  buildRepairPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_SAMPLE,
+    draft: REPAIR_DRAFT_SAMPLE,
+    missing: REPAIR_MISSING_SAMPLE,
+    partial: REPAIR_PARTIAL_SAMPLE,
+    offTopicSections: REPAIR_OFF_TOPIC_SAMPLE,
+  })
+);
+comparePromptObjects(
+  'empty checklist/missing/partial, with offTopicSections but empty checklist/missing/partial',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_EMPTY, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_EMPTY, REPAIR_PARTIAL_EMPTY, REPAIR_OFF_TOPIC_SAMPLE),
+  buildRepairPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_EMPTY,
+    draft: REPAIR_DRAFT_SAMPLE,
+    missing: REPAIR_MISSING_EMPTY,
+    partial: REPAIR_PARTIAL_EMPTY,
+    offTopicSections: REPAIR_OFF_TOPIC_SAMPLE,
+  })
+);
+// article-length-expansion.md's expandTarget param — the length-gap addition on top of the
+// pre-existing missing/partial/offTopicSections gaps above.
+const REPAIR_EXPAND_TARGET_SAMPLE = { currentWords: 640, targetWords: 2200 };
+comparePromptObjects(
+  'sample checklist/missing/partial, with expandTarget (no offTopicSections)',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_SAMPLE, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_SAMPLE, REPAIR_PARTIAL_SAMPLE, REPAIR_OFF_TOPIC_EMPTY, REPAIR_EXPAND_TARGET_SAMPLE),
+  buildRepairPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_SAMPLE,
+    draft: REPAIR_DRAFT_SAMPLE,
+    missing: REPAIR_MISSING_SAMPLE,
+    partial: REPAIR_PARTIAL_SAMPLE,
+    expandTarget: REPAIR_EXPAND_TARGET_SAMPLE,
+  })
+);
+comparePromptObjects(
+  'sample checklist/missing/partial, with BOTH offTopicSections and expandTarget together',
+  mirrors.buildRepairPromptBrowser('Time Decay', CHECKLIST_SAMPLE, REPAIR_DRAFT_SAMPLE, REPAIR_MISSING_SAMPLE, REPAIR_PARTIAL_SAMPLE, REPAIR_OFF_TOPIC_SAMPLE, REPAIR_EXPAND_TARGET_SAMPLE),
+  buildRepairPrompt({
+    topic: 'Time Decay',
+    checklist: CHECKLIST_SAMPLE,
+    draft: REPAIR_DRAFT_SAMPLE,
+    missing: REPAIR_MISSING_SAMPLE,
+    partial: REPAIR_PARTIAL_SAMPLE,
+    offTopicSections: REPAIR_OFF_TOPIC_SAMPLE,
+    expandTarget: REPAIR_EXPAND_TARGET_SAMPLE,
+  })
+);
+
+console.log('\ngenerate-article.js countBodyWords <-> countBodyWordsBrowser');
+const WORD_COUNT_SAMPLES = [
+  '## Heading One\n\nSome plain body text with several words in it.',
+  '## Understanding Time Decay\n\nA paragraph. \n\n## A Second Heading\n\nAnother paragraph with more words than the first one.',
+  'No heading marker at all, just plain paragraphs of body text.',
+  '',
+  '   ',
+];
+for (const sample of WORD_COUNT_SAMPLES) {
+  assertEqual(
+    `countBodyWords(${JSON.stringify(sample.slice(0, 40))}...)`,
+    mirrors.countBodyWordsBrowser(sample),
+    countBodyWords(sample)
+  );
+}
+
+console.log('\ngraph-blocks.js buildFlowGraphHtml <-> admin buildFlowGraphHtml');
+const GRAPH_TITLE_SAMPLE = 'Warrant\'s "Extrinsic" Value & <Risk> Tags — A Quick Primer';
+const GRAPH_STEPS_SAMPLE = [
+  'Identify the "setup" & confirm the signal',
+  'Size the position — never risk more than 5%',
+  'Manage <stop-loss> levels as time decay accelerates',
+  '中文测试步骤标签',
+];
+assertEqual('empty steps', mirrors.buildFlowGraphHtml(GRAPH_TITLE_SAMPLE, []), buildFlowGraphHtml(GRAPH_TITLE_SAMPLE, []));
+assertEqual('sample steps', mirrors.buildFlowGraphHtml(GRAPH_TITLE_SAMPLE, GRAPH_STEPS_SAMPLE), buildFlowGraphHtml(GRAPH_TITLE_SAMPLE, GRAPH_STEPS_SAMPLE));
+
+console.log('\nbuild-article-document.js buildArticleDocument <-> admin buildArticleDocument');
+const ARTICLE_STATE_SAMPLE = {
+  titleEn: 'Time Decay and Your Structured Warrants',
+  titleZh: '时间损耗与您的结构性凭单',
+  subtitleEn: 'Why theta erodes a warrant\'s "extrinsic" value & <intrinsic> value every day',
+  subtitleZh: '为什么theta每天都在侵蚀凭单的"外在"与<内在>价值',
+  categoryEn: 'Structured Warrants',
+  categoryZh: '结构性凭单',
+  authorEn: 'Warren Mak',
+  authorZh: '麦传球 Warren Mak',
+  publishDate: '2026-08-14',
+  tags: 'time decay, theta, structured warrants, 中文测试',
+  ctaPreset: 'warrants',
+  slug: 'time-decay-structured-warrants',
+  metaTitle: '',
+  metaDescription: 'A guide to time decay in structured warrants on Bursa Malaysia — quotes "included" & <tested>.',
+  canonicalUrl: 'https://www.warrenmak.asia/articles/time-decay-structured-warrants.html',
+  bodyEnHtml: '<h2>What Is Time Decay?</h2><p>Time decay erodes value daily — even if the stock stays "flat".</p>',
+  bodyZhHtml: '<h2>什么是时间损耗？</h2><p>时间损耗每天侵蚀价值——即使股价"不动"。</p>',
+  readingTimeText: '5 min read',
+  ogImageUrl: 'https://www.warrenmak.asia/assets/images/og-image.jpg',
+};
+assertEqual(
+  'sample state, "warrants" CTA preset',
+  mirrors.buildArticleDocument(ARTICLE_STATE_SAMPLE),
+  buildArticleDocument(ARTICLE_STATE_SAMPLE)
+);
+assertEqual(
+  'sample state, "shortterm" CTA preset',
+  mirrors.buildArticleDocument({ ...ARTICLE_STATE_SAMPLE, ctaPreset: 'shortterm' }),
+  buildArticleDocument({ ...ARTICLE_STATE_SAMPLE, ctaPreset: 'shortterm' })
+);
+assertEqual(
+  'sample state, explicit metaTitle (overrides the titleEn fallback)',
+  mirrors.buildArticleDocument({ ...ARTICLE_STATE_SAMPLE, metaTitle: 'A Different SEO Title' }),
+  buildArticleDocument({ ...ARTICLE_STATE_SAMPLE, metaTitle: 'A Different SEO Title' })
+);
 
 console.log(`\n${checks} check(s), ${failures} failure(s).`);
 if (failures > 0) {
   console.error(
-    '\nOne or more scripts/*.js prompt-building functions have drifted from their ' +
-      'admin/index.html mirror. Update whichever side is stale (search admin/index.html ' +
-      'for "mirrors scripts/" to find its copy) and re-run this script.'
+    '\nOne or more scripts/*.js functions have drifted from their admin/index.html mirror. ' +
+      'Update whichever side is stale (search admin/index.html for "mirrors scripts/" to find ' +
+      'its copy) and re-run this script.'
   );
   process.exit(1);
 }
-console.log('\nAll admin/index.html prompt-building mirrors match their scripts/*.js originals.');
+console.log('\nAll admin/index.html mirrors match their scripts/*.js originals.');

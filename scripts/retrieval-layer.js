@@ -83,7 +83,33 @@ const STOPWORDS = new Set([
   'the', 'and', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'are',
   'how', 'what', 'into', 'about', 'when', 'why', 'can', 'a', 'an', 'to', 'of',
   'in', 'on', 'is', 'it', 'as', 'or', 'be', 'by', 'not',
+  // Domain-generic words are too broad for fallback seed matching. Exact and
+  // substring matches still catch real topics such as "Gap Trading".
+  'trading', 'trade', 'trader', 'traders', 'stock', 'stocks', 'course', 'courses',
 ]);
+
+// `related_to` is intentionally weak: it often means "co-mentioned in one
+// article", not "the writer must explain this as part of the new topic".
+// Specific relations are still safe to traverse into the mandatory checklist.
+const WEAK_RELATIONS = new Set(['related_to']);
+
+// Relations whose whole point is CONTRASTING a hop-1 entity against the seed
+// topic, not composing it — `admin-ai-article-creator-test-run` memory,
+// 2026-08-20 addendum: a real generation run gave a checklist item reached
+// via `distinguished_from` its own full dedicated section ("The Role of Call
+// Warrants" in a "how to choose a course" article), which the supervisor
+// flagged as out of place. Unlike WEAK_RELATIONS (which controls whether an
+// entity is required at all), this set still lets the entity into the
+// checklist — the writer must still cover it — but downstream
+// (generate-article.js's `detectOffTopicSections`) treats a section HEADING
+// built around one of these entities as a defect to repair, since "X is
+// distinguished from Y" / "X contradicts Y" are relations about
+// distinguishing the topic FROM the entity, not folding the entity INTO the
+// topic. `part_of`/`prerequisite_of`/`updates` are excluded on purpose —
+// those genuinely compose or gate the topic, so a dedicated section for them
+// is normal, expected structure (e.g. "The Importance of Risk Management" in
+// the same real run, reached via `prerequisite_of`, was correct to headline).
+export const CONTRAST_RELATIONS = new Set(['distinguished_from', 'contradicts']);
 
 function tokenize(text) {
   return (text.match(/[a-z0-9]+/gi) ?? [])
@@ -140,11 +166,12 @@ export function findSeedEntities(db, topic, opts = {}) {
  * that reached it at hop >= 1). Order is seeds first, then hop 1, hop 2, ...
  */
 export function expandRelatedEntities(db, seedEntities, opts = {}) {
-  const { maxHops = 1 } = opts;
+  const { maxHops = 1, includeWeakRelations = false } = opts;
   const byId = new Map(
-    seedEntities.map((e) => [e.id, { id: e.id, name: e.name, type: e.type, hop: 0, via: e.reason ?? 'topic match' }])
+    seedEntities.map((e) => [e.id, { id: e.id, name: e.name, type: e.type, hop: 0, via: e.reason ?? 'topic match', relation: null }])
   );
   let frontierIds = seedEntities.map((e) => e.id);
+  const skippedWeakEdges = [];
 
   for (let hop = 1; hop <= maxHops && frontierIds.length; hop++) {
     const placeholders = frontierIds.map(() => '?').join(',');
@@ -162,13 +189,23 @@ export function expandRelatedEntities(db, seedEntities, opts = {}) {
     const nextFrontier = [];
     for (const row of rows) {
       const phrase = `${row.sName} --[${row.relation}]--> ${row.tName}`;
+      if (!includeWeakRelations && WEAK_RELATIONS.has(row.relation)) {
+        skippedWeakEdges.push({
+          source: row.sName,
+          relation: row.relation,
+          target: row.tName,
+          hop,
+          reason: 'weak generic relation excluded from required topic expansion',
+        });
+        continue;
+      }
       const candidates = [
         { from: row.sId, to: row.tId, toName: row.tName, toType: row.tType },
         { from: row.tId, to: row.sId, toName: row.sName, toType: row.sType },
       ];
       for (const c of candidates) {
         if (frontierSet.has(c.from) && !byId.has(c.to)) {
-          byId.set(c.to, { id: c.to, name: c.toName, type: c.toType, hop, via: phrase });
+          byId.set(c.to, { id: c.to, name: c.toName, type: c.toType, hop, via: phrase, relation: row.relation });
           nextFrontier.push(c.to);
         }
       }
@@ -176,7 +213,12 @@ export function expandRelatedEntities(db, seedEntities, opts = {}) {
     frontierIds = nextFrontier;
   }
 
-  return [...byId.values()];
+  const expanded = [...byId.values()];
+  Object.defineProperty(expanded, 'skippedWeakEdges', {
+    value: skippedWeakEdges,
+    enumerable: false,
+  });
+  return expanded;
 }
 
 // ---------------------------------------------------------------------------
@@ -243,6 +285,19 @@ export function getArticleSummariesForEntities(db, entities) {
  * risk. `level` is "high" (>= highThreshold — Phase 7: reconsider generating
  * a new article at all, or extend the existing one instead) or "medium"
  * (>= mediumThreshold — Phase 6: fine to proceed, but angle it differently).
+ *
+ * Overlap is weighted by each shared entity's own `relevance_score` in that
+ * article (from `getArticleSummariesForEntities`'s scoring), not just raw
+ * presence/absence. A topic's core entity showing up as only a passing
+ * mention (a low relevance_score) in an otherwise-unrelated article must not
+ * count the same as it being that article's own main subject — with a plain
+ * presence count, a single broad shared entity (e.g. a product-category
+ * entity referenced across many articles) inflates every one of those
+ * articles to a 100% "high" match regardless of how tangential the mention
+ * actually is. Found running a real topic ("How to choose a stock trading
+ * course", single seed entity "Stock Trading Course") through this function:
+ * 5 of 6 flagged "high" were passing mentions (relevance_score 0.1-0.3 in
+ * those articles), while only the genuine near-duplicate scored 0.8.
  */
 export function flagNearDuplicateCoverage(articleSummaries, seedEntities, opts = {}) {
   const { highThreshold = 0.6, mediumThreshold = 0.3 } = opts;
@@ -253,7 +308,8 @@ export function flagNearDuplicateCoverage(articleSummaries, seedEntities, opts =
   for (const article of articleSummaries) {
     const overlapping = article.matchedEntities.filter((m) => seedNames.has(m.name));
     if (!overlapping.length) continue;
-    const ratio = overlapping.length / seedNames.size;
+    const weightedOverlap = overlapping.reduce((sum, m) => sum + m.relevance_score, 0);
+    const ratio = weightedOverlap / seedNames.size;
     const level = ratio >= highThreshold ? 'high' : ratio >= mediumThreshold ? 'medium' : null;
     if (!level) continue;
     flags.push({
@@ -264,9 +320,9 @@ export function flagNearDuplicateCoverage(articleSummaries, seedEntities, opts =
       overlappingEntities: overlapping.map((m) => m.name),
       note:
         level === 'high'
-          ? `"${article.title}" already covers ${overlapping.length}/${seedNames.size} of this topic's core ` +
-            `entities — consider extending that article instead of generating a new, competing one.`
-          : `"${article.title}" partially overlaps (${overlapping.length}/${seedNames.size} core entities) — ` +
+          ? `"${article.title}" already covers this topic's core entities closely (relevance-weighted overlap ${Number(ratio.toFixed(2))}) — ` +
+            `consider extending that article instead of generating a new, competing one.`
+          : `"${article.title}" partially overlaps (relevance-weighted overlap ${Number(ratio.toFixed(2))}) — ` +
             `fine to proceed, but angle the new article differently to avoid redundant coverage.`,
     });
   }
@@ -378,7 +434,7 @@ export function assessContentHierarchy(articleSummaries, nearDuplicates) {
  * the doc); naturally returns fewer if fewer seed entities were found.
  */
 export function suggestInternalLinks(articleSummaries, seedEntities, opts = {}) {
-  const { max = 3 } = opts;
+  const { max = 3, minRelevance = 0.6 } = opts;
   const suggestions = [];
   const usedArticleIds = new Set();
 
@@ -388,6 +444,7 @@ export function suggestInternalLinks(articleSummaries, seedEntities, opts = {}) 
     for (const article of articleSummaries) {
       if (usedArticleIds.has(article.articleId)) continue;
       const match = article.matchedEntities.find((m) => m.name === seed.name);
+      if (match && match.relevance_score < minRelevance) continue;
       if (match && (!best || match.relevance_score > best.relevance_score)) {
         best = { article, relevance_score: match.relevance_score };
       }
@@ -571,6 +628,16 @@ function escapeRegExp(s) {
  * suggested entities' names overlap as substrings), rather than risk nested
  * or broken markup.
  *
+ * `bodyText` may also already contain inline `<strong>`/`<em>`/`<u>` emphasis
+ * the writer added (generate-article.js's writer prompt now allows it) — the
+ * plain-substring match above still finds an entity mention that sits fully
+ * inside one of those tags (the surrounding tags aren't part of the matched
+ * text, so the resulting anchor lands correctly nested, e.g.
+ * `<strong><a href="...">Time Decay</a></strong>`) and naturally reports "not
+ * found verbatim" rather than corrupting anything if the mention is instead
+ * split across a tag boundary (e.g. only half of it is bolded) — it never
+ * partially matches into or out of a tag.
+ *
  * Returns `{bodyText, inserted, skipped}` — `bodyText` is the original string
  * unchanged if `suggestedLinks` is empty or nothing matched.
  */
@@ -629,6 +696,12 @@ export function buildChecklist(relatedEntities) {
     name: e.name,
     type: e.type,
     why: e.hop === 0 ? (e.via ?? 'directly matches the topic') : `related to the topic via: ${e.via}`,
+    // Raw edge relation type (e.g. "distinguished_from", "part_of"), null for hop-0 seeds —
+    // carried through (alongside the already-formatted `why` string above) so
+    // generate-article.js's detectOffTopicSections() can tell a CONTRAST relation (the entity
+    // is meant to be distinguished FROM the topic) apart from a composing one (part_of,
+    // prerequisite_of) without re-parsing the `why` string. See CONTRAST_RELATIONS above.
+    relation: e.relation ?? null,
   }));
 }
 
@@ -656,6 +729,8 @@ function assessDuplicateRisk(titleSlugMatches, nearDuplicates) {
  * @param {object} [opts]
  * @param {number} [opts.seedLimit=8] - max directly-matched entities to seed from
  * @param {number} [opts.maxHops=1] - edge-traversal depth for "related entities"
+ * @param {boolean} [opts.includeWeakRelations=false] - whether generic `related_to` edges may expand
+ *   the required checklist. Defaults false because these edges are often loose co-occurrence.
  * @param {number} [opts.maxSuggestedLinks=3] - cap on suggestedLinks (§2 Step 6.4: "2-3")
  * @param {number} [opts.highThreshold=0.6] / {number} [opts.mediumThreshold=0.3] - near-duplicate thresholds
  * @param {string} [opts.candidateTitle] / {string} [opts.candidateSlug] - Phase 7: when either is given,
@@ -671,6 +746,7 @@ export function buildRetrievalContext(db, topic, opts = {}) {
   const {
     seedLimit = 8,
     maxHops = 1,
+    includeWeakRelations = false,
     maxSuggestedLinks = 3,
     highThreshold,
     mediumThreshold,
@@ -698,6 +774,7 @@ export function buildRetrievalContext(db, topic, opts = {}) {
       topic,
       seedEntities: [],
       relatedEntities: [],
+      weakRelationWarnings: [],
       articleSummaries: [],
       nearDuplicates: [],
       suggestedLinks: [],
@@ -712,7 +789,8 @@ export function buildRetrievalContext(db, topic, opts = {}) {
     return result;
   }
 
-  const relatedEntities = expandRelatedEntities(db, seedEntities, { maxHops });
+  const relatedEntities = expandRelatedEntities(db, seedEntities, { maxHops, includeWeakRelations });
+  const weakRelationWarnings = relatedEntities.skippedWeakEdges ?? [];
   const articleSummaries = getArticleSummariesForEntities(db, relatedEntities);
   const nearDuplicates = flagNearDuplicateCoverage(articleSummaries, seedEntities, { highThreshold, mediumThreshold });
   const suggestedLinks = suggestInternalLinks(articleSummaries, seedEntities, { max: maxSuggestedLinks });
@@ -723,6 +801,7 @@ export function buildRetrievalContext(db, topic, opts = {}) {
     topic,
     seedEntities,
     relatedEntities,
+    weakRelationWarnings,
     articleSummaries,
     nearDuplicates,
     suggestedLinks,

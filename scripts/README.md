@@ -305,7 +305,13 @@ node retrieval-layer.js --topic "..." --db ../admin/knowledge-graph.db   # (defa
 
 Returns `{ seedEntities, relatedEntities, articleSummaries, nearDuplicates,
 suggestedLinks, checklist, contentHierarchy, candidateSourceArticles,
-duplicateRisk? }`. A topic that matches no entity at all comes back with the
+weakRelationWarnings, duplicateRisk? }`. `related_to` is treated as a weak
+generic edge by default: it is reported in `weakRelationWarnings` but does not
+expand the mandatory writer checklist unless `includeWeakRelations: true` is
+passed for diagnostics/manual exploration. Specific relations (`part_of`,
+`prerequisite_of`, `distinguished_from`, etc.) still expand normally. This
+keeps loose co-occurrence edges from steering broad-topic drafts into unrelated
+claims. A topic that matches no entity at all comes back with the
 entity-graph fields empty plus a `note` explaining it's genuinely new —
 that's a normal result, not an error; `candidateSourceArticles` is still
 computed even then, since it queries `source_articles` directly rather than
@@ -350,7 +356,9 @@ Phase 5's auto-INSERT step, not just the suggest-what-to-link-to piece above.
 For each suggestion (best-scored first), wraps the first verbatim mention of
 its entity name in `bodyText` with an ordinary `<a href="<slug>.html">`
 anchor (relative link, same convention every article's `.article-related`
-block already uses); an entity with no verbatim mention is reported in
+block already uses). Suggested targets must cover the anchor entity with at
+least `relevance_score >= 0.6` by default, so a passing mention does not cause
+a misleading link to a page about something else; an entity with no verbatim mention is reported in
 `skipped`, never force-inserted. Pure text transform, no LLM, no db access —
 kept in this file next to `suggestInternalLinks` since it's the natural
 second half of the same phase, even though it operates on a draft body text
@@ -455,8 +463,10 @@ Phase 3 (AI Content Generation) and §5's coverage reviewer, "in the SAME pass
    --must-include-facts, merged by buildFullChecklist()
 3. Generate a draft      -- writer LLM call (buildWriterPrompt), checklist in the prompt
 4. Review the draft      -- reviewer LLM call (coverage-reviewer.js), a SEPARATE call
-5. <=1 repair retry      -- only if step 4 found a gap: feed missing/partial items
-                              back to the writer (buildRepairPrompt), regenerate, re-review once
+5. <=1 repair retry      -- if step 4 found a coverage/off-topic gap, OR the draft is still
+                              under the 2,200-word length target (see below): feed the gap(s)
+                              back to the writer (buildRepairPrompt) as ONE combined repair
+                              prompt, regenerate, re-review once
 6. Auto-insert internal   -- §4 Phase 5, on the FINAL draft body text (after any repair):
    links                     retrieval-layer.js's insertSuggestedLinks() wraps the first
                               verbatim mention of each suggestedLinks entity in a real <a> tag
@@ -515,6 +525,85 @@ whose only mention overlapped a link already inserted for an earlier
 suggestion; neither case force-inserts a link, matching §5's own "never
 silently dropped or silently force-inserted" stance for coverage gaps.
 
+**`suggestedGraphSteps` + `body_text` section breaks** — added for
+`extra-md-files/automated-article-scheduler.md` component 2 ("Chart
+auto-generation"), even though that component's own consumer
+(`graph-blocks.js`) is **not built in this pass** — these are additive to the
+existing writer/repair response shape, not a new pipeline phase. The writer
+(and the repair retry, if one runs) must also return `suggestedGraphSteps`,
+a 2-5 item array of short imperative-style labels (e.g. `"Identify the
+setup"`, `"Confirm the signal"`) summarizing the article's own core
+process/sequence, grounded strictly in what the draft itself already says —
+these will feed an auto-generated flow diagram once that consumer exists.
+`body_text` must also carry at least one `"## "`-prefixed section-heading
+line (its own line, e.g. `"## Understanding Time Decay"`) so a future HTML
+assembler has real heading structure to build `<h2>`s from, instead of one
+undifferentiated block of paragraphs. `parseWriterResponse()` validates both
+with the same strictness as every other required field here — a response
+missing `suggestedGraphSteps`, with fewer than 2 or more than 5 entries, with
+an empty entry, or with no `"## "` line anywhere in `body_text` throws, same
+as a missing `title`/`summary`/`body_text`. `admin/index.html`'s
+`buildWriterPromptBrowser`/`buildRepairPromptBrowser` mirrors carry the same
+instructions (kept in sync via `validate-admin-mirror-sync.js`); its
+`parseWriterResponseBrowser` does not yet extract/validate the field (the
+response-parsing mirrors are documented as out of that validator's scope) —
+harmless today since nothing browser-side consumes it yet either, pending
+`graph-blocks.js`'s browser-side counterpart.
+
+**Inline emphasis (`<strong>`/`<em>`/`<u>`)** — a readability addition on top
+of the section-break work above: the writer (and repair) prompt now also
+allows wrapping a key term or important point in `<strong>...</strong>`
+(bold), `<em>...</em>` (italic), or `<u>...</u>` (underline) directly inside
+`body_text`, instructed to be used sparingly (a handful of times per article,
+never a whole paragraph or a heading) so long articles read as more than an
+undifferentiated wall of paragraphs. These are real HTML tags, not markdown —
+chosen to match the existing `<a href="...html">...</a>` convention §4 Phase
+5's `insertSuggestedLinks()` already weaves into `body_text`, rather than
+inventing a second, markdown-flavored syntax the pipeline would also have to
+parse. `parseWriterResponse()` does not validate their presence (unlike the
+`"## "` heading requirement) — the writer may reasonably produce zero in a
+short article, and this is decoration, not required structure. Downstream,
+`build-article-document.js`'s `bodyTextToHtml()` and admin's
+`plainTextWithAnchorsToParagraphHtml()` both pass these tags through
+untouched into the final HTML (see that file's own section below for how);
+admin additionally lets Quill recognize them natively via
+`dangerouslyPasteHTML()`, so an AI-drafted article inserted into the wizard
+shows real bold/italic/underline formatting in the editor, not literal tag
+text.
+
+**Length expansion (`extra-md-files/article-length-expansion.md`)** — a
+10-minute-read floor added on top of the coverage/off-topic repair loop
+above, not a separate pipeline stage: `TARGET_BODY_WORD_COUNT_EN` (2,200
+words, `countBodyWords()`'s word count of the draft's `body_text`) is checked
+right alongside the coverage summary and `detectOffTopicSections()` result,
+and if the draft is still short it's folded into the SAME single repair
+prompt as a third kind of gap (`buildRepairPrompt`'s `expandTarget` param) —
+sharing the one retry §5 already caps this loop at, not adding a second call.
+Unlike coverage gaps, the length check does **not** require a non-empty
+checklist (a thin article on a topic that matched no graph entities is still
+a real gap). This is a **soft target only** (owner decision, 2026-08-21):
+it never blocks the CLI's exit code, `Save-as-Draft`, or `Publish` — a draft
+that's still short after the one retry attempt is returned normally, with
+`result.wordCount`/`targetWordCount`/`meetsLengthTarget` surfaced for Phase
+8 (the human) the same informational way `reviewCoverageFailed`/
+`offTopicSections` already are. The writer's own system prompt was also
+raised accordingly: a 2,200-word minimum (was ~900), 6-8 section headings of
+3-4 paragraphs each (was 4-6 headings of 2-3 paragraphs), with explicit
+instructions to reach that length by going deeper on already-central
+sub-topics — real examples, more mechanics, more "why it matters" — never by
+padding/repetition or by promoting a loosely-related checklist item into its
+own heading just to fill space (the exact failure mode the off-topic-section
+backstop above already guards against; see that doc's "Real incident"
+section for why this risk gets WORSE, not better, as required length grows).
+`MAX_TOKENS` was raised from 6000 to 8000 to give the larger body headroom,
+and `admin/index.html`'s `BODY_TRANSLATE_MODEL_OPTS` (the body-translate AI
+buttons' token budget) was raised the same way, since a longer EN body also
+means a longer ZH translation of it — length expansion must not cost
+translation quality. `--target-words` (default 2,200, no upper cap since
+it's a soft target — 0 disables the check entirely) lets a CLI run or a test
+harness override the target; see `validate-generate-article.js`'s scenarios
+G/H/I for the length-only, retry-cap, and combined-gap cases respectively.
+
 ```bash
 cd scripts
 OPENAI_API_KEY=sk-... node generate-article.js --topic "Time Decay"
@@ -523,6 +612,7 @@ node generate-article.js --topic "..." --source-file column.txt          # optio
 node generate-article.js --topic "..." --source-keyword ipo              # §4 Phase 2 facet: narrow candidateSourceArticles
 node generate-article.js --topic "..." --json                           # machine-readable output (Phase 8 consumes this shape)
 node generate-article.js --topic "..." --writer-model gpt-4o --reviewer-model gpt-4o-mini
+node generate-article.js --topic "..." --target-words 500                # override the 2,200-word soft length target (0 disables it)
 
 node generate-article.js --topic "..." --writer-fixture-dir DIR --reviewer-fixture-dir DIR   # fully offline, see below
 ```
@@ -556,8 +646,18 @@ hardcoded guess:
 node validate-generate-article.js
 ```
 
-It asserts: the reviewer is called as a genuinely separate, independently-
-countable invocation from the writer; a missing checklist item triggers
+It asserts: `parseWriterResponse()` accepts a well-formed `suggestedGraphSteps`
+(2-5 non-empty, trimmed labels) plus a `"## "` section-heading line, and
+rejects a response missing `suggestedGraphSteps` entirely, with too few, too
+many, or an empty entry, or with no `"## "` line anywhere in `body_text`
+(including a `"##"` that appears mid-paragraph rather than as a real
+line-start prefix); `buildWriterPrompt()`/`buildRepairPrompt()` both actually
+instruct for the `"## "` convention, inline `<strong>`/`<em>`/`<u>` emphasis,
+and `suggestedGraphSteps`, with the correct JSON response shape at the end of
+each system prompt, and the repair
+prompt's user text surfaces the CURRENT draft's suggested graph steps (never
+crashing on a draft that doesn't have any yet); the reviewer is called as a
+genuinely separate, independently-countable invocation from the writer; a missing checklist item triggers
 exactly one repair retry (writer + reviewer each called a second time); the
 retry cap really is 1 — even when the repaired draft still leaves an item
 "partial", nothing attempts a third round, and the leftover gap surfaces in
@@ -570,16 +670,34 @@ untouched, and reports (never force-inserts) an entity with no verbatim
 mention — proven both as a standalone pure-function check and end-to-end
 against the real sample db's own `suggestedLinks` for a real topic, asserting
 the FINAL `result.draft.body_text` (not the reviewer's pre-link copy) carries
-the real `<a>` tags; `buildWriterPrompt`'s `candidateSourceArticles` handling
+the real `<a>` tags; the FINAL draft (post-repair too, not just the initial
+attempt) still carries a valid `suggestedGraphSteps` array and a `"## "`
+section-heading line; `buildWriterPrompt`'s `candidateSourceArticles` handling
 (§4 Phase 2) — present only flags the writer prompt as background-only and
 lists candidate titles/categories, absent leaves both prompt halves
 untouched; and at the CLI level, `--json` output round-trips the same shape
-(including the new `internalLinks` field) and the process exits `0` even
-with a remaining coverage gap (gaps are Phase 8's job, not a pipeline
-failure), while `--max-retries 2` exits non-zero and `--source-keyword`
+(including the new `internalLinks` and `suggestedGraphSteps` fields) and the
+process exits `0` even with a remaining coverage gap (gaps are Phase 8's job,
+not a pipeline failure), while `--max-retries 2` exits non-zero and `--source-keyword`
 reaches `retrievalContext.candidateSourceArticles` with every returned row
 actually carrying that keyword tag. No `OPENAI_API_KEY`/network needed —
 same dependency-injection pattern as every LLM-backed script above.
+
+Three more scenarios cover the length-expansion pass
+(`article-length-expansion.md`): a fully-covered-but-short first draft
+triggers the shared repair retry purely off `countBodyWords()`, and the
+padded repair draft clears the real 2,200-word default target (scenario G);
+a repair draft left exactly as short as the initial one proves the length
+gap does NOT get a second retry just because it's still unmet — the result
+still returns normally with `meetsLengthTarget: false`, never throwing or
+blocking (scenario H); and a draft with BOTH a coverage gap and a too-short
+body proves the two gap types share the SAME single retry rather than
+costing two sequential ones (scenario I). At the CLI level, `--json` output
+always carries `wordCount`/`targetWordCount`/`meetsLengthTarget`, defaulting
+to the real 2,200-word target when `--target-words` isn't passed, and an
+explicit `--target-words` override reaches the same fields end-to-end
+through the real CLI subprocess (plus a negative override rejected the same
+way an over-cap `--max-retries` is).
 
 ## seo-optimizer.js
 
@@ -916,6 +1034,459 @@ unscraped URL). Index rows with no match after both attempts are logged and
 skipped, not treated as an error. Already run once against the live db — all
 423 `source_articles` rows carry non-empty `keywords` as of this writing.
 
+## select-topic.js
+
+Component 1 of `extra-md-files/automated-article-scheduler.md`'s (PLAN ONLY — nothing
+else in that doc is built yet) "five new components": the topic picker a future
+orchestrator's step 1 needs before `generate-article.js` can run at all. Answers "which
+Nanyang Siang Pau column should become the next auto-generated site article?" as three
+pieces, per the doc:
+
+1. **Parse `WARREN-MAK-NANYANG-ARTICLES.md`'s title list** (`parseNanyangCatalog`) — that
+   file turns out to be a curated reference/highlights index (its own header: "used as
+   source material... not published content itself"), not a literal 400-row machine list,
+   so this parses the ~23 individually-titled columns it actually documents (the 11-part
+   Structured Warrants series + 12 "Key Trading Strategy" category highlights). The
+   "Recent Articles" table's non-placeholder rows all turn out to duplicate those same 23
+   by date — deduped by keeping the richer list-section entry (URL + English title) over
+   the table's terser Chinese-only restatement. A `[Bracketed]` title is the file's own
+   inferred guess (date/URL only, no confirmed real title) — parsed and still usable as a
+   topic, flagged `inferred: true`, lightly deprioritized in scoring (see below).
+2. **Filter out anything already used**, per a new ledger file
+   (`admin/auto-article-history.json`, `[{nanyangTitle, slug, publishedAt}]`, checked into
+   the repo empty `[]`) — `loadHistory()`/`appendHistoryEntry()`. Never written by a normal
+   selection run; `appendHistoryEntry()` exists for the future orchestrator (component 5,
+   **not built in this pass**) to call only after a real publish succeeds, matching the
+   doc's "updated... never on an aborted run" rule.
+3. **Score the remainder for "gap-ness"** using `retrieval-layer.js`'s EXISTING exports,
+   not new scoring logic, per the doc's own instruction: `computeGapScore()` just reads
+   `buildRetrievalContext()`'s already-composed `duplicateRisk`/`nearDuplicates`/
+   `contentHierarchy` fields back out (passing `candidateTitle`/`candidateSlug` for every
+   candidate) — `1 - ` the strongest similarity signal found. A candidate whose
+   `duplicateRisk` verdict is `"high"` is **excluded from selection entirely**, not merely
+   down-ranked, matching Phase 7's "reconsider generating at all" guidance for that level.
+
+```bash
+cd scripts
+node select-topic.js
+node select-topic.js --json
+node select-topic.js --top 10                                       # show more of the ranked candidate list
+node select-topic.js --include-high-risk                            # debugging: don't exclude "high" duplicateRisk candidates
+node select-topic.js --catalog ../WARREN-MAK-NANYANG-ARTICLES.md    # (default shown)
+node select-topic.js --history ../admin/auto-article-history.json   # (default shown)
+node select-topic.js --db ../admin/knowledge-graph.db               # (default shown)
+node select-topic.js --mark-used                                    # ALSO records the pick into the ledger — manual/testing only, see below
+```
+
+If every catalog title is either already-used or scores `"high"` duplicate risk,
+`selectTopic()` returns `{selected: null, reason: "..."}` instead of forcing a bad pick —
+the doc's own "abort the run... rather than picking a bad topic just to have one." The CLI
+exits non-zero in that case (and on `--mark-used` with nothing selected, or a missing
+`--catalog` file) so a future orchestrator's shell/CI step can detect it via exit code.
+
+Run against the real 12-article sample db, this currently selects "8 Factors Why Traders
+Lose Despite Having a Plan" (2024-10-09) or "12 Volume-Price Traps" (2021-07-21) — the only
+two catalog entries with zero graph overlap; every warrants/hedging/leverage-flavored entry
+(the vast majority, since the site's 12 published articles are themselves warrants-focused)
+scores `"high"` duplicate risk and is excluded, which is the intended behavior, not a bug.
+
+`--mark-used` is a **manual/testing convenience**, not what a real publish-gated call looks
+like — it appends to the ledger immediately after selection, with no actual article having
+been published. The orchestrator this doc describes (component 5) is not built in this
+pass; when it is, it should call `appendHistoryEntry()` directly, after its own publish step
+succeeds, not through this flag.
+
+No LLM call anywhere in this file — same "cheap, explainable, deterministic first" stance
+`retrieval-layer.js` itself takes.
+
+### Validating without an API key
+
+`validate-select-topic.js` — no LLM involved, so (matching `retrieval-layer.js`'s own
+no-fixture-needed precedent for pure-data scripts) this runs the REAL parser against the
+REAL `WARREN-MAK-NANYANG-ARTICLES.md` and the REAL hand-authored sample
+`admin/knowledge-graph.db` (read-only), plus a temp history ledger under `scripts/output/`
+(gitignored) — the real `admin/auto-article-history.json` is never touched by this run:
+
+```bash
+node validate-select-topic.js
+```
+
+It asserts: the parser finds the real catalog's known entries with correct `inferred`
+flags and URL extraction, a title duplicated between a category section and the "Recent
+Articles" table collapses to exactly one candidate (keeping the richer version), and no two
+parsed entries share a date; `loadHistory()`/`appendHistoryEntry()` round-trip correctly and
+reject malformed ledgers/entries; `selectTopic()` against the real sample db finds a known
+near-duplicate candidate ("Bottom-Fishing with Structured Warrants," which the real
+`bottom-fishing-structured-warrants-malaysia` article already essentially covers) scoring
+`duplicateRisk: "high"` with a strictly lower gap score than a genuinely novel candidate,
+and never selects it; the inferred-title penalty measurably lowers an otherwise-identical
+candidate's score; ledger filtering actually removes a used title from the candidate list
+(case/whitespace-insensitively); and at the CLI level, `--json` output round-trips the same
+shape, `--mark-used` really writes the ledger and changes the next run's pick, an exhausted
+catalog exits non-zero with `selected: null` and a clear `reason`, and a missing `--catalog`
+file / `--mark-used` with nothing selected both fail loudly rather than silently.
+
+## graph-blocks.js
+
+Component 2 of `extra-md-files/automated-article-scheduler.md`'s five new components: non-
+interactive chart generation. `buildFlowGraphHtml()` previously only existed inside
+`admin/index.html` as browser JS, driven by a human typing step labels into the New Article
+wizard's graph panel (`extra-md-files/done/admin-graph-insertion.md`) — this is its Node
+counterpart, producing byte-identical `.graph-block--flow` markup (same
+`<!-- graph block: hand-authored, do not edit via admin WYSIWYG -->` comment convention as the
+existing 12 articles and the wizard) from plain data, so an unattended pipeline can generate the
+same chart a human would have typed by hand. MVP scope matches that doc's own precedent: **Flow
+(Steps) only**, not all 7 catalog types (fast-follow, not built here).
+
+`buildFlowGraphHtml()` is a hand-kept mirror of `admin/index.html`'s function of the same name —
+search `admin/index.html` for "mirrors scripts/graph-blocks.js" to find it, and keep the two in
+sync if either changes. `validate-admin-mirror-sync.js` checks the two produce identical output
+automatically (5th pair, see that script's section below).
+
+`validateGraphSteps(steps)` enforces the same 2-5 non-empty-label rule the wizard's
+`insertGraphAtCursor()` applies before ever calling `buildFlowGraphHtml` — a separate exported
+helper (not part of `buildFlowGraphHtml`'s own mirror contract) so a caller can reject a malformed
+`suggestedGraphSteps` array (see `generate-article.js`'s section above) before ever building HTML
+from it.
+
+`insertGraphIntoBody(bodyHtml, graphHtml)` has **no admin mirror obligation** — the wizard only
+ever supports a human clicking "insert at cursor" into a live Quill instance, there's no
+non-interactive equivalent to reproduce. It's a simple, explicitly not-layout-aware heuristic:
+insert right after the first `<h2>` boundary whose start position is at or past the midpoint of
+the body's own plain-text length (falls back to the LAST `<h2>` if none starts past the midpoint,
+and to appending at the very end if the body has no `<h2>` at all or no measurable text) —
+matching how casually the wizard's own "insert at cursor" already behaves (a human just picks a
+spot). Assumes `bodyHtml` is a flat sequence of top-level block elements, exactly the shape
+`build-article-document.js`'s `bodyTextToHtml()` (below) produces and every existing
+hand-authored article already uses.
+
+```bash
+cd scripts
+node graph-blocks.js --title "How to Manage Structured Warrant Risks" \
+  --step "Set stop-losses" --step "Size the position" --step "Check IV"
+node graph-blocks.js --title "..." --step "..." --step "..." --json          # {title, steps, graphHtml}
+node graph-blocks.js --title "..." --step "..." --step "..." --body-file body.html   # also merges into a body, --json adds bodyHtml
+```
+
+### Validating without an API key
+
+`validate-graph-blocks.js` — no LLM involved (pure string/DOM transform), matching
+`extract-articles.js`'s own no-fixture-needed precedent for pure-data scripts:
+
+```bash
+node validate-graph-blocks.js
+```
+
+It asserts: `buildFlowGraphHtml()` produces the expected shape (hand-authored comment, figure/
+figcaption/ordered-list classes, one `<li>` per step, HTML-escaped title/labels, an empty step
+array producing an empty `<ol>` rather than throwing); `validateGraphSteps()` accepts 2-5
+non-empty labels and rejects too few, too many, a non-array, and a blank/non-string entry;
+`insertGraphIntoBody()` picks the first `<h2>` at or past the body's text midpoint (proven with
+four headings sized so the midpoint falls exactly on the third, not the last), falls back to the
+last `<h2>` when none qualifies, and falls back to appending at the end when there's no `<h2>` at
+all or no measurable text; and at the CLI level, `--title`/`--step` round-trip through `--json`
+output, a missing `--title` or fewer than 2 steps exits non-zero, and `--body-file` actually
+merges the graph into the given body.
+
+## build-article-document.js
+
+Component 4 ("Document assembly") of `extra-md-files/automated-article-scheduler.md`'s five new
+components. `buildArticleDocument()` (the full-page template: head/nav/footer/JSON-LD/
+`.course-hero`/`.article-body`/`.author-box`/`.sticky-cta-bar`) previously only existed inside
+`admin/index.html`, browser-only, and needs a real Quill editor instance/DOM to run — this module
+is its Node counterpart, producing byte-identical structure from plain data in (slug, EN/ZH
+title/subtitle/body-html/summary, SEO fields, category, dates) — no featured image required, same
+as the admin wizard's own `computeValidation()` (an 8-item checklist that already treats the
+featured image as optional).
+
+`buildArticleDocument(state)` is a hand-kept mirror of `admin/index.html`'s function of the same
+name — search `admin/index.html` for "mirrors scripts/build-article-document.js" to find it, and
+keep the two in sync if either changes; `validate-admin-mirror-sync.js` checks the two produce
+identical output automatically (6th pair). One deliberate difference from the admin version:
+admin's `buildArticleDocument()` takes `state.bodyEnHtml`/`state.bodyZhHtml` still carrying
+`[[GRAPH:id]]` placeholders (Quill inserts those; admin substitutes them via the module-scoped
+graph-block list the wizard's UI maintains) — this pipeline has no Quill/human step, so
+`bodyTextToHtml()` + `graph-blocks.js`'s `insertGraphIntoBody()` already produce FINAL body HTML
+upstream, and this function's `state.bodyEnHtml`/`bodyZhHtml` are expected to be final too (no
+placeholder substitution happens here).
+
+`bodyTextToHtml(text)` has no admin mirror obligation — admin's closest equivalent,
+`plainTextWithAnchorsToParagraphHtml()`, does NOT convert `"## "`-prefixed section-heading lines
+(see `generate-article.js`'s `suggestedGraphSteps`/`"## "` section above) into real `<h2>` markup,
+a pre-existing gap in the admin/human path. This pipeline has no human editor to notice a stray
+`"## "` sitting in a published paragraph, so `bodyTextToHtml()` implements the heading conversion
+correctly rather than reproducing the gap — blank-line-separated paragraphs become `<p>`, a `"## "`
+line becomes `<h2>`, inline `<a href="...html">` markup (already woven in by
+`generate-article.js`'s link-insertion step) and inline `<strong>`/`<em>`/`<u>` emphasis (the writer
+prompt's own readability convention — see `generate-article.js`'s section above) are left untouched
+— including a combination of the two, e.g. an anchor `insertSuggestedLinks()` inserted INSIDE an
+emphasis span the writer already wrote (`<strong><a href="...">...</a></strong>`) — everything else
+is HTML-escaped.
+
+`assembleFromDraftState(rawState)` is the CLI's convenience entry point: reads a state whose
+`bodyTextEn`/`bodyTextZh` are RAW `body_text` (not yet HTML), runs `bodyTextToHtml()` on both,
+fills in `readingTimeText` via `computeReadingTimeText()` if not already set (200 wpm EN / 300 cpm
+ZH, minimum 1 minute — the same formula the wizard's `recalcReadingTime()` computes client-side
+off a live Quill instance, reimplemented here so an unattended caller can derive it from plain
+text instead of needing a browser), and calls `buildArticleDocument()`. Callers that already have
+final HTML (e.g. after `graph-blocks.js`'s `insertGraphIntoBody()` has run) should call
+`buildArticleDocument()` directly instead.
+
+```bash
+cd scripts
+node build-article-document.js --state-file state.json > articles/slug.html
+node build-article-document.js --state-file state.json --json   # {html, bodyEnHtml, bodyZhHtml}
+```
+
+### Validating without an API key
+
+`validate-build-article-document.js` — no LLM involved (pure string/DOM transforms), matching
+`validate-graph-blocks.js`'s own no-fixture-needed precedent:
+
+```bash
+node validate-build-article-document.js
+```
+
+It asserts: `bodyTextToHtml()` splits blank-line paragraphs into `<p>` tags, converts a `"## "`
+line into `<h2>` (without also wrapping it in `<p>`), leaves an inline `<a href="...html">` anchor
+untouched, leaves inline `<strong>`/`<em>`/`<u>` emphasis untouched (including an anchor nested
+inside an emphasis span, e.g. link-insertion landing inside a bolded phrase), HTML-escapes
+`&`/`<`/`>` in ordinary text, converts an internal single newline to `<br>`, and handles empty/null
+input without throwing; `buildArticleDocument()` produces the
+expected page skeleton (DOCTYPE start, `</body></html>` end, escaped EN/ZH titles, both language
+bodies present verbatim, the right CTA preset selected — including a graceful fallback to
+`"warrants"` for an unrecognized preset value — the author-box credibility component, the sticky
+CTA bar, exactly two well-formed `application/ld+json` blocks, and correctly escaped attribute
+values); `assembleFromDraftState()` chains `bodyTextToHtml()` into `buildArticleDocument()`
+correctly and both derives `readingTimeText` when absent and honors an explicit override;
+`computeReadingTimeText()` matches admin's `recalcReadingTime()` formula; and at the CLI level,
+`--state-file` round-trips through `--json` output into a document containing both converted
+language bodies, while a missing `--state-file` exits non-zero.
+
+## translate-article.js
+
+Component 3 ("Translation") of `extra-md-files/automated-article-scheduler.md`'s five new
+components — flagged there as **"the highest-risk new piece"**: nothing in this codebase
+auto-translates a full article today. The two existing AI-translate features are both
+browser-only, per-field, human-in-the-loop (`admin/index.html`'s `translateNaPair()` and
+`suggestGraphZh()`) — this pipeline has no human step by design, so translation
+quality/HTML-safety has to be enforced by the script itself, not by a person reading it
+after.
+
+**The real risk:** by the time this runs, the EN body already contains real markup —
+`<h2>`/`<h3>` headings, `<a href="other-slug.html">` internal links `generate-article.js`'s
+link-insertion step wove in, the graph-block `<figure>`. A naive "send the whole HTML
+string to an LLM and ask for Chinese back" risks the model paraphrasing inside a tag,
+dropping an `href`, or reordering structure. This module avoids that shape of risk
+entirely: **it never sends serialized HTML to the model and never re-parses model output
+as HTML.**
+
+Design, matching the doc's own spec:
+
+1. **Parse** the EN HTML with `cheerio` (already a dependency).
+2. **Walk TEXT NODES ONLY** — never attributes, so every `<a href="...">` keeps its `href`
+   untouched by construction (`collectTranslatableTextNodes`) — skipping anything inside a
+   `<figure class="graph-block ...">` subtree (those get their own steps-array translation
+   via `graph-blocks.js`, not raw-HTML translation) and any whitespace-only node.
+3. **Batch every collected text node into ONE structured LLM call** keyed by stable node
+   IDs (`{"1": "...", "2": "...", ...}` in, same-shaped JSON out — `buildBatchTranslatePrompt`/
+   `parseBatchTranslateResponse`), the same strict-JSON pattern every other LLM-backed script
+   here already uses.
+4. **Reinsert** each translated string back into its own node, in the SAME cheerio tree
+   (`applyTranslatedTextNodes`) — never a raw string replace over serialized HTML, so a
+   translated string can never accidentally reopen/close a tag (`dom-serializer` HTML-escapes
+   text-node content on output regardless of what the model returns).
+5. **Structural sanity check** before accepting the result (`checkStructuralSanity`): same
+   tag count, same tag order, same href set (same order) as the EN version. Any mismatch
+   **throws** rather than returning a possibly-broken result — same abort-don't-publish rule
+   as the coverage/retention gates elsewhere in this pipeline.
+
+`translateArticleBodyHtml(html, opts)` chains all five steps. Everything above is built on
+one core primitive, `translateTextMap(idsToTexts, opts)` (prompt build -> call -> parse),
+which three thin convenience wrappers also reuse for the doc's other stated translation
+targets — same batched-call shape, plain text not HTML: `translateFields()` (title/
+subtitle/summary/SEO meta fields — skips any field that's empty/not a string, passing it
+through unchanged rather than sending it), `translateStringArray()` (graph-block step
+labels, order preserved), and `translateFaqPairs()` (`seo-optimizer.js`'s
+`metadata.faq` question/answer array, pair order preserved).
+
+No `admin/index.html` mirror obligation — the two existing browser translate features are
+deliberately narrower (single-field, human-reviewed) and don't share this module's
+batched/whole-body shape.
+
+```bash
+cd scripts
+OPENAI_API_KEY=sk-... node translate-article.js --body-file body.html
+node translate-article.js --fields-file fields.json --json
+node translate-article.js --body-file body.html --stub-translate --json   # offline testing only, see below
+```
+
+### Validating without an API key
+
+`validate-translate-article.js` — every check runs against `stubMarkerTranslator`, a
+deterministic non-LLM translator `translate-article.js` exports for exactly this purpose
+(parses the id->text JSON straight back out of the prompt text and wraps every value with a
+`【ZH-STUB】` marker) — also reachable from the real CLI via `--stub-translate`, so the CLI
+itself is testable offline too, not just the library functions.
+
+Per the doc's own instruction ("build and validate against real (already-published) article
+bodies before ever wiring it into the live orchestrator"), the body-HTML checks run against
+a **real published article's EN body**
+(`articles/structured-warrant-risks-time-decay-malaysia.html`) rather than a hand-simplified
+fixture — it has headings, nested `<strong>`, internal `<a href>` links, a `<table>`,
+`<ul>`/`<ol>` lists, `<div class="faq-item">` blocks, and three real
+`<figure class="graph-block ...">` blocks, exactly the structural variety this module has to
+survive unscathed:
+
+```bash
+node validate-translate-article.js
+```
+
+It asserts: the prompt/parse round-trip accepts a well-formed response and rejects a
+missing id, an unexpected extra id, an empty value, non-JSON, and a JSON array;
+`collectTranslatableTextNodes()` finds every real text node in the real article (paragraph,
+anchor, table-cell, list-item, and `faq-item` text) while never collecting any graph-block
+figcaption/step/spoke text; `translateArticleBodyHtml()` translates ordinary and anchor text,
+leaves every graph-block's own text completely untouched, and leaves the href set/order and
+tag sequence byte-identical before and after (`checkStructuralSanity` passes on a genuine
+translation); `checkStructuralSanity()` actually **throws** on six synthetic mismatches (tag
+added/removed, tag order changed, href altered/dropped) — proving the gate itself works, not
+just that a clean run doesn't trip it; `translateFields`/`translateStringArray`/
+`translateFaqPairs` each round-trip correctly (order preserved, empty fields passed through
+untouched, an empty array short-circuits without calling the translator); and at the CLI
+level, `--body-file`/`--fields-file` with `--stub-translate` both exit 0 with the expected
+shape, passing neither or both of `--body-file`/`--fields-file` exits non-zero, and running
+without `--stub-translate` and no `OPENAI_API_KEY` in the shell fails loudly rather than
+hanging or silently no-opping.
+
+## auto-publish-article.js
+
+Component 5 ("Orchestrator + scheduling") of
+`extra-md-files/automated-article-scheduler.md`, build-order step 5. Wires
+every component built in build-order steps 1-4 (`select-topic.js`,
+`retrieval-layer.js`, `generate-article.js`, `seo-optimizer.js`,
+`graph-blocks.js`, `translate-article.js`, `build-article-document.js`,
+`extract-articles.js`, `extract-entities.js`) into the single unattended run
+the doc's "Orchestration order" section specifies — topic selection → EN
+draft+review → SEO → EN chart → ZH translation (title/subtitle/category/SEO/
+body/chart steps) → ZH chart swapped into the translated body → full page
+assembly → `articles.html`/`sitemap.xml` updates → knowledge-graph
+extraction+the §3 fact-retention check → history-ledger update → **a draft
+PR on a fresh branch** (not a direct commit to the default branch — see the
+doc's 2026-08-14 addendum amending decision 1: the owner does not consider
+zero human review before live financial-education content publishes an
+acceptable starting risk, even with every technical safety gate passing).
+
+The exported `runPipeline(opts)` is the git-free core (steps 1-13 — cadence
+gate through the history-ledger write); `main()`/`gitPublish()` are the only
+things that ever touch git (step 14), and only after a real (non-dry-run)
+`runPipeline()` result comes back `status: "ok"`. Every LLM call site is
+dependency-injected exactly like every sibling script here (`writer`/
+`reviewer`/`seoWriter`/`translator`/`extract`/`judge`, all defaulting to the
+real OpenAI-backed functions), so the whole pipeline is testable offline —
+see "Validating without an API key" below.
+
+Five safety gates, each an abort — no partial write is ever committed, and
+any local file already written by that same run (articles/<slug>.html,
+articles.html, sitemap.xml, admin/knowledge-graph.db/.json) is rolled back
+byte-for-byte if a later gate in the same run fails:
+- `no-topic` / `slug-collision` — select-topic.js found nothing eligible, or
+  the picked slug already has an `articles/*.html` file (shouldn't happen
+  given the history ledger, but checked anyway).
+- `duplicate-risk-high` — a fresh `retrieval-layer.js` duplicate-risk check on
+  the selected topic (belt-and-suspenders on top of select-topic.js's own
+  exclusion — matters when `--topic` bypasses selection entirely).
+- `coverage-review-failed` / `coverage-gap` — the reviewer call itself failed,
+  or a checklist item is still "missing" after generate-article.js's one
+  repair retry (this pipeline has no human to hand a partial result to).
+- `translation-failed` — translate-article.js's own structural-sanity check
+  (or any translator-call failure) — never publish a possibly-broken ZH page.
+- `graph-extraction-failed` — extract-entities.js's `processArticle()` (which
+  already chains the LLM extraction write + the §3 fact-retention checker)
+  came back anything other than `"ok"`.
+
+Cadence: reads `admin/auto-article-history.json`'s most recent `publishedAt`
+and only proceeds past topic selection if `today - lastPublishedAt` is at
+least a randomized 14-21 day target (rerolled every check, via
+`isDueForNextCycle()`) — otherwise `status: "not-due"`, a normal no-op exit 0.
+`--force` skips this gate.
+
+```bash
+cd scripts
+OPENAI_API_KEY=sk-... node auto-publish-article.js --dry-run                 # real LLM calls, zero disk/git writes
+OPENAI_API_KEY=sk-... node auto-publish-article.js --dry-run --topic "..."   # skip auto-selection, test one topic
+OPENAI_API_KEY=sk-... node auto-publish-article.js --force                   # real run: writes files, commits, pushes, opens a draft PR
+OPENAI_API_KEY=sk-... node auto-publish-article.js --force --no-push         # real run, local commit only -- for a first test on a disposable branch
+node auto-publish-article.js --dry-run --stub-translate \
+  --writer-fixture-dir D --reviewer-fixture-dir D --seo-fixture-dir D \
+  --extract-fixture-dir D --judge-fixture-dir D                              # fully offline smoke test, no API key/network
+```
+
+`--base-branch` overrides the PR's target branch (default: read from
+`git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`).
+`--writer-model`/`--reviewer-model`/`--seo-model`/`--translate-model`/
+`--extract-model` override each component's own default model tier (every
+component already defaults to `gpt-4o-mini` except the writer, which uses
+`gpt-4o` — see each script's own section above); leaving them unset lets each
+component's own default apply. `--min-days`/`--max-days` override the cadence
+gate's 14/21-day bounds. `--json` prints a single machine-readable result
+object instead of the human-readable report (suppresses every other
+`console.log` in `main()`, matching every sibling script's own `--json`
+convention) — note this only covers `runPipeline()`'s own steps; a real
+(non-dry-run, non-`--json`) run's `git`/`gh` subcommands still print their own
+output via `stdio: 'inherit'`.
+
+No `admin/index.html` mirror obligation and no entry in
+`validate-admin-mirror-sync.js` — this script has no browser equivalent
+(`admin/index.html`'s New Article wizard is the human-in-the-loop path this
+pipeline exists to run without).
+
+### Validating without an API key
+
+`validate-auto-publish-article.js` drives the exported `runPipeline()`
+directly with fixture/stub functions for every LLM call site (matching every
+sibling script's own dependency-injection pattern), against a fully isolated
+temp workspace under `scripts/output/auto-publish-fixtures/` (gitignored) — a
+schema-only (empty) db, a synthetic 2-entry catalog, an empty `articles/`
+dir, and throwaway `articles.html`/`sitemap.xml`/history-ledger files. The
+real repo files (`admin/knowledge-graph.db`, `articles/`, `articles.html`,
+`sitemap.xml`, `admin/auto-article-history.json`) are never read or written,
+and `gitPublish()`/step 14 is never exercised at all (a validator should
+never touch real git state) — every check is against `runPipeline()`'s
+git-free core.
+
+```bash
+node validate-auto-publish-article.js
+```
+
+It asserts: every pure helper (`isDueForNextCycle`, `buildUpdatedArticlesListing`,
+`buildUpdatedSitemap`, `replaceGraphFigure`, `deriveCategory`,
+`snapshotFile`/`restoreSnapshot`) behaves correctly in isolation; a
+`--dry-run` happy-path run (real steps 1-8 against fixtures, including a real
+`stubMarkerTranslator` translation pass) returns `status: "ok"` with a
+`【ZH-STUB】`-marked ZH title/body, exactly one graph figure in each language's
+body (the ZH one built from the *translated* steps, not the stale EN one),
+and writes nothing to disk at all; each of the five abort gates above fires
+for real (a seeded near-duplicate `articles` row for `duplicate-risk-high`, a
+reviewer fixture reporting a `"missing"` item for `coverage-gap`, a
+throwing translator for `translation-failed`) and leaves the workspace
+byte-for-byte untouched in every case; a real (non-dry-run) publish actually
+writes `articles/<slug>.html` with the `.course-hero`/`.article-body`
+structure `extract-articles.js` requires, links it from `articles.html` and
+`sitemap.xml`, writes a real entity into the db via
+`extract-entities.js`'s `processArticle()`, regenerates the JSON mirror, and
+appends exactly one history-ledger entry; re-running the same topic afterward
+is refused with `slug-collision` rather than overwritten; a bare rerun
+(no `--force`) right after that publish reports `not-due`; a second real
+publish whose judge fixture reports a fabricated `"dropped"` item comes back
+`graph-extraction-failed` and rolls back everything steps 8-12 touched — the
+new article file is deleted and `articles.html`/`sitemap.xml`/the db/the JSON
+mirror are all restored byte-for-byte, with the history ledger never
+touched; and at the CLI level, `--dry-run --json` against the same isolated
+paths exits 0 with a clean, parseable JSON object (`status: "ok"`,
+`dryRun: true`) and no article file written. No `OPENAI_API_KEY`/network
+needed — same dependency-injection pattern as every LLM-backed script above.
+
 ## validate-admin-mirror-sync.js
 
 Several files above document a "Keep in sync if either changes" contract
@@ -928,9 +1499,14 @@ not notice until the two silently produced different prompts.
 This script closes that gap for the **prompt-building** functions
 specifically — the ones that return a literal string or `{system, user}`
 object baked straight into an LLM call, plus the small formatting helpers
-spliced directly into those prompts. It imports the real functions from
+spliced directly into those prompts — **plus two deterministic HTML-assembly
+functions** `extra-md-files/automated-article-scheduler.md` explicitly calls
+out as carrying the same sync obligation: `graph-blocks.js`'s
+`buildFlowGraphHtml` (5th pair) and `build-article-document.js`'s
+`buildArticleDocument` (6th pair). It imports the real functions from
 `coverage-reviewer.js`/`seo-optimizer.js`/`extract-entities.js`/
-`fact-retention-checker.js`, slices the matching mirror function's source text
+`fact-retention-checker.js`/`generate-article.js`/`graph-blocks.js`/
+`build-article-document.js`, slices the matching mirror function's source text
 straight out of `admin/index.html` (brace-matched, comment/string-aware) and
 evals it in a `vm` sandbox, then calls both sides with identical fixtures and
 asserts the output strings are byte-for-byte equal:
@@ -939,6 +1515,30 @@ asserts the output strings are byte-for-byte equal:
 cd scripts
 node validate-admin-mirror-sync.js
 ```
+
+The `buildArticleDocument` pair needs several more admin-side dependencies
+extracted alongside it than any prompt-building pair did (`escapeAttr`,
+`jsonLdScript`, `truncateWords`/`truncateChars`, `formatMonthYear(Zh)`,
+`readingTimeTextZh`, and the static `NAV_HTML`/`FOOTER_HTML`/`CTA_PRESETS`
+chrome constants) — the last three needed a new `extractVarStatementSource()`
+helper alongside the existing `extractVarDecl()`, since they're `var X =
+[...].join('\n');`/object-literal statements, not `extractVarDecl`'s
+single-line array shape. `naGraphBlocks` (the wizard's live graph-panel
+state `buildArticleDocument` closure-reads) is **not** extracted from
+`admin/index.html` at all — it's synthesized as `var naGraphBlocks = [];` in
+the sandbox instead, which is exactly the "no graph blocks inserted" case
+this validator's fixtures exercise (see `build-article-document.js`'s own
+section above for why the Node `buildArticleDocument()` expects final body
+HTML rather than replicating that placeholder-substitution behavior). One
+extraction is hand-written rather than sliced out of `admin/index.html`:
+`escapeAttr`'s one-line body (`escapeHtml(str).replace(/"/g, '&quot;')`)
+contains a bare `"` inside a *regex literal*, which the extractor's
+string/comment-aware (but deliberately regex-literal-blind, per its own
+header) brace-balancer misreads as the start of a string, then runs away
+consuming the file far past `escapeAttr`'s real closing brace. Since
+`escapeAttr` is a frozen two-line dependency (not itself a validated pair),
+its known-correct source is inlined as a literal string instead of teaching
+the scanner to distinguish regex literals from division.
 
 Deliberately out of scope: the response-PARSING mirrors
 (`parseReviewResponseBrowser`/`parseSeoResponseBrowser`/
@@ -950,6 +1550,7 @@ DOM-render-safe work their panels need), and the checklist-retrieval mirrors
 JSON graph mirror vs. a live SQLite `db` handle via `.prepare().all()`, per
 `retrieval-layer.js`'s own note above on that split — so a literal string
 diff isn't the right tool for either. Exits non-zero (with a first-diff
-excerpt for each failing pair) if any prompt-building function has drifted
-from its mirror; safe to run any time either side changes, and worth adding
-to a pre-push check alongside the other `validate-*.js` scripts above.
+excerpt for each failing pair) if any of the six covered functions has
+drifted from its mirror; safe to run any time either side changes, and worth
+adding to a pre-push check alongside the other `validate-*.js` scripts
+above.
